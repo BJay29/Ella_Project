@@ -8,7 +8,7 @@ const Login = () => {
   const navigate = useNavigate();
 
   const [loginData, setLoginData] = useState({
-    username: '',
+    email: '',
     password: ''
   });
 
@@ -24,12 +24,24 @@ const Login = () => {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (!loginData.username || !loginData.password) {
-      alert("Please enter both username and password.");
+
+    const { email, password } = loginData;
+
+    if (!email || !password) {
+      alert("Please enter both email and password.");
       return;
     }
-    console.log("Login Data Prepared:", loginData);
-    navigate('/dashboard');
+
+    // Temporary hardcoded authentication
+    if (email === "student" && password === "123") {
+      navigate("/dashboard"); // Student dashboard
+    } 
+    else if (email === "admin" && password === "123") {
+      navigate("/admin/dashboard"); // Admin dashboard
+    } 
+    else {
+      alert("Invalid email or password.");
+    }
   };
 
   return (
@@ -54,10 +66,10 @@ const Login = () => {
         <form onSubmit={handleLogin} className="w-full space-y-4">
           
           <AuthInput 
-            name="username"
-            value={loginData.username}
+            name="email"
+            value={loginData.email}
             onChange={handleChange}
-            placeholder="USERNAME"
+            placeholder="EMAIL"
             icon="person" 
           />
 
