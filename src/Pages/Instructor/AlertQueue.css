@@ -1,0 +1,177 @@
+/* Layout Container */
+.intervention-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #ffffff;
+  font-family: Arial, sans-serif;
+}
+
+.intervention-main {
+  flex: 1;
+  padding: 40px;
+}
+
+/* Page Header (Consistent with Dashboard) */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 3px solid #000;
+  padding-bottom: 10px;
+  margin-bottom: 40px;
+}
+
+.header-title {
+  font-size: 24px;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.header-icons {
+  display: flex;
+  gap: 20px;
+  font-size: 24px;
+}
+
+/* Alerts Section Content */
+.alerts-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.alerts-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.siren-icon {
+  font-size: 24px;
+}
+
+.alerts-title-group h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.view-logs-link {
+  color: #6a5acd; /* Periwinkle blue color from image */
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.alerts-description {
+  font-size: 14px;
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 40px;
+}
+
+/* Alert Card Styling */
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.alert-card {
+  background-color: #e0e0e0; /* Light grey background */
+  border-radius: 50px; /* Highly rounded corners */
+  padding: 20px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Icon Box */
+.alert-icon-box {
+  background-color: #fff;
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.red-circle-icon {
+  width: 30px;
+  height: 30px;
+  border: 2px solid #ff0000;
+  border-radius: 50%;
+  color: #ff0000;
+  font-weight: bold;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Info Section */
+.alert-info {
+  flex-grow: 1;
+}
+
+.alert-info h4 {
+  margin: 0 0 5px 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.alert-meta {
+  font-size: 12px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: bold;
+}
+
+.divider { color: #999; }
+
+.red-text {
+  color: #ff0000;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Action Buttons */
+.alert-actions {
+  display: flex;
+  gap: 15px;
+}
+
+.btn-review {
+  background-color: #000;
+  color: #fff;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 30px;
+  font-weight: bold;
+  font-size: 12px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+
+.btn-remedial {
+  background-color: #c0c0c0; /* Darker grey for secondary button */
+  color: #fff;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 30px;
+  font-weight: bold;
+  font-size: 12px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+
+.btn-review:hover { opacity: 0.8; }
+.btn-remedial:hover { background-color: #a0a0a0; }

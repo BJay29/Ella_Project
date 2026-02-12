@@ -1,0 +1,127 @@
+.login-screen-bg {
+  background-color: #2e7d32; /* Forest green background */
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Arial', sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-header-label {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  color: #1a1a1a;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.login-card-container {
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+  padding: 20px;
+}
+
+.login-avatar {
+  width: 110px;
+  margin-bottom: 10px;
+}
+
+.login-subtitle {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 25px;
+  text-transform: uppercase;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+/* Rounded Pill Shape for Inputs */
+.input-pill {
+  background-color: #d9d9d9;
+  border: 2px solid #000;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  padding: 8px 20px;
+}
+
+.input-icon {
+  font-size: 18px;
+  width: 25px;
+}
+
+.input-divider {
+  width: 1px;
+  height: 20px;
+  background-color: #888;
+  margin: 0 10px;
+}
+
+.pill-field {
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  padding: 5px;
+  font-weight: bold;
+  color: #333;
+}
+
+.eye-icon {
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.forgot-pwd-link {
+  color: #1e88e5;
+  font-size: 11px;
+  text-align: right;
+  margin-top: -5px;
+  cursor: pointer;
+  font-style: italic;
+}
+
+/* Submit Button */
+.pill-submit-btn {
+  background-color: #d9d9d9;
+  border: 2px solid #000;
+  border-radius: 50px;
+  padding: 12px 70px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.pill-submit-btn:hover {
+  background-color: #bfbfbf;
+}
+
+.signup-prompt {
+  font-size: 12px;
+  color: #1e88e5;
+  margin-top: 20px;
+  margin-bottom: 45px;
+}
+
+.blue-link {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.login-disclaimer {
+  font-size: 10px;
+  color: #000;
+  line-height: 1.5;
+  padding: 0 40px;
+}

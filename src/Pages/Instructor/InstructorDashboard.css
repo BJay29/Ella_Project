@@ -1,0 +1,186 @@
+/* Layout Container */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #ffffff;
+  font-family: Arial, sans-serif;
+}
+
+/* Main Content Area */
+.dashboard-main {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+}
+
+/* Header */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 3px solid #000;
+  padding-bottom: 10px;
+  margin-bottom: 40px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.header-actions {
+  display: flex;
+  gap: 20px;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+/* Metrics Row */
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+  margin-bottom: 40px;
+}
+
+.metric-card {
+  background-color: #d9d9d9; /* The grey from the screenshot */
+  padding: 25px;
+  border-radius: 20px;
+  /* Optional shadow or border if desired */
+}
+
+.metric-card h3 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.metric-value {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.sub-text {
+  font-size: 12px;
+  font-weight: bold;
+  color: #000;
+}
+
+.progress-bar {
+  height: 8px;
+  border: 2px solid #666;
+  border-radius: 10px;
+  width: 100%;
+  background-color: transparent;
+}
+
+/* Action Grid */
+.action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 40px;
+}
+
+.action-card {
+  background-color: #d9d9d9;
+  padding: 30px;
+  border-radius: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 220px;
+}
+
+.card-icon-box {
+  width: 50px;
+  height: 50px;
+  background-color: #fff;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin-bottom: 15px;
+}
+
+.red-icon {
+  background-color: #ff3b30;
+  color: #fff;
+}
+
+.action-card h4 {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 10px 0;
+}
+
+.action-card p {
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.view-btn {
+  background: none;
+  border: none;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Activity Section */
+.activity-section {
+  background-color: #d9d9d9;
+  border-radius: 30px;
+  padding: 30px;
+}
+
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.activity-header h4 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.view-all-btn {
+  background: none;
+  border: none;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.activity-row {
+  height: 15px;
+  background-color: #fff; /* Or transparent with border depending on preference */
+  border: 2px solid #000;
+  border-radius: 20px;
+  width: 100%;
+}
