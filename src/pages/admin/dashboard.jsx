@@ -5,17 +5,24 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
 
   // ------------------ STATE ------------------
-  const [activeTab, setActiveTab] = useState("dashboard"); // current view
-  const [selectedUser, setSelectedUser] = useState(null); // user clicked
-  const [selectedMaterial, setSelectedMaterial] = useState(null); // material clicked
-  const [manageMode, setManageMode] = useState(false); // shows CRUD buttons
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedMaterial, setSelectedMaterial] = useState(null);
+  const [manageMode, setManageMode] = useState(false);
+  
+  // 1. ADDED STATE FOR LOGOUT MODAL
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // ------------------ FUNCTIONS ------------------
-  const handleLogout = () => {
+  // 2. MODIFIED LOGOUT LOGIC
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true); // Open confirmation first
+  };
+
+  const confirmLogout = () => {
     navigate("/login");
   };
 
-  // Resets everything and returns to dashboard view
   const closeAll = () => {
     setActiveTab("dashboard");
     setSelectedUser(null);
@@ -30,11 +37,9 @@ const AdminDashboard = () => {
   const boxStyle =
     "flex items-center justify-center font-semibold cursor-pointer rounded-[14px] border-2 border-black text-white";
 
-  // Sidebar buttons: NO border (as requested)
   const sidebarBtn =
     "w-64 py-3 rounded-full text-white font-medium shadow-md transition";
 
-  // Inside buttons: slightly light border
   const insideBtn =
     "px-8 py-3 rounded-full text-white font-semibold shadow border border-black/40";
 
@@ -44,63 +49,48 @@ const AdminDashboard = () => {
 
         {/* ------------------ SIDEBAR ------------------ */}
         <div className="w-[320px] bg-[#B8D0B8] flex flex-col justify-between items-center py-10 px-6">
-
           <div className="flex flex-col items-center">
-            {/* Profile Circle */}
-            <div className="w-32 h-32 rounded-full bg-[#A2BC56] flex items-center justify-center text-sm font-semibold">
+            <div className="w-32 h-32 rounded-full bg-[#A2BC56] flex items-center justify-center text-sm font-semibold border-2 border-black/10">
               PROFILE
             </div>
-
-            {/* Username Badge */}
             <div className="mt-4 bg-[#6F8F5B] text-white text-xs px-6 py-1 rounded-full">
               ADMIN USERNAME
             </div>
 
-            {/* Sidebar Buttons */}
             <div className="mt-16 flex flex-col gap-6 w-full items-center">
-
-              {/* Edit User Details */}
               <button
                 onClick={() => {
                   setActiveTab("users");
                   setManageMode(false);
                 }}
-                className={`${sidebarBtn} ${
-                  activeTab === "users" ? "bg-[#A2BC56]" : "bg-[#6F8F5B]"
-                }`}
+                className={`${sidebarBtn} ${activeTab === "users" ? "bg-[#A2BC56]" : "bg-[#6F8F5B]"}`}
               >
                 Edit User Details
               </button>
 
-              {/* Manage Materials */}
               <button
                 onClick={() => {
                   setActiveTab("materials");
                   setManageMode(false);
                 }}
-                className={`${sidebarBtn} ${
-                  activeTab === "materials" ? "bg-[#A2BC56]" : "bg-[#6F8F5B]"
-                }`}
+                className={`${sidebarBtn} ${activeTab === "materials" ? "bg-[#A2BC56]" : "bg-[#6F8F5B]"}`}
               >
                 Manage Materials
               </button>
 
-              {/* Return to Dashboard */}
               <button
                 onClick={closeAll}
-                className={`${sidebarBtn} ${
-                  activeTab === "dashboard" ? "bg-[#A2BC56]" : "bg-[#6F8F5B]"
-                }`}
+                className={`${sidebarBtn} ${activeTab === "dashboard" ? "bg-[#A2BC56]" : "bg-[#6F8F5B]"}`}
               >
                 Return to Dashboard
               </button>
             </div>
           </div>
 
-          {/* Logout Button */}
+          {/* Logout Button - Trigger Modal */}
           <button
-            onClick={handleLogout}
-            className="w-40 py-3 rounded-full bg-[#6F8F5B] text-white font-medium hover:bg-red-500 transition"
+            onClick={handleLogoutClick}
+            className="w-40 py-3 rounded-full bg-[#6F8F5B] hover:bg-red-600 text-white font-medium transition-all shadow-md uppercase text-xs tracking-widest border border-black/10"
           >
             Logout
           </button>
@@ -108,29 +98,20 @@ const AdminDashboard = () => {
 
         {/* ------------------ RIGHT CONTENT ------------------ */}
         <div className="flex-1 flex items-center justify-center p-12">
-
-          {/* ------------------ USERS UI ------------------ */}
           {activeTab === "users" && (
             <div className={boardStyle}>
-
-              {/* Top Left Label */}
               <div className="absolute top-6 left-8">
                 <div className="bg-[#6F8F5B] text-white px-6 py-2 rounded-full text-sm font-semibold shadow border-2 border-black">
                   {manageMode ? "Manage Account" : "User Details"}
                 </div>
               </div>
 
-              {/* User Grid */}
               <div className="mt-24 grid grid-cols-2 gap-y-12 gap-x-24 justify-items-center">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div
                     key={i}
                     onClick={() => setSelectedUser(i)}
-                    className={`${boxStyle} ${
-                      selectedUser === i
-                        ? "bg-[#9EBC59]"
-                        : "bg-[#7A9A65]"
-                    }`}
+                    className={`${boxStyle} ${selectedUser === i ? "bg-[#9EBC59]" : "bg-[#7A9A65]"}`}
                     style={{ width: 305, height: 45 }}
                   >
                     USER #{i}
@@ -138,13 +119,9 @@ const AdminDashboard = () => {
                 ))}
               </div>
 
-              {/* Bottom Buttons */}
               {!manageMode ? (
                 <div className="absolute bottom-10 right-12">
-                  <button
-                    onClick={() => setManageMode(true)}
-                    className={`${insideBtn} bg-[#1FA32E]`}
-                  >
+                  <button onClick={() => setManageMode(true)} className={`${insideBtn} bg-[#1FA32E]`}>
                     Manage Account
                   </button>
                 </div>
@@ -159,7 +136,6 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* ------------------ MATERIALS UI ------------------ */}
           {activeTab === "materials" && (
             <div className={boardStyle}>
               <div className="absolute top-6 left-8">
@@ -167,38 +143,58 @@ const AdminDashboard = () => {
                   Materials List
                 </div>
               </div>
-
-              {/* Materials Grid */}
               <div className="mt-24 grid grid-cols-2 gap-y-12 gap-x-24 justify-items-center">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div
                     key={i}
                     onClick={() => setSelectedMaterial(i)}
-                    className={`${boxStyle} ${
-                      selectedMaterial === i
-                        ? "bg-[#9EBC59]"
-                        : "bg-[#7A9A65]"
-                    }`}
+                    className={`${boxStyle} ${selectedMaterial === i ? "bg-[#9EBC59]" : "bg-[#7A9A65]"}`}
                     style={{ width: 305, height: 45 }}
                   >
                     MATERIAL #{i}
                   </div>
                 ))}
               </div>
-
-              {/* Review Content Button */}
               <div className="absolute bottom-10 right-12">
-                <button className={`${insideBtn} bg-[#1FA32E]`}>
-                  Review Uploaded Content
-                </button>
+                <button className={`${insideBtn} bg-[#1FA32E]`}>Review Uploaded Content</button>
               </div>
             </div>
           )}
 
-          {/* ------------------ DASHBOARD ------------------ */}
           {activeTab === "dashboard" && <div className={boardStyle}></div>}
         </div>
       </div>
+
+      {/* 3. LOGOUT CONFIRMATION MODAL (Consistent with Student Dashboard) */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+          <div className="bg-[#C1E1C1] p-8 rounded-[30px] border-2 border-black/10 shadow-2xl max-w-sm w-full text-center animate-fadeInModal">
+            <h2 className="text-xl md:text-2xl font-bold mb-8 text-gray-800">
+              Are you sure you want to Logout!?
+            </h2>
+            <div className="flex gap-4 justify-center">
+              <button 
+                onClick={confirmLogout}
+                className="bg-[#6F8F5B] text-white px-8 py-2 rounded-full font-bold hover:bg-[#5a754a] transition-all border border-black/10 shadow-md"
+              >
+                Yes
+              </button>
+              <button 
+                onClick={() => setShowLogoutModal(false)}
+                className="bg-[#A4C46B] text-white px-8 py-2 rounded-full font-bold hover:bg-[#8da85a] transition-all border border-black/10 shadow-md"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSS Animations */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes fadeInModal { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .animate-fadeInModal { animation: fadeInModal 0.2s ease-out; }
+      `}} />
     </div>
   );
 };
