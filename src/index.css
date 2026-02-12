@@ -1,4 +1,7 @@
-<<<<<<< HEAD
+@import "tailwindcss";
+
+/* ... rest of your CSS ... */
+
 /* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -67,20 +70,3 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 } */
-=======
-@import "tailwindcss";
-
-@theme {
-  /* Ang mga kulay na ito ang magpapatugma sa design mo */
-  --color-ella-dark: #222222;
-  --color-ella-gray: #D9D9D9;
-  --font-sans: 'Inter', 'system-ui', 'sans-serif';
-}
-
-@layer base {
-  body {
-    /* Sinisiguro nito na hindi mag-overflow ang layout */
-    @apply m-0 p-0 antialiased;
-  }
-}
->>>>>>> 81e3fbeddc448d911510f20108f65f88cd77d537
