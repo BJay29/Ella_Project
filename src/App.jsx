@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/auth/login';
 import Register from './pages/auth/register';
 import StudentDashboard from './pages/student/dashboard';
+import AdminDashboard from './pages/admin/dashboard';
 
 // (Instructor Side) 
 import './component/Sidebar.css';
@@ -35,6 +36,9 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<StudentDashboard />} />
+
+        {/* --- ADMIN ROUTES (New!) --- */}
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
         {/* --- (INSTRUCTOR ROUTES) --- */}
         <Route path="/instructor/login" element={<InstructorLogin />} />
