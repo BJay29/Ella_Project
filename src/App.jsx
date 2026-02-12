@@ -1,7 +1,12 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// Global CSS Imports
+
+import Login from './pages/auth/login';
+import Register from './pages/auth/register';
+import StudentDashboard from './pages/student/dashboard';
+
+// (Instructor Side) 
 import './component/Sidebar.css';
 import './Pages/Instructor/InstructorLoginPage.css';
 import './Pages/Instructor/InstructorDashboard.css';
@@ -11,8 +16,8 @@ import './Pages/Instructor/ReviewTask.css';
 import './Pages/Instructor/Analytics.css';
 import './Pages/Instructor/Messaging.css';
 
-// Import all the pages we created
-import Login from './Pages/Instructor/InstructorLoginPage.jsx';
+// Pages - InstructorLogin
+import InstructorLogin from './Pages/Instructor/InstructorLoginPage.jsx';
 import InstructorDashboard from './Pages/Instructor/InstructorDashboard.jsx';
 import ClassProgress from './Pages/Instructor/ClassProgress.jsx';
 import InterventionQueue from './Pages/Instructor/AlertQueue.jsx';
@@ -24,26 +29,24 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* 1. The Entry Point (Login Screen) */}
-        <Route path="/" element={<Login />} />
+        {/* --- STUDENT / PUBLIC ROUTES --- */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/dashboard" element={<StudentDashboard />} />
 
-        {/* 2. Main Dashboard */}
-        <Route path="/dashboard" element={<InstructorDashboard />} />
+        {/* --- (INSTRUCTOR ROUTES) --- */}
+        <Route path="/instructor/login" element={<InstructorLogin />} />
+        <Route path="/instructor/dashboard" element={<InstructorDashboard />} />
+        <Route path="/instructor/progress" element={<ClassProgress />} />
+        <Route path="/instructor/alerts" element={<InterventionQueue />} />
+        <Route path="/instructor/review" element={<ReviewTask />} />
+        <Route path="/instructor/analytics" element={<Analytics />} />
+        <Route path="/instructor/messaging" element={<Messaging />} />
 
-        {/* 3. Class Progress Table */}
-        <Route path="/progress" element={<ClassProgress />} />
-
-        {/* 4. Intervention / Alert Queue */}
-        <Route path="/alerts" element={<InterventionQueue />} />
-
-        {/* 5. Review Task / Grading Page */}
-        <Route path="/review" element={<ReviewTask />} />
-
-        {/* 6. Analytics Dashboard */}
-        <Route path="/analytics" element={<Analytics />} />
-
-        {/* 7. Catch-all for Message (Placeholder since we haven't built it yet) */}
-        <Route path="/messaging" element={<Messaging/>} />
+        {/* Catch-all - Redirect unknown pages to login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
   );
