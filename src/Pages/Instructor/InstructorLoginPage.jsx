@@ -4,11 +4,11 @@ import AuthInput from '../../components/common/authinput';
 import Footer from '../../components/layout/footer';      
 import ellaLogo from '../../assets/image.png';
 
-const Login = () => {
+const InstructorLoginPage = () => {
   const navigate = useNavigate();
 
   const [loginData, setLoginData] = useState({
-    username: '',
+    username: '', // Pinalitan ang 'email' ng 'username' para mag-match sa input fields mo
     password: ''
   });
 
@@ -24,16 +24,21 @@ const Login = () => {
     const { username, password } = loginData;
 
     if (!username || !password) {
-      alert("Please enter both email and password.");
+      alert("Please enter both username and password.");
       return;
     }
 
-    if (username === "student" && password === "123") {
-      navigate("/dashboard"); 
-    } else if (username === "admin" && password === "123") {
+    // Temporary Instructor Credentials (katulad ng logic sa Student Login)
+    if (username === "instructor" && password === "123") {
+      alert("Instructor Login Successful!");
+      navigate("/instructor/dashboard"); 
+    } 
+    else if (username === "admin" && password === "123") {
+      alert("Admin Login Successful!");
       navigate("/admin/dashboard"); 
-    } else {
-      alert("Invalid email or password.");
+    } 
+    else {
+      alert("Invalid instructor username or password.");
     }
   };
 
@@ -42,30 +47,34 @@ const Login = () => {
       
       <div className="w-full max-w-[400px] flex flex-col items-center">
         
-        {/* Character Logo */}
+        {/* Character Logo Section */}
         <div className="flex flex-col items-center mb-6">
           <div className="w-28 h-28 md:w-36 md:h-36 flex items-center justify-center mb-4">
-            <img src={ellaLogo} alt="Ella Character" className="w-full h-full object-contain" />
+            <img 
+              src={ellaLogo} 
+              alt="Instructor Character" 
+              className="w-full h-full object-contain" 
+            />
           </div>
           <h2 className="text-xs md:text-sm font-bold tracking-[0.3em] text-gray-700 uppercase">
-            Student Login
+            Instructor Login
           </h2>
         </div>
 
         {/* Form Section */}
         <form onSubmit={handleLogin} className="w-full space-y-4">
           
-          {/* USERNAME INPUT - Black text enabled */}
+          {/* USERNAME INPUT */}
           <AuthInput 
-            name="email"
+            name="username"
             value={loginData.username}
             onChange={handleChange}
             placeholder="USERNAME"
             icon="person"
-            className="!bg-[#8DA674] shadow-inner border border-black/10"
+            className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full"
           />
 
-          {/* PASSWORD INPUT - Black text enabled */}
+          {/* PASSWORD INPUT */}
           <AuthInput 
             name="password"
             value={loginData.password}
@@ -75,7 +84,7 @@ const Login = () => {
             isPassword={true}
             showPassword={showPassword}
             togglePassword={() => setShowPassword(!showPassword)}
-            className="!bg-[#8DA674] shadow-inner border border-black/10"
+            className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full"
           />
 
           <div className="flex flex-col items-center space-y-6 pt-2">
@@ -85,6 +94,7 @@ const Login = () => {
               </a>
             </div>
 
+            {/* LOGIN BUTTON */}
             <button 
               type="submit"
               className="w-56 md:w-64 bg-[#A2BC56] text-gray-800 border-2 border-[#8da84a] rounded-full py-3 font-black text-xs md:text-sm tracking-[0.3em] hover:bg-[#b5cc74] transition-all active:scale-95 shadow-lg uppercase"
@@ -105,8 +115,13 @@ const Login = () => {
       </div>
 
       <Footer />
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        form { animation: fadeIn 0.6s ease-out; }
+      `}} />
     </div>
   );
 };
 
-export default Login;
+export default InstructorLoginPage;
