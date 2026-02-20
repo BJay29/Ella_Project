@@ -3,17 +3,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import AuthInput from '../../components/common/authinput'; 
 import Footer from '../../components/layout/footer';      
 import ellaLogo from '../../assets/image.png';
+import ErrorModal from "../../components/modals/errormodal"; // In-import ang modal
 
 const Login = () => {
   const navigate = useNavigate();
 
-  // State keys: username at password
   const [loginData, setLoginData] = useState({
     username: '',
     password: ''
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  
+  // STATE PARA SA ERROR MODAL
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -27,12 +30,13 @@ const Login = () => {
     e.preventDefault();
     const { username, password } = loginData;
 
+    // KUNG WALANG INPUT
     if (!username || !password) {
-      alert("Please enter both username and password.");
+      setShowErrorModal(true);
       return;
     }
 
-    // Temporary Student Logic
+    // LOGIN LOGIC
     if (username === "student" && password === "123") {
       navigate("/dashboard"); 
     } 
@@ -40,7 +44,8 @@ const Login = () => {
       navigate("/admin/dashboard"); 
     } 
     else {
-      alert("Invalid username or password.");
+      // KUNG MALI ANG CREDENTIALS, LABAS ANG MODAL
+      setShowErrorModal(true);
     }
   };
 
@@ -59,43 +64,47 @@ const Login = () => {
             />
           </div>
           <h2 className="text-xs md:text-sm font-bold tracking-[0.3em] text-gray-700 uppercase">
-            Student Login
+            User Login
           </h2>
         </div>
 
         {/* Form Section */}
-        <form onSubmit={handleLogin} className="w-full space-y-4">
-          
-          {/* USERNAME INPUT - FIXED: name matches the state key 'username' */}
-          <AuthInput 
-            name="username" 
-            value={loginData.username}
-            onChange={handleChange}
-            placeholder="USERNAME"
-            icon="person"
-            className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full"
-          />
+        <form onSubmit={handleLogin} className="w-full">
+          <div className="space-y-4">
+            {/* USERNAME INPUT */}
+            <AuthInput 
+              name="username" 
+              value={loginData.username}
+              onChange={handleChange}
+              placeholder="USERNAME"
+              icon="person"
+              className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full"
+            />
 
-          {/* PASSWORD INPUT */}
-          <AuthInput 
-            name="password"
-            value={loginData.password}
-            onChange={handleChange}
-            placeholder="PASSWORD"
-            icon="lock"
-            isPassword={true}
-            showPassword={showPassword}
-            togglePassword={() => setShowPassword(!showPassword)}
-            className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full"
-          />
-
-          <div className="flex flex-col items-center space-y-6 pt-2">
-            <div className="flex justify-center w-full">
-              <a href="#" className="text-[10px] italic text-[#3B82F6] font-semibold hover:underline">
-                Forgot Password?
-              </a>
+            {/* PASSWORD INPUT */}
+            <div className="relative">
+              <AuthInput 
+                name="password"
+                value={loginData.password}
+                onChange={handleChange}
+                placeholder="PASSWORD"
+                icon="lock"
+                isPassword={true}
+                showPassword={showPassword}
+                togglePassword={() => setShowPassword(!showPassword)}
+                className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full"
+              />
+              
+              {/* FORGOT PASSWORD */}
+              <div className="flex justify-end w-full px-4 mt-2">
+                <a href="#" className="text-[10px] italic text-[#3B82F6] font-semibold hover:underline">
+                  Forgot Password?
+                </a>
+              </div>
             </div>
+          </div>
 
+          <div className="flex flex-col items-center space-y-6 pt-8">
             {/* LOGIN BUTTON */}
             <button 
               type="submit"
@@ -117,6 +126,12 @@ const Login = () => {
       </div>
 
       <Footer />
+
+      {/* --- ERROR MODAL COMPONENT --- */}
+      <ErrorModal 
+        isOpen={showErrorModal} 
+        onClose={() => setShowErrorModal(false)} 
+      />
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
