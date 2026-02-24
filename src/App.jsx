@@ -1,44 +1,48 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// STUDENT / ADMIN PAGES
+// AUTH PAGES
 import Login from './pages/auth/login';
 import Register from './pages/auth/register';
+
+// STUDENT PAGES
 import StudentDashboard from './pages/student/dashboard';
+
+// ADMIN PAGES
 import AdminDashboard from './pages/admin/dashboard';
 
-// INSTRUCTOR PAGES - Siguraduhin na tama ang 'pages' vs 'Pages'
-import InstructorLogin from './pages/Instructor/InstructorLoginPage.jsx';
-import InstructorDashboard from './pages/Instructor/InstructorDashboard.jsx';
-import ClassProgress from './pages/Instructor/ClassProgress.jsx';
-import InterventionQueue from './pages/Instructor/AlertQueue.jsx';
-import ReviewTask from './pages/Instructor/ReviewTask.jsx';
-import Analytics from './pages/Instructor/Analytics.jsx';
-import Messaging from './pages/Instructor/Messaging.jsx';
+// INSTRUCTOR PAGES 
+import InstructorDashboard from './pages/instructor/InstructorDashboard';
+import ClassProgress from './pages/instructor/ClassProgress';
+import AlertQueue from './pages/instructor/AlertQueue';
+import ReviewTask from './pages/instructor/ReviewTask';
+import Analytics from './pages/instructor/Analytics';
+import Messaging from './pages/instructor/Messaging';
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* --- STUDENT / PUBLIC ROUTES --- */}
+        {/* --- PUBLIC / AUTH ROUTES --- */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
+        {/* --- STUDENT ROUTES --- */}
         <Route path="/dashboard" element={<StudentDashboard />} />
 
         {/* --- ADMIN ROUTES --- */}
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
-        {/* --- INSTRUCTOR ROUTES --- */}
-        <Route path="/instructor/login" element={<InstructorLogin />} />
+     
         <Route path="/instructor/dashboard" element={<InstructorDashboard />} />
         <Route path="/instructor/progress" element={<ClassProgress />} />
-        <Route path="/instructor/alerts" element={<InterventionQueue />} />
+        <Route path="/instructor/alerts" element={<AlertQueue />} />
         <Route path="/instructor/review" element={<ReviewTask />} />
         <Route path="/instructor/analytics" element={<Analytics />} />
         <Route path="/instructor/messaging" element={<Messaging />} />
 
-        {/* Catch-all - Iwas sa blank screen */}
+        {/* Catch-all - Redirect sa login kung mali ang URL */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
