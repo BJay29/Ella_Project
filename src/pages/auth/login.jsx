@@ -9,13 +9,13 @@ const Login = () => {
   const navigate = useNavigate();
 
   const [loginData, setLoginData] = useState({
-    username: '',
+    email: '', 
     password: ''
   });
 
   const [showPassword, setShowPassword] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Para sa loading state
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -27,9 +27,10 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const { username, password } = loginData;
+    const { email, password } = loginData;
 
-    if (!username || !password) {
+    // Validation para masiguro na may input
+    if (!email || !password) {
       setShowErrorModal(true);
       return;
     }
@@ -37,32 +38,29 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // PALITAN ITONG URL NG API ENDPOINT MULA SA BACKEND TEAM MO
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      // API call sa Render backend gamit ang email at password
+      const response = await fetch('https://ellaquest-backend.onrender.com/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }), // Ipinapadala ang email
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // I-save ang mahahalagang data
+        // Save auth data
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', data.role);
 
-        // UNIFIED REDIRECT LOGIC: Base sa role na galing sa database
+        // Unified Redirect base sa role na galing sa backend
         if (data.role === "admin") {
           navigate("/admin/dashboard");
         } else if (data.role === "instructor") {
           navigate("/instructor/dashboard");
-        } else if (data.role === "student") {
-          navigate("/dashboard");
         } else {
-          // Fallback kung walang role na match
-          navigate("/dashboard");
+          navigate("/dashboard"); // Student default
         }
       } else {
         setShowErrorModal(true);
@@ -97,12 +95,12 @@ const Login = () => {
         {/* Form Section */}
         <form onSubmit={handleLogin} className="w-full">
           <div className="space-y-4">
-            {/* USERNAME INPUT */}
+            {/* EMAIL INPUT */}
             <AuthInput 
-              name="username" 
-              value={loginData.username}
+              name="email" 
+              value={loginData.email}
               onChange={handleChange}
-              placeholder="USERNAME"
+              placeholder="EMAIL"
               icon="person"
               className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full"
             />
@@ -121,7 +119,6 @@ const Login = () => {
                 className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full"
               />
               
-              {/* FORGOT PASSWORD */}
               <div className="flex justify-end w-full px-4 mt-2">
                 <a href="#" className="text-[10px] italic text-[#3B82F6] font-semibold hover:underline">
                   Forgot Password?
@@ -131,7 +128,6 @@ const Login = () => {
           </div>
 
           <div className="flex flex-col items-center space-y-6 pt-8">
-            {/* LOGIN BUTTON with Loading State */}
             <button 
               type="submit"
               disabled={isLoading}
@@ -155,7 +151,6 @@ const Login = () => {
 
       <Footer />
 
-      {/* ERROR MODAL */}
       <ErrorModal 
         isOpen={showErrorModal} 
         onClose={() => setShowErrorModal(false)} 
