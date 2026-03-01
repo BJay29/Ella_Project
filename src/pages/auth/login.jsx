@@ -4,6 +4,7 @@ import AuthInput from '../../components/common/authinput';
 import Footer from '../../components/layout/footer';      
 import ellaLogo from '../../assets/image.png';
 import ErrorModal from "../../components/modals/errormodal"; 
+import { authAPI } from '../../services/authservice'; // import for api
 
 const Login = () => {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ const Login = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -29,8 +31,8 @@ const Login = () => {
     e.preventDefault();
     const { email, password } = loginData;
 
-    // Validation para masiguro na may input
     if (!email || !password) {
+      setErrorMessage("PLEASE FILL IN ALL FIELDS");
       setShowErrorModal(true);
       return;
     }
@@ -38,15 +40,8 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // API call sa Render backend gamit ang email at password
-      const response = await fetch('https://ellaquest-backend.onrender.com/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }), // Ipinapadala ang email
-      });
-
+      // GINAMIT ANG SEPARATED LOGIC DITO
+      const response = await authAPI.login(email, password);
       const data = await response.json();
 
       if (response.ok) {
@@ -54,23 +49,31 @@ const Login = () => {
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', data.role);
 
-        // Unified Redirect base sa role na galing sa backend
-        if (data.role === "admin") {
-          navigate("/admin/dashboard");
-        } else if (data.role === "instructor") {
-          navigate("/instructor/dashboard");
-        } else {
-          navigate("/dashboard"); // Student default
-        }
+        // Redirect logic base sa role na galing sa backend
+        const routes = {
+          admin: "/admin/dashboard",
+          instructor: "/instructor/dashboard"
+        };
+        
+        navigate(routes[data.role] || "/dashboard");
       } else {
+        // Papasok dito ang "INVALID EMAIL OR PASSWORD" mula sa backend
+        setErrorMessage(data.message?.toUpperCase() || "Invalid Credentials, Please Try Again!");
         setShowErrorModal(true);
       }
     } catch (error) {
       console.error("Login Error:", error);
+      setErrorMessage("Invalid Credentials, Please Try Again!");
       setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Helper style to prevent white autofill background
+  const autofillFix = {
+    WebkitBoxShadow: "0 0 0px 1000px #8DA674 inset",
+    WebkitTextFillColor: "#1f2937",
   };
 
   return (
@@ -102,7 +105,8 @@ const Login = () => {
               onChange={handleChange}
               placeholder="EMAIL"
               icon="person"
-              className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full"
+              style={autofillFix}
+              className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full text-gray-800"
             />
 
             {/* PASSWORD INPUT */}
@@ -116,7 +120,8 @@ const Login = () => {
                 isPassword={true}
                 showPassword={showPassword}
                 togglePassword={() => setShowPassword(!showPassword)}
-                className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full"
+                style={autofillFix}
+                className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full text-gray-800"
               />
               
               <div className="flex justify-end w-full px-4 mt-2">
@@ -151,8 +156,10 @@ const Login = () => {
 
       <Footer />
 
+      {/* ERROR MODAL with dynamic message */}
       <ErrorModal 
         isOpen={showErrorModal} 
+        message={errorMessage} 
         onClose={() => setShowErrorModal(false)} 
       />
 
