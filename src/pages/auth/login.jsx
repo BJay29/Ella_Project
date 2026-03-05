@@ -1,163 +1,204 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import AuthInput from '../../components/common/authinput'; 
-import Footer from '../../components/layout/footer';      
+import AuthInput from '../../components/common/authinput';
+import Footer from '../../components/layout/footer';
 import ellaLogo from '../../assets/image.png';
-import ErrorModal from "../../components/modals/errormodal"; 
-import { authAPI } from '../../services/authservice'; 
+import { authAPI } from '../../services/authservice';
 
 const Login = () => {
   const navigate = useNavigate();
 
   const [loginData, setLoginData] = useState({
-    email: '', 
-    password: ''
+    email: '',
+    password: '',
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [serverWaking, setServerWaking] = useState(true); // Render cold-start state
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // Ping the server on mount to wake it up (Render free tier fix)
+  useEffect(() => {
+    const wakeServer = async () => {
+      setServerWaking(true);
+      await authAPI.ping();
+      setServerWaking(false);
+    };
+    wakeServer();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setLoginData({
-      ...loginData,
-      [name]: value
-    });
+    setLoginData((prev) => ({ ...prev, [name]: value }));
+    setErrorMsg(''); // Clear error on typing
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setErrorMsg('');
+
     const { email, password } = loginData;
 
     if (!email || !password) {
-      setErrorMessage("PLEASE FILL IN ALL FIELDS");
-      setShowErrorModal(true);
+      setErrorMsg('Please enter both email and password.');
       return;
     }
 
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      // API CALL
       const response = await authAPI.login(email, password);
-      const data = await response.json();
 
-      // DEBUGGING: Mahalaga ito para makita ang role mula sa backend
-      console.log("Backend Response:", data);
+      let data = {};
+      const contentType = response.headers.get('content-type');
+
+      // Safely parse JSON — avoid crash if server returns HTML error page
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Non-JSON response from server:', text);
+        setErrorMsg('Server error. Please try again in a moment.');
+        setLoading(false);
+        return;
+      }
+
+      // Debug log (remove in production)
+      console.log('Login response status:', response.status);
+      console.log('Login response data:', data);
 
       if (response.ok) {
-        // 1. NORMALIZE ROLE (Dito ang pinaka-importanteng fix)
-        // Ginagawa nating lowercase at tinatanggal ang extra spaces
-        const rawRole = data.role || 'student';
-        const normalizedRole = rawRole.toLowerCase().trim();
+        // Save token and user info
+        localStorage.setItem('token', data.token || data.access_token || '');
+        localStorage.setItem(
+          'userRole',
+          data.role ? data.role.toLowerCase().trim() : ''
+        );
+        localStorage.setItem(
+          'userName',
+          data.name || data.first_name || ''
+        );
 
-        // 2. SAVE AUTH DATA (Dapat lowercase na ang 'userRole' dito)
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('userRole', normalizedRole); 
+        const role = data.role ? data.role.toLowerCase().trim() : '';
 
-        console.log("Login Success! Role saved as:", normalizedRole);
-
-        // 3. EXPLICIT REDIRECT LOGIC
-        // Siguraduhin na ang paths na ito ay tugma sa App.jsx
-        if (normalizedRole === 'instructor') {
-          console.log("Navigating to Instructor Dashboard...");
-          navigate('/instructor/dashboard', { replace: true });
-        } else if (normalizedRole === 'admin') {
-          console.log("Navigating to Admin Dashboard...");
-          navigate('/admin/dashboard', { replace: true });
+        if (role === 'student') {
+          navigate('/dashboard');
+        } else if (role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (role === 'instructor') {
+          navigate('/instructor/dashboard');
         } else {
-          console.log("Navigating to Student Dashboard...");
-          navigate('/student/dashboard', { replace: true });
+          setErrorMsg('Unknown role. Please contact your administrator.');
         }
       } else {
-        // Error handling mula sa backend
-        setErrorMessage(data.message?.toUpperCase() || "INVALID EMAIL OR PASSWORD!");
-        setShowErrorModal(true);
+        // Show the exact message from the server
+        const serverMessage =
+          data.message ||
+          data.error ||
+          data.detail ||
+          'Invalid email or password. Please try again.';
+        setErrorMsg(serverMessage);
       }
     } catch (error) {
-      console.error("Login Error:", error);
-      setErrorMessage("SERVER ERROR: CANNOT CONNECT TO BACKEND");
-      setShowErrorModal(true);
+      console.error('Login error:', error);
+      setErrorMsg(
+        'Cannot connect to the server. Please check your internet connection and try again.'
+      );
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const autofillFix = {
-    WebkitBoxShadow: "0 0 0px 1000px #8DA674 inset",
-    WebkitTextFillColor: "#1f2937",
-  };
-
   return (
-    <div className="h-screen w-screen bg-[#C1E1C1] flex flex-col items-center justify-center p-4 overflow-hidden font-sans relative">
-      
-      <div className="w-full max-w-[400px] flex flex-col items-center">
-        
-        {/* Character Logo */}
+    <div className="h-screen w-screen bg-white flex flex-col items-center justify-center p-4 overflow-hidden font-sans relative">
+
+      {/* Logo Section */}
+      <div className="w-full max-w-[380px] flex flex-col items-center">
         <div className="flex flex-col items-center mb-6">
-          <div className="w-28 h-28 md:w-36 md:h-36 flex items-center justify-center mb-4">
-            <img 
-              src={ellaLogo} 
-              alt="Ella Character" 
-              className="w-full h-full object-contain" 
+          <div className="w-28 h-28 md:w-32 md:h-32 flex items-center justify-center mb-1">
+            <img
+              src={ellaLogo}
+              alt="Character"
+              className="w-full h-full object-contain"
             />
           </div>
-          <h2 className="text-xs md:text-sm font-bold tracking-[0.3em] text-gray-700 uppercase">
-            User Login
-          </h2>
+          <p className="text-[9px] md:text-[10px] font-bold tracking-[0.2em] text-gray-800 uppercase pt-1">
+            Login
+          </p>
         </div>
 
-        {/* Form Section */}
-        <form onSubmit={handleLogin} className="w-full">
-          <div className="space-y-4">
-            <AuthInput 
-              name="email" 
-              value={loginData.email}
-              onChange={handleChange}
-              placeholder="EMAIL"
-              icon="person"
-              style={autofillFix}
-              className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full text-gray-800"
-            />
-
-            <div className="relative">
-              <AuthInput 
-                name="password"
-                value={loginData.password}
-                onChange={handleChange}
-                placeholder="PASSWORD"
-                icon="lock"
-                isPassword={true}
-                showPassword={showPassword}
-                togglePassword={() => setShowPassword(!showPassword)}
-                style={autofillFix}
-                className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full text-gray-800"
-              />
-              
-              <div className="flex justify-end w-full px-4 mt-2">
-                <a href="#" className="text-[10px] italic text-[#3B82F6] font-semibold hover:underline">
-                  Forgot Password?
-                </a>
-              </div>
-            </div>
+        {/* Server waking notice */}
+        {serverWaking && (
+          <div className="w-full mb-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2 text-center">
+            <p className="text-[9px] md:text-[10px] text-blue-500 font-semibold animate-pulse">
+              ⏳ Connecting to server, please wait...
+            </p>
           </div>
+        )}
 
-          <div className="flex flex-col items-center space-y-6 pt-8">
-            <button 
+        {/* Inline error message */}
+        {errorMsg && (
+          <div className="w-full mb-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2 text-center">
+            <p className="text-[9px] md:text-[10px] text-red-500 font-semibold">
+              ⚠️ {errorMsg}
+            </p>
+          </div>
+        )}
+
+        {/* Form Section */}
+        <form onSubmit={handleLogin} className="w-full space-y-4">
+
+          <AuthInput
+            name="email"
+            type="email"
+            value={loginData.email}
+            onChange={handleChange}
+            placeholder="EMAIL"
+            icon="person"
+          />
+
+          <AuthInput
+            name="password"
+            value={loginData.password}
+            onChange={handleChange}
+            placeholder="PASSWORD"
+            isPassword={true}
+            showPassword={showPassword}
+            togglePassword={() => setShowPassword(!showPassword)}
+            icon="lock"
+          />
+
+          {/* Links and Buttons */}
+          <div className="flex flex-col items-center space-y-4">
+            <div className="flex justify-center w-full -mt-2">
+              <a
+                href="#"
+                className="text-[8px] md:text-[9px] italic text-[#3B82F6] font-semibold hover:underline"
+              >
+                Forgot Password?
+              </a>
+            </div>
+
+            <button
               type="submit"
-              disabled={isLoading}
-              className={`w-56 md:w-64 bg-[#A2BC56] text-gray-800 border-2 border-[#8da84a] rounded-full py-3 font-black text-xs md:text-sm tracking-[0.3em] transition-all active:scale-95 shadow-lg uppercase 
-                ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#b5cc74]'}`}
+              disabled={loading || serverWaking}
+              className="w-40 md:w-48 bg-[#D9D9D9] border-[0.5px] border-black rounded-full h-9 font-bold text-[10px] md:text-[11px] tracking-[0.3em] hover:bg-gray-300 transition-all active:scale-[0.98] shadow-sm uppercase disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Processing...' : 'Login'}
+              {loading
+                ? 'Logging in...'
+                : serverWaking
+                ? 'Connecting...'
+                : 'Login'}
             </button>
-            
+
             <div className="text-center">
-              <p className="text-[10px] md:text-xs text-[#3B82F6] font-medium">
-                Don't have an account? 
-                <Link to="/register" className="font-bold cursor-pointer hover:underline ml-1">
+              <p className="text-[9px] md:text-[10px] text-[#3B82F6] font-medium">
+                Don't have an account?{' '}
+                <Link
+                  to="/register"
+                  className="font-bold cursor-pointer hover:underline ml-1"
+                >
                   Sign Up
                 </Link>
               </p>
@@ -167,17 +208,6 @@ const Login = () => {
       </div>
 
       <Footer />
-
-      <ErrorModal 
-        isOpen={showErrorModal} 
-        message={errorMessage} 
-        onClose={() => setShowErrorModal(false)} 
-      />
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        form { animation: fadeIn 0.6s ease-out; }
-      `}} />
     </div>
   );
 };
