@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthInput from '../../components/common/authinput';
-import Footer from '../../components/layout/footer';
 import ellaLogo from '../../assets/image.png';
+import ErrorModal from "../../components/modals/errormodal";
 import { authAPI } from '../../services/authservice';
 
 const Login = () => {
@@ -10,204 +10,192 @@ const Login = () => {
 
   const [loginData, setLoginData] = useState({
     email: '',
-    password: '',
+    password: ''
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [serverWaking, setServerWaking] = useState(true); // Render cold-start state
-  const [errorMsg, setErrorMsg] = useState('');
-
-  // Ping the server on mount to wake it up (Render free tier fix)
-  useEffect(() => {
-    const wakeServer = async () => {
-      setServerWaking(true);
-      await authAPI.ping();
-      setServerWaking(false);
-    };
-    wakeServer();
-  }, []);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setLoginData((prev) => ({ ...prev, [name]: value }));
-    setErrorMsg(''); // Clear error on typing
+    setLoginData({ ...loginData, [name]: value });
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setErrorMsg('');
-
     const { email, password } = loginData;
 
     if (!email || !password) {
-      setErrorMsg('Please enter both email and password.');
+      setErrorMessage("PLEASE FILL IN ALL FIELDS");
+      setShowErrorModal(true);
       return;
     }
 
-    setLoading(true);
+    setIsLoading(true);
 
     try {
       const response = await authAPI.login(email, password);
+      const data = await response.json();
 
-      let data = {};
-      const contentType = response.headers.get('content-type');
-
-      // Safely parse JSON — avoid crash if server returns HTML error page
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
-        console.error('Non-JSON response from server:', text);
-        setErrorMsg('Server error. Please try again in a moment.');
-        setLoading(false);
-        return;
-      }
-
-      // Debug log (remove in production)
-      console.log('Login response status:', response.status);
-      console.log('Login response data:', data);
+      console.log("Backend Response:", data);
 
       if (response.ok) {
-        // Save token and user info
-        localStorage.setItem('token', data.token || data.access_token || '');
-        localStorage.setItem(
-          'userRole',
-          data.role ? data.role.toLowerCase().trim() : ''
-        );
-        localStorage.setItem(
-          'userName',
-          data.name || data.first_name || ''
-        );
+        const rawRole = data.role || data.user?.role || data.userRole || 'student';
+        const normalizedRole = rawRole.toLowerCase().trim();
 
-        const role = data.role ? data.role.toLowerCase().trim() : '';
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('userRole', normalizedRole);
 
-        if (role === 'student') {
-          navigate('/dashboard');
-        } else if (role === 'admin') {
-          navigate('/admin/dashboard');
-        } else if (role === 'instructor') {
-          navigate('/instructor/dashboard');
+        console.log("Login Success! Role saved as:", normalizedRole);
+
+        if (normalizedRole === 'instructor') {
+          navigate('/instructor/dashboard', { replace: true });
+        } else if (normalizedRole === 'admin') {
+          navigate('/admin/dashboard', { replace: true });
         } else {
-          setErrorMsg('Unknown role. Please contact your administrator.');
+          navigate('/student/dashboard', { replace: true });
         }
       } else {
-        // Show the exact message from the server
-        const serverMessage =
-          data.message ||
-          data.error ||
-          data.detail ||
-          'Invalid email or password. Please try again.';
-        setErrorMsg(serverMessage);
+        setErrorMessage(data.message?.toUpperCase() || "INVALID EMAIL OR PASSWORD!");
+        setShowErrorModal(true);
       }
     } catch (error) {
-      console.error('Login error:', error);
-      setErrorMsg(
-        'Cannot connect to the server. Please check your internet connection and try again.'
-      );
+      console.error("Login Error:", error);
+      setErrorMessage("SERVER ERROR: CANNOT CONNECT TO BACKEND");
+      setShowErrorModal(true);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  return (
-    <div className="h-screen w-screen bg-white flex flex-col items-center justify-center p-4 overflow-hidden font-sans relative">
+  const autofillFix = {
+    WebkitBoxShadow: "0 0 0px 1000px #7a9e50 inset",
+    WebkitTextFillColor: "#ffffff",
+  };
 
-      {/* Logo Section */}
-      <div className="w-full max-w-[380px] flex flex-col items-center">
-        <div className="flex flex-col items-center mb-6">
-          <div className="w-28 h-28 md:w-32 md:h-32 flex items-center justify-center mb-1">
-            <img
-              src={ellaLogo}
-              alt="Character"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <p className="text-[9px] md:text-[10px] font-bold tracking-[0.2em] text-gray-800 uppercase pt-1">
-            Login
-          </p>
+  return (
+    <div className="h-screen w-screen bg-[#C8E6C0] flex flex-col items-center justify-center font-sans relative overflow-hidden">
+
+      {/* Center Card */}
+      <div className="w-full max-w-[420px] flex flex-col items-center px-6">
+
+        {/* Avatar */}
+        <div className="mb-3">
+          <img
+            src={ellaLogo}
+            alt="Ella Character"
+            className="w-44 h-44 object-contain drop-shadow-md"
+          />
         </div>
 
-        {/* Server waking notice */}
-        {serverWaking && (
-          <div className="w-full mb-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2 text-center">
-            <p className="text-[9px] md:text-[10px] text-blue-500 font-semibold animate-pulse">
-              ⏳ Connecting to server, please wait...
-            </p>
-          </div>
-        )}
+        {/* Title */}
+        <h2 className="text-sm font-bold tracking-[0.25em] text-gray-700 uppercase mb-5">
+          User Login
+        </h2>
 
-        {/* Inline error message */}
-        {errorMsg && (
-          <div className="w-full mb-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2 text-center">
-            <p className="text-[9px] md:text-[10px] text-red-500 font-semibold">
-              ⚠️ {errorMsg}
-            </p>
-          </div>
-        )}
+        {/* Form */}
+        <form onSubmit={handleLogin} className="w-full flex flex-col gap-3">
 
-        {/* Form Section */}
-        <form onSubmit={handleLogin} className="w-full space-y-4">
-
-          <AuthInput
-            name="email"
-            type="email"
-            value={loginData.email}
-            onChange={handleChange}
-            placeholder="EMAIL"
-            icon="person"
-          />
-
-          <AuthInput
-            name="password"
-            value={loginData.password}
-            onChange={handleChange}
-            placeholder="PASSWORD"
-            isPassword={true}
-            showPassword={showPassword}
-            togglePassword={() => setShowPassword(!showPassword)}
-            icon="lock"
-          />
-
-          {/* Links and Buttons */}
-          <div className="flex flex-col items-center space-y-4">
-            <div className="flex justify-center w-full -mt-2">
-              <a
-                href="#"
-                className="text-[8px] md:text-[9px] italic text-[#3B82F6] font-semibold hover:underline"
-              >
-                Forgot Password?
-              </a>
+          {/* Email Input */}
+          <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-inner">
+            <div className="px-4 py-3 flex items-center justify-center border-r border-white/20">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+              </svg>
             </div>
+            <input
+              name="email"
+              type="email"
+              value={loginData.email}
+              onChange={handleChange}
+              placeholder="USERNAME"
+              style={autofillFix}
+              className="flex-1 bg-[#7a9e50] px-4 py-3 text-white placeholder-white/70 font-bold text-sm tracking-widest outline-none"
+            />
+          </div>
 
+          {/* Password Input */}
+          <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-inner">
+            <div className="px-4 py-3 flex items-center justify-center border-r border-white/20">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18 8h-1V6A5 5 0 007 6v2H6a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V10a2 2 0 00-2-2zm-6 9a2 2 0 110-4 2 2 0 010 4zm3.1-9H8.9V6a3.1 3.1 0 016.2 0v2z"/>
+              </svg>
+            </div>
+            <input
+              name="password"
+              type={showPassword ? "text" : "password"}
+              value={loginData.password}
+              onChange={handleChange}
+              placeholder="PASSWORD"
+              style={autofillFix}
+              className="flex-1 bg-[#7a9e50] px-4 py-3 text-white placeholder-white/70 font-bold text-sm tracking-widest outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="px-4 py-3 text-white/80 hover:text-white transition-colors"
+            >
+              {showPassword ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              )}
+            </button>
+          </div>
+
+          {/* Forgot Password */}
+          <div className="flex justify-end -mt-1">
+            <a href="#" className="text-[11px] italic text-[#3B82F6] font-semibold hover:underline">
+              Forgot Password?
+            </a>
+          </div>
+
+          {/* Login Button */}
+          <div className="flex justify-center mt-2">
             <button
               type="submit"
-              disabled={loading || serverWaking}
-              className="w-40 md:w-48 bg-[#D9D9D9] border-[0.5px] border-black rounded-full h-9 font-bold text-[10px] md:text-[11px] tracking-[0.3em] hover:bg-gray-300 transition-all active:scale-[0.98] shadow-sm uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading}
+              className={`w-52 bg-[#8aab45] hover:bg-[#9abb55] text-white border border-[#6a8a30] rounded-full py-3 font-black text-sm tracking-[0.3em] uppercase shadow-md transition-all active:scale-95
+                ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {loading
-                ? 'Logging in...'
-                : serverWaking
-                ? 'Connecting...'
-                : 'Login'}
+              {isLoading ? 'Processing...' : 'LOGIN'}
             </button>
+          </div>
 
-            <div className="text-center">
-              <p className="text-[9px] md:text-[10px] text-[#3B82F6] font-medium">
-                Don't have an account?{' '}
-                <Link
-                  to="/register"
-                  className="font-bold cursor-pointer hover:underline ml-1"
-                >
-                  Sign Up
-                </Link>
-              </p>
-            </div>
+          {/* Sign Up Link */}
+          <div className="text-center mt-1">
+            <p className="text-[11px] text-[#3B82F6] font-medium">
+              Don't have an account?{' '}
+              <Link to="/register" className="font-bold hover:underline">
+                Sign Up
+              </Link>
+            </p>
           </div>
         </form>
       </div>
 
-      <Footer />
+      {/* Footer text — visible on page like Figma */}
+      <p className="absolute bottom-6 text-center text-[11px] text-gray-600 px-10 max-w-2xl leading-snug">
+        An interactive language center is a system that engages students through active learning tools and encourages consistent language practice.
+      </p>
+
+      <ErrorModal
+        isOpen={showErrorModal}
+        message={errorMessage}
+        onClose={() => setShowErrorModal(false)}
+      />
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        form { animation: fadeIn 0.5s ease-out; }
+      `}} />
     </div>
   );
 };
