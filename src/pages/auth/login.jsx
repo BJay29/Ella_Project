@@ -4,7 +4,7 @@ import AuthInput from '../../components/common/authinput';
 import Footer from '../../components/layout/footer';      
 import ellaLogo from '../../assets/image.png';
 import ErrorModal from "../../components/modals/errormodal"; 
-import { authAPI } from '../../services/authservice'; // import for api
+import { authAPI } from '../../services/authservice'; 
 
 const Login = () => {
   const navigate = useNavigate();
@@ -40,37 +40,51 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // GINAMIT ANG SEPARATED LOGIC DITO
+      // API CALL
       const response = await authAPI.login(email, password);
       const data = await response.json();
 
-      if (response.ok) {
-        // Save auth data
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('userRole', data.role);
+      // DEBUGGING: Mahalaga ito para makita ang role mula sa backend
+      console.log("Backend Response:", data);
 
-        // Redirect logic base sa role na galing sa backend
-        const routes = {
-          admin: "/admin/dashboard",
-          instructor: "/instructor/dashboard"
-        };
-        
-        navigate(routes[data.role] || "/dashboard");
+      if (response.ok) {
+        // 1. NORMALIZE ROLE (Dito ang pinaka-importanteng fix)
+        // Ginagawa nating lowercase at tinatanggal ang extra spaces
+        const rawRole = data.role || 'student';
+        const normalizedRole = rawRole.toLowerCase().trim();
+
+        // 2. SAVE AUTH DATA (Dapat lowercase na ang 'userRole' dito)
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('userRole', normalizedRole); 
+
+        console.log("Login Success! Role saved as:", normalizedRole);
+
+        // 3. EXPLICIT REDIRECT LOGIC
+        // Siguraduhin na ang paths na ito ay tugma sa App.jsx
+        if (normalizedRole === 'instructor') {
+          console.log("Navigating to Instructor Dashboard...");
+          navigate('/instructor/dashboard', { replace: true });
+        } else if (normalizedRole === 'admin') {
+          console.log("Navigating to Admin Dashboard...");
+          navigate('/admin/dashboard', { replace: true });
+        } else {
+          console.log("Navigating to Student Dashboard...");
+          navigate('/student/dashboard', { replace: true });
+        }
       } else {
-        // Papasok dito ang "INVALID EMAIL OR PASSWORD" mula sa backend
-        setErrorMessage(data.message?.toUpperCase() || "Invalid Credentials, Please Try Again!");
+        // Error handling mula sa backend
+        setErrorMessage(data.message?.toUpperCase() || "INVALID EMAIL OR PASSWORD!");
         setShowErrorModal(true);
       }
     } catch (error) {
       console.error("Login Error:", error);
-      setErrorMessage("Invalid Credentials, Please Try Again!");
+      setErrorMessage("SERVER ERROR: CANNOT CONNECT TO BACKEND");
       setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Helper style to prevent white autofill background
   const autofillFix = {
     WebkitBoxShadow: "0 0 0px 1000px #8DA674 inset",
     WebkitTextFillColor: "#1f2937",
@@ -98,7 +112,6 @@ const Login = () => {
         {/* Form Section */}
         <form onSubmit={handleLogin} className="w-full">
           <div className="space-y-4">
-            {/* EMAIL INPUT */}
             <AuthInput 
               name="email" 
               value={loginData.email}
@@ -109,7 +122,6 @@ const Login = () => {
               className="!bg-[#8DA674] shadow-inner border border-black/10 rounded-full text-gray-800"
             />
 
-            {/* PASSWORD INPUT */}
             <div className="relative">
               <AuthInput 
                 name="password"
@@ -156,7 +168,6 @@ const Login = () => {
 
       <Footer />
 
-      {/* ERROR MODAL with dynamic message */}
       <ErrorModal 
         isOpen={showErrorModal} 
         message={errorMessage} 

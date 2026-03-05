@@ -19,30 +19,106 @@ import ReviewTask from './pages/instructor/ReviewTask';
 import Analytics from './pages/instructor/Analytics';
 import Messaging from './pages/instructor/Messaging';
 
+// --- PROTECTED ROUTE COMPONENT ---
+// Ito ang taga-bantay. Kung walang token o mali ang role, hindi papapasukin.
+const ProtectedRoute = ({ children, allowedRole }) => {
+  const token = localStorage.getItem('token');
+  const userRole = localStorage.getItem('userRole'); // Dapat lowercase na ito galing sa Login.jsx update natin
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRole && userRole !== allowedRole) {
+    // Kung student trying to access instructor page, balik sa login or default dashboard
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
 function App() {
   return (
     <Router>
       <Routes>
-        {/* --- PUBLIC / AUTH ROUTES --- */}
+        {/* --- PUBLIC ROUTES --- */}
+        {/* 'index' ensures this is the absolute starting point */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
         {/* --- STUDENT ROUTES --- */}
-        <Route path="/dashboard" element={<StudentDashboard />} />
+        <Route 
+          path="/student/dashboard" 
+          element={
+            <ProtectedRoute allowedRole="student">
+              <StudentDashboard />
+            </ProtectedRoute>
+          } 
+        />
 
         {/* --- ADMIN ROUTES --- */}
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route 
+          path="/admin/dashboard" 
+          element={
+            <ProtectedRoute allowedRole="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          } 
+        />
 
-     
-        <Route path="/instructor/dashboard" element={<InstructorDashboard />} />
-        <Route path="/instructor/progress" element={<ClassProgress />} />
-        <Route path="/instructor/alerts" element={<AlertQueue />} />
-        <Route path="/instructor/review" element={<ReviewTask />} />
-        <Route path="/instructor/analytics" element={<Analytics />} />
-        <Route path="/instructor/messaging" element={<Messaging />} />
+        {/* --- INSTRUCTOR ROUTES --- */}
+        {/* Binalot natin lahat ng Instructor routes sa ProtectedRoute */}
+        <Route 
+          path="/instructor/dashboard" 
+          element={
+            <ProtectedRoute allowedRole="instructor">
+              <InstructorDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/instructor/progress" 
+          element={
+            <ProtectedRoute allowedRole="instructor">
+              <ClassProgress />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/instructor/alerts" 
+          element={
+            <ProtectedRoute allowedRole="instructor">
+              <AlertQueue />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/instructor/review" 
+          element={
+            <ProtectedRoute allowedRole="instructor">
+              <ReviewTask />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/instructor/analytics" 
+          element={
+            <ProtectedRoute allowedRole="instructor">
+              <Analytics />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/instructor/messaging" 
+          element={
+            <ProtectedRoute allowedRole="instructor">
+              <Messaging />
+            </ProtectedRoute>
+          } 
+        />
 
-        {/* Catch-all - Redirect sa login kung mali ang URL */}
+        {/* Catch-all - Kung mali ang URL or unauthorized, balik sa login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

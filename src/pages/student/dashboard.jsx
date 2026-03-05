@@ -1,192 +1,220 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AnalyticsCard from './analyticscard'; 
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState('Home');
   const [selectedQuest, setSelectedQuest] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
-  // 1. STATE PARA SA MODAL
+  // MODAL STATES
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showCourseModal, setShowCourseModal] = useState(false);
+  const [courseCode, setCourseCode] = useState('');
 
-  // 2. LOGOUT LOGIC FUNCTIONS
-  const handleLogoutClick = () => {
-    setShowLogoutModal(true); 
-  };
-
+  const handleLogoutClick = () => setShowLogoutModal(true);
+  
   const confirmLogout = () => {
-    navigate('/login'); 
+    // Linisin ang token para sa Unified Login logout
+    localStorage.clear();
+    navigate('/login', { replace: true });
   };
 
   const quests = [
-    { id: 1, title: 'Quest 1: Reading' },
-    { id: 2, title: 'Quest 2: Reading' },
-    { id: 3, title: 'Quest 3: Listening' },
-    { id: 4, title: 'Quest 4: Listening' },
-    { id: 5, title: 'Quest 5: Writing' },
-    { id: 6, title: 'Quest 6: Writing' },
-    { id: 7, title: 'Quest 7: Speaking' },
+    { id: 1, title: 'Quest 1: Reading', locked: false, progress: 67 },
+    { id: 2, title: 'Quest 2: Reading', locked: false, progress: 0 },
+    { id: 3, title: 'Quest 3: Listening', locked: true },
+    { id: 4, title: 'Quest 4: Listening', locked: true },
+    { id: 5, title: 'Quest 5: Writing', locked: true },
+    { id: 6, title: 'Quest 6: Writing', locked: true },
   ];
 
   return (
-    <div className="flex flex-col md:flex-row h-screen w-full bg-[#E5E5E5] overflow-hidden font-sans relative">
+    <div className="flex flex-col md:flex-row h-screen w-full bg-white overflow-hidden font-sans relative">
       
-      {/* MOBILE HEADER */}
-      <div className="md:hidden bg-[#D3D3D3] p-4 flex justify-between items-center border-b border-black/10">
-        <h1 className="text-xl font-bold text-gray-800">Ella Quest</h1>
-        <button 
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="p-2 bg-[#388E3C] text-white rounded-lg"
-        >
-          <span className="material-icons">{isSidebarOpen ? 'close' : 'menu'}</span>
-        </button>
-      </div>
+      {/* SIDEBAR */}
+      <aside className="fixed md:relative z-40 w-[260px] md:w-[280px] h-full bg-[#C1E1C1] flex flex-col p-5 border-r border-black/5">
+        <h1 className="text-4xl font-normal text-gray-800 mb-8 text-center">Ella Quest</h1>
 
-      {/* SIDEBAR - Fixed height and Flex-Between layout */}
-      <aside className={`
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
-        md:translate-x-0 fixed md:relative z-50 w-[280px] md:w-[300px] h-full bg-[#D3D3D3] flex flex-shrink-0 flex-col p-8 
-        transition-transform duration-300 ease-in-out border-r border-black/5
-      `}>
-        <h1 className="hidden md:block text-4xl font-bold text-gray-800 mb-10">Ella Quest</h1>
-
-        {/* NAVIGATION LINKS */}
-        <nav className="flex flex-col gap-4 w-full">
-          {['Home', 'Analytics', 'Skin Shop'].map((page) => (
+        <nav className="flex flex-col gap-2 w-full px-2">
+          {['Home', 'Analytics', 'Skin Shop', 'Settings'].map((page) => (
             <button 
               key={page}
-              onClick={() => {
-                setActivePage(page);
-                setIsSidebarOpen(false); 
+              onClick={() => { 
+                setActivePage(page); 
+                setSelectedQuest(null); 
               }}
-              className={`py-3 px-8 rounded-full border border-black text-white font-semibold transition-all shadow-md text-sm md:text-base
-                ${activePage === page ? 'bg-[#2E7D32]' : 'bg-[#388E3C] hover:bg-[#2E7D32]'}`}
+              className={`py-2 px-6 rounded-full font-medium transition-all text-sm border border-black/10
+                ${activePage === page ? 'bg-[#A2BC56] text-white shadow-sm' : 'bg-[#8DA674]/70 text-gray-700 hover:bg-[#8DA674]'}`}
             >
               {page}
             </button>
           ))}
         </nav>
 
-        {/* CHARACTER IMAGE */}
-        <div className="flex-1 flex items-center justify-center py-6 overflow-hidden">
-          <img 
-            src="/src/assets/image.png" 
-            alt="Ella" 
-            className="w-32 md:w-48 h-auto object-contain max-h-full"
-          />
-        </div>
-
-        {/* LOGOUT BUTTON  */}
-        <div className="mt-auto pt-6 pb-2 flex justify-center w-full">
-            <button 
-              onClick={handleLogoutClick} 
-              className="bg-[#8DA674] hover:bg-red-600 text-white font-bold py-1.5 px-6 rounded-full border border-black shadow-sm transition-all 
-              text-[10px] md:text-[11px] uppercase tracking-widest leading-none"
-              style={{ minWidth: '120px' }} 
-            >
-              Logout
-            </button>
+        <div className="mt-auto flex flex-col items-center w-full">
+          <div className="w-full flex justify-center">
+            <img 
+              src="/src/assets/image.png" 
+              alt="Ella" 
+              className="w-44 md:w-52 h-auto object-contain max-h-[35vh] transform translate-y-3" 
+            />
+          </div>
+          <button 
+            onClick={handleLogoutClick} 
+            className="bg-[#8DA674] hover:bg-red-500 hover:text-white text-white font-bold py-1.5 px-10 rounded-full border border-black/10 text-[11px] transition-all mb-4 z-10 shadow-md w-max"
+          >
+            Logout
+          </button>
         </div>
       </aside>
 
-      {/* OVERLAY for mobile sidebar */}
-      {isSidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>
-      )}
-
       {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col p-4 md:p-10 overflow-hidden w-full">
+      <main className="flex-1 flex flex-col p-4 md:p-8 bg-white overflow-hidden">
         
-        {/* User Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 md:mb-10 gap-4 flex-shrink-0">
-          <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto">
-            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full border-2 border-black bg-white flex items-center justify-center
-             text-[8px] md:text-[10px] font-bold flex-shrink-0">
+        {/* HEADER */}
+        <div className="flex justify-between items-start mb-6 flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-[#A2BC56] border-2 border-white shadow-md flex items-center justify-center text-[10px] font-bold text-white uppercase">
               Avatar
             </div>
             <div>
-              <h2 className="text-lg md:text-xl font-bold leading-none">User Name</h2>
-              <p className="text-[10px] font-bold">Lvl: 99999</p>
+              <h2 className="text-xl font-bold text-gray-800">User Name</h2>
+              <p className="text-[10px] text-gray-500 font-bold">Lvl: 99999</p>
             </div>
           </div>
-          <div className="bg-[#4FC3F7] w-full sm:w-auto text-center px-6 md:px-8 py-2 rounded-full border border-black font-bold shadow-sm text-xs md:text-sm">
-            Coins: 9999999
+
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-4 mr-2">
+                <button 
+                  onClick={() => setShowCourseModal(true)}
+                  className="bg-[#4CAF50] text-white w-9 h-9 flex items-center justify-center rounded-full text-2xl font-bold shadow-sm hover:scale-110 transition-transform"
+                >
+                  +
+                </button>
+                <div className="relative cursor-pointer">
+                  <span className="text-3xl">💬</span>
+                  <span className="absolute -top-1 -right-1 bg-[#FF4B4B] text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">1</span>
+                </div>
+                <div className="relative cursor-pointer">
+                  <span className="text-3xl">🔔</span>
+                  <span className="absolute -top-1 -right-1 bg-[#FF4B4B] text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">1</span>
+                </div>
+            </div>
+            <div className="bg-[#A2BC56] text-white px-8 py-2 rounded-full border border-black/5 font-bold text-xs shadow-sm">
+              Coins: 9999999
+            </div>
           </div>
         </div>
 
-        {/* Home Content (Quest List) */}
-        {activePage === 'Home' && (
-          <div className="bg-[#1B5E20] rounded-[20px] md:rounded-[30px] p-4 md:p-8 shadow-xl max-w-4xl mx-auto border-2
-           border-black/10 w-full flex flex-col overflow-hidden h-full">
-            <div className="bg-[#2E7D32] border border-black text-white py-1 px-8 md:px-12 rounded-full w-max mx-auto 
-            mb-4 md:mb-6 text-[10px] md:text-xs font-bold uppercase tracking-widest flex-shrink-0">
-              Quest
-            </div>
+        {/* --- DYNAMIC CONTENT AREA --- */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          
+          {/* HOME / QUEST VIEW */}
+          {activePage === 'Home' && (
+            <div className="bg-[#C1E1C1]/60 rounded-[40px] p-6 md:p-10 flex flex-col items-center flex-1 min-h-0 max-w-5xl mx-auto w-full border border-black/5 shadow-inner overflow-hidden">
+              <div className="bg-white/60 px-16 py-1.5 rounded-full mb-8 text-xl font-medium text-gray-700 shadow-sm flex-shrink-0">
+                Quest
+              </div>
 
-            <div className="bg-[#4FC3F7] rounded-[15px] md:rounded-[25px] p-3 md:p-4 border border-black overflow-y-auto scrollbar-hide flex-1">
-              {quests.map((quest) => (
-                <div key={quest.id} className="border-b border-black/10 last:border-0">
-                  <div onClick={() => setSelectedQuest(selectedQuest === quest.id ? null : quest.id)} className="flex justify-between items-center py-2 md:py-3 px-2 
-                  cursor-pointer hover:bg-sky-300/30 rounded-lg transition-all">
-                    <span className="font-bold text-gray-800 text-xs md:text-sm">{quest.title}</span>
-                    <span className="text-sm md:text-lg tracking-widest">☆☆☆</span>
-                  </div>
-                  {selectedQuest === quest.id && (
-                    <div className="flex justify-center pb-3 md:pb-4 pt-1 animate-fadeIn">
-                      <button className="bg-[#2E7D32] text-white px-6 md:px-8 py-1.5 rounded-lg border border-black text-xs md:text-sm 
-                      font-bold hover:bg-[#1B5E20] shadow-sm transition-all" onClick={() => alert(`Play ${quest.title}`)}>
-                        Play
-                      </button>
+              <div className="w-full space-y-4 overflow-y-auto scrollbar-hide flex-1 px-4">
+                {quests.map((quest) => (
+                  <div key={quest.id} className="w-full">
+                    <div 
+                      onClick={() => !quest.locked && setSelectedQuest(selectedQuest === quest.id ? null : quest.id)}
+                      className={`
+                        relative rounded-full py-2.5 px-10 flex items-center transition-all border
+                        ${quest.locked 
+                          ? 'bg-white/30 border-white/20' 
+                          : 'bg-white/70 hover:bg-white/90 border-white/50 cursor-pointer shadow-sm active:scale-[0.98]'}
+                      `}
+                    >
+                      <span className={`font-medium text-sm md:text-base ${quest.locked ? 'text-gray-400 opacity-60' : 'text-gray-700'}`}>
+                        {quest.title}
+                      </span>
+                      {quest.locked && (
+                        <div className="absolute left-1/2 transform -translate-x-1/2">
+                          <span className="text-yellow-500 text-xl drop-shadow-sm">🔒</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Other Pages Placeholder */}
-        {activePage !== 'Home' && (
-           <div className="flex-1 flex items-center justify-center text-gray-500 font-bold italic text-sm">
-             {activePage} Content Coming Soon...
-           </div>
-        )}
+                    {!quest.locked && selectedQuest === quest.id && (
+                      <div className="mt-2 ml-6 mr-6 bg-white/40 rounded-[30px] p-4 animate-in slide-in-from-top-2 duration-200">
+                        <div className="flex flex-col gap-4">
+                          <div className="flex justify-between items-center px-4">
+                            <span className="text-gray-700 text-sm font-medium">Progress: {quest.progress}%</span>
+                            <div className="w-32 h-3 bg-black rounded-full overflow-hidden relative">
+                              <div className="h-full bg-[#00FF00] shadow-[0_0_8px_#00FF00]" style={{ width: `${quest.progress}%` }}></div>
+                              <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-[#B5C7FF] rounded-full border border-gray-400" style={{ left: `calc(${quest.progress}% - 8px)` }}></div>
+                            </div>
+                          </div>
+                          <div className="flex gap-4 justify-center">
+                            <button className="bg-[#A2BC56] text-white px-8 py-2 rounded-xl font-bold shadow-md hover:scale-105 transition-all">Activity</button>
+                            <button className="bg-[#A2BC56] text-white px-10 py-2 rounded-xl font-bold shadow-md hover:scale-105 transition-all">Quiz</button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ANALYTICS VIEW */}
+          {activePage === 'Analytics' && (
+            <div className="flex-1 overflow-y-auto scrollbar-hide">
+              <AnalyticsCard />
+            </div>
+          )}
+
+          {/* SKIN SHOP PLACEHOLDER */}
+          {activePage === 'Skin Shop' && (
+             <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
+                <span className="text-6xl mb-4">👕</span>
+                <h3 className="text-2xl font-bold text-gray-400 italic">Skin Shop Coming Soon</h3>
+             </div>
+          )}
+
+          {/* SETTINGS PLACEHOLDER */}
+          {activePage === 'Settings' && (
+             <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
+                <span className="text-6xl mb-4">⚙️</span>
+                <h3 className="text-2xl font-bold text-gray-400 italic">Settings Coming Soon</h3>
+             </div>
+          )}
+
+        </div>
       </main>
 
-      {/* 3. LOGOUT CONFIRMATION MODAL */}
+      {/* MODALS */}
+      {showCourseModal && (
+        <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[#C1E1C1] p-8 rounded-[30px] border border-white/30 shadow-2xl max-w-sm w-full text-center relative">
+            <button onClick={() => setShowCourseModal(false)} className="absolute top-4 right-4 text-gray-600 font-bold">✕</button>
+            <h2 className="text-2xl font-semibold mb-6 text-gray-800">Enter Course Code</h2>
+            <input type="text" value={courseCode} onChange={(e) => setCourseCode(e.target.value)} className="w-full py-3 px-6 rounded-full mb-6 text-center outline-none shadow-inner" placeholder="Type code here..." />
+            <button onClick={() => setShowCourseModal(false)} className="bg-[#A2BC56] text-white px-12 py-2.5 rounded-full font-bold shadow-md">Join</button>
+          </div>
+        </div>
+      )}
+
       {showLogoutModal && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-          <div className="bg-[#C1E1C1] p-8 rounded-[30px] border-2 border-black/10 shadow-2xl max-w-sm w-full text-center animate-fadeInModal">
-            <h2 className="text-xl md:text-2xl font-bold mb-8 text-gray-800">
-              Are you sure you want to Logout!?
-            </h2>
+        <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[#C1E1C1] p-10 rounded-[40px] border border-white/30 shadow-2xl max-w-sm w-full text-center">
+            <h2 className="text-xl font-bold mb-8 text-gray-800">Are you sure you want to Logout!?</h2>
             <div className="flex gap-4 justify-center">
-              <button 
-                onClick={confirmLogout}
-                className="bg-[#7B9565] text-white px-8 py-2 rounded-full font-bold hover:bg-green-800 transition-all border border-black/10"
-              >
-                Yes
-              </button>
-              <button 
-                onClick={() => setShowLogoutModal(false)}
-                className="bg-[#A4C46B] text-white px-8 py-2 rounded-full font-bold hover:bg-green-700 transition-all border border-black/10"
-              >
-                No
-              </button>
+              <button onClick={confirmLogout} className="bg-[#7B9565] text-white px-10 py-2.5 rounded-full font-bold hover:bg-red-600 transition-all shadow-md">Yes</button>
+              <button onClick={() => setShowLogoutModal(false)} className="bg-[#A4C46B] text-white px-10 py-2.5 rounded-full font-bold hover:bg-[#8DA674] transition-all shadow-md">No</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Global Styles for Scrollbar and Animations */}
       <style dangerouslySetInnerHTML={{ __html: `
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeInModal { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-        .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
-        .animate-fadeInModal { animation: fadeInModal 0.2s ease-out; }
       `}} />
     </div>
   );
