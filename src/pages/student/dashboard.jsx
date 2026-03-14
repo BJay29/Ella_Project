@@ -1,23 +1,79 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AnalyticsCard from './analyticscard'; 
+import AnalyticsCard from './analyticscard';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState('Home');
   const [selectedQuest, setSelectedQuest] = useState(null);
-  
+
   // MODAL STATES
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [courseCode, setCourseCode] = useState('');
 
+  // JOIN REQUEST STATES
+  const [joinStatus, setJoinStatus] = useState('idle'); // idle | loading | success | error
+  const [joinMessage, setJoinMessage] = useState('');
+
   const handleLogoutClick = () => setShowLogoutModal(true);
-  
+
   const confirmLogout = () => {
-    // Linisin ang token para sa Unified Login logout
-    localStorage.clear();
+    sessionStorage.clear();
     navigate('/login', { replace: true });
+  };
+
+  const handleJoinCourse = async () => {
+    const trimmedCode = courseCode.trim();
+    if (!trimmedCode) {
+      setJoinStatus('error');
+      setJoinMessage('Please enter a class code.');
+      return;
+    }
+
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      setJoinStatus('error');
+      setJoinMessage('You are not logged in. Please log in again.');
+      return;
+    }
+
+    setJoinStatus('loading');
+    setJoinMessage('');
+
+    try {
+      const response = await fetch(`${API_BASE}/course/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ class_code: trimmedCode }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setJoinStatus('success');
+        setJoinMessage(data.message || 'Join request sent! Waiting for instructor approval.');
+        setCourseCode('');
+      } else {
+        setJoinStatus('error');
+        setJoinMessage(data.detail || data.message || 'Invalid class code. Please try again.');
+      }
+    } catch (err) {
+      setJoinStatus('error');
+      setJoinMessage('Network error. Please check your connection.');
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowCourseModal(false);
+    setJoinStatus('idle');
+    setJoinMessage('');
+    setCourseCode('');
   };
 
   const quests = [
@@ -31,19 +87,16 @@ const StudentDashboard = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-full bg-white overflow-hidden font-sans relative">
-      
+
       {/* SIDEBAR */}
       <aside className="fixed md:relative z-40 w-[260px] md:w-[280px] h-full bg-[#C1E1C1] flex flex-col p-5 border-r border-black/5">
         <h1 className="text-4xl font-normal text-gray-800 mb-8 text-center">Ella Quest</h1>
 
         <nav className="flex flex-col gap-2 w-full px-2">
           {['Home', 'Analytics', 'Skin Shop', 'Settings'].map((page) => (
-            <button 
+            <button
               key={page}
-              onClick={() => { 
-                setActivePage(page); 
-                setSelectedQuest(null); 
-              }}
+              onClick={() => { setActivePage(page); setSelectedQuest(null); }}
               className={`py-2 px-6 rounded-full font-medium transition-all text-sm border border-black/10
                 ${activePage === page ? 'bg-[#A2BC56] text-white shadow-sm' : 'bg-[#8DA674]/70 text-gray-700 hover:bg-[#8DA674]'}`}
             >
@@ -54,14 +107,14 @@ const StudentDashboard = () => {
 
         <div className="mt-auto flex flex-col items-center w-full">
           <div className="w-full flex justify-center">
-            <img 
-              src="/src/assets/image.png" 
-              alt="Ella" 
-              className="w-44 md:w-52 h-auto object-contain max-h-[35vh] transform translate-y-3" 
+            <img
+              src="/src/assets/image.png"
+              alt="Ella"
+              className="w-44 md:w-52 h-auto object-contain max-h-[35vh] transform translate-y-3"
             />
           </div>
-          <button 
-            onClick={handleLogoutClick} 
+          <button
+            onClick={handleLogoutClick}
             className="bg-[#8DA674] hover:bg-red-500 hover:text-white text-white font-bold py-1.5 px-10 rounded-full border border-black/10 text-[11px] transition-all mb-4 z-10 shadow-md w-max"
           >
             Logout
@@ -71,7 +124,7 @@ const StudentDashboard = () => {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col p-4 md:p-8 bg-white overflow-hidden">
-        
+
         {/* HEADER */}
         <div className="flex justify-between items-start mb-6 flex-shrink-0">
           <div className="flex items-center gap-4">
@@ -86,20 +139,22 @@ const StudentDashboard = () => {
 
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-4 mr-2">
-                <button 
-                  onClick={() => setShowCourseModal(true)}
-                  className="bg-[#4CAF50] text-white w-9 h-9 flex items-center justify-center rounded-full text-2xl font-bold shadow-sm hover:scale-110 transition-transform"
-                >
-                  +
-                </button>
-                <div className="relative cursor-pointer">
-                  <span className="text-3xl">💬</span>
-                  <span className="absolute -top-1 -right-1 bg-[#FF4B4B] text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">1</span>
-                </div>
-                <div className="relative cursor-pointer">
-                  <span className="text-3xl">🔔</span>
-                  <span className="absolute -top-1 -right-1 bg-[#FF4B4B] text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">1</span>
-                </div>
+              {/* JOIN CLASS BUTTON */}
+              <button
+                onClick={() => setShowCourseModal(true)}
+                className="bg-[#4CAF50] text-white w-9 h-9 flex items-center justify-center rounded-full text-2xl font-bold shadow-sm hover:scale-110 transition-transform"
+                title="Join a class"
+              >
+                +
+              </button>
+              <div className="relative cursor-pointer">
+                <span className="text-3xl">💬</span>
+                <span className="absolute -top-1 -right-1 bg-[#FF4B4B] text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">1</span>
+              </div>
+              <div className="relative cursor-pointer">
+                <span className="text-3xl">🔔</span>
+                <span className="absolute -top-1 -right-1 bg-[#FF4B4B] text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">1</span>
+              </div>
             </div>
             <div className="bg-[#A2BC56] text-white px-8 py-2 rounded-full border border-black/5 font-bold text-xs shadow-sm">
               Coins: 9999999
@@ -107,10 +162,9 @@ const StudentDashboard = () => {
           </div>
         </div>
 
-        {/* --- DYNAMIC CONTENT AREA --- */}
+        {/* DYNAMIC CONTENT AREA */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          
-          {/* HOME / QUEST VIEW */}
+
           {activePage === 'Home' && (
             <div className="bg-[#C1E1C1]/60 rounded-[40px] p-6 md:p-10 flex flex-col items-center flex-1 min-h-0 max-w-5xl mx-auto w-full border border-black/5 shadow-inner overflow-hidden">
               <div className="bg-white/60 px-16 py-1.5 rounded-full mb-8 text-xl font-medium text-gray-700 shadow-sm flex-shrink-0">
@@ -120,12 +174,12 @@ const StudentDashboard = () => {
               <div className="w-full space-y-4 overflow-y-auto scrollbar-hide flex-1 px-4">
                 {quests.map((quest) => (
                   <div key={quest.id} className="w-full">
-                    <div 
+                    <div
                       onClick={() => !quest.locked && setSelectedQuest(selectedQuest === quest.id ? null : quest.id)}
                       className={`
                         relative rounded-full py-2.5 px-10 flex items-center transition-all border
-                        ${quest.locked 
-                          ? 'bg-white/30 border-white/20' 
+                        ${quest.locked
+                          ? 'bg-white/30 border-white/20'
                           : 'bg-white/70 hover:bg-white/90 border-white/50 cursor-pointer shadow-sm active:scale-[0.98]'}
                       `}
                     >
@@ -162,44 +216,87 @@ const StudentDashboard = () => {
             </div>
           )}
 
-          {/* ANALYTICS VIEW */}
           {activePage === 'Analytics' && (
             <div className="flex-1 overflow-y-auto scrollbar-hide">
               <AnalyticsCard />
             </div>
           )}
 
-          {/* SKIN SHOP PLACEHOLDER */}
           {activePage === 'Skin Shop' && (
-             <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
-                <span className="text-6xl mb-4">👕</span>
-                <h3 className="text-2xl font-bold text-gray-400 italic">Skin Shop Coming Soon</h3>
-             </div>
+            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
+              <span className="text-6xl mb-4">👕</span>
+              <h3 className="text-2xl font-bold text-gray-400 italic">Skin Shop Coming Soon</h3>
+            </div>
           )}
 
-          {/* SETTINGS PLACEHOLDER */}
           {activePage === 'Settings' && (
-             <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
-                <span className="text-6xl mb-4">⚙️</span>
-                <h3 className="text-2xl font-bold text-gray-400 italic">Settings Coming Soon</h3>
-             </div>
+            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
+              <span className="text-6xl mb-4">⚙️</span>
+              <h3 className="text-2xl font-bold text-gray-400 italic">Settings Coming Soon</h3>
+            </div>
           )}
-
         </div>
       </main>
 
-      {/* MODALS */}
+      {/* JOIN CLASS MODAL */}
       {showCourseModal && (
         <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-[#C1E1C1] p-8 rounded-[30px] border border-white/30 shadow-2xl max-w-sm w-full text-center relative">
-            <button onClick={() => setShowCourseModal(false)} className="absolute top-4 right-4 text-gray-600 font-bold">✕</button>
-            <h2 className="text-2xl font-semibold mb-6 text-gray-800">Enter Course Code</h2>
-            <input type="text" value={courseCode} onChange={(e) => setCourseCode(e.target.value)} className="w-full py-3 px-6 rounded-full mb-6 text-center outline-none shadow-inner" placeholder="Type code here..." />
-            <button onClick={() => setShowCourseModal(false)} className="bg-[#A2BC56] text-white px-12 py-2.5 rounded-full font-bold shadow-md">Join</button>
+            <button onClick={handleCloseModal} className="absolute top-4 right-4 text-gray-600 font-bold text-lg hover:text-black transition-colors">✕</button>
+
+            <h2 className="text-2xl font-semibold mb-2 text-gray-800">Enter Course Code</h2>
+            <p className="text-xs text-gray-500 mb-6 font-medium">Ask your instructor for the class code.</p>
+
+            <input
+              type="text"
+              value={courseCode}
+              onChange={(e) => { setCourseCode(e.target.value); setJoinStatus('idle'); setJoinMessage(''); }}
+              onKeyDown={(e) => e.key === 'Enter' && handleJoinCourse()}
+              className="w-full py-3 px-6 rounded-full mb-4 text-center outline-none shadow-inner border-2 border-transparent focus:border-[#A2BC56] transition-colors text-gray-800 font-bold tracking-widest text-lg uppercase"
+              placeholder="e.g. ABC123"
+              maxLength={10}
+              disabled={joinStatus === 'loading' || joinStatus === 'success'}
+            />
+
+            {/* Status Messages */}
+            {joinStatus === 'error' && (
+              <div className="bg-red-100 border border-red-300 text-red-700 text-xs font-bold rounded-2xl px-4 py-2 mb-4">
+                ❌ {joinMessage}
+              </div>
+            )}
+            {joinStatus === 'success' && (
+              <div className="bg-green-100 border border-green-300 text-green-700 text-xs font-bold rounded-2xl px-4 py-2 mb-4">
+                ✅ {joinMessage}
+              </div>
+            )}
+
+            {/* Buttons */}
+            {joinStatus === 'success' ? (
+              <button
+                onClick={handleCloseModal}
+                className="bg-[#A2BC56] text-white px-12 py-2.5 rounded-full font-bold shadow-md hover:scale-105 transition-all"
+              >
+                Done
+              </button>
+            ) : (
+              <button
+                onClick={handleJoinCourse}
+                disabled={joinStatus === 'loading'}
+                className="bg-[#A2BC56] text-white px-12 py-2.5 rounded-full font-bold shadow-md hover:scale-105 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+              >
+                {joinStatus === 'loading' ? (
+                  <>
+                    <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                    Sending...
+                  </>
+                ) : 'Join'}
+              </button>
+            )}
           </div>
         </div>
       )}
 
+      {/* LOGOUT MODAL */}
       {showLogoutModal && (
         <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-[#C1E1C1] p-10 rounded-[40px] border border-white/30 shadow-2xl max-w-sm w-full text-center">

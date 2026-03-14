@@ -1,10 +1,17 @@
 const BASE_URL = 'https://ellaquest-backend.onrender.com';
 
+const fetchWithTimeout = (url, options = {}, timeout = 15000) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+};
+
 export const authAPI = {
-  // Wake up Render free-tier server (call on app/login mount)
+  // Wake up Render free-tier server (call on login mount)
   ping: async () => {
     try {
-      await fetch(`${BASE_URL}/`, { method: 'GET' });
+      await fetchWithTimeout(`${BASE_URL}/`, { method: 'GET', mode: 'no-cors' }, 30000);
     } catch {
       // Silently ignore — just warming up the server
     }
@@ -12,7 +19,7 @@ export const authAPI = {
 
   // Register
   register: async (formData) => {
-    const response = await fetch(`${BASE_URL}/register`, {
+    const response = await fetchWithTimeout(`${BASE_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -27,7 +34,7 @@ export const authAPI = {
 
   // Login
   login: async (email, password) => {
-    const response = await fetch(`${BASE_URL}/login`, {
+    const response = await fetchWithTimeout(`${BASE_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
