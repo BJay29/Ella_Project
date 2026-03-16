@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthInput from '../../components/common/authinput';
 import ellaLogo from '../../assets/image.png';
@@ -17,6 +17,11 @@ const Login = () => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Gisingin ang Render server sa background pag-load ng Login page
+  useEffect(() => {
+    authAPI.ping();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,17 +44,13 @@ const Login = () => {
       const response = await authAPI.login(email, password);
       const data = await response.json();
 
-      console.log("Backend Response:", data);
-
       if (response.ok) {
         const rawRole = data.role || data.user?.role || data.userRole || 'student';
         const normalizedRole = rawRole.toLowerCase().trim();
 
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', normalizedRole);
-
-        console.log("Login Success! Role saved as:", normalizedRole);
-
+        
         if (normalizedRole === 'instructor') {
           navigate('/instructor/dashboard', { replace: true });
         } else if (normalizedRole === 'admin') {
@@ -62,7 +63,6 @@ const Login = () => {
         setShowErrorModal(true);
       }
     } catch (error) {
-      console.error("Login Error:", error);
       setErrorMessage("SERVER ERROR: CANNOT CONNECT TO BACKEND");
       setShowErrorModal(true);
     } finally {
@@ -77,11 +77,7 @@ const Login = () => {
 
   return (
     <div className="h-screen w-screen bg-[#C8E6C0] flex flex-col items-center justify-center font-sans relative overflow-hidden">
-
-      {/* Center Card */}
       <div className="w-full max-w-[420px] flex flex-col items-center px-6">
-
-        {/* Avatar */}
         <div className="mb-3">
           <img
             src={ellaLogo}
@@ -90,14 +86,11 @@ const Login = () => {
           />
         </div>
 
-        {/* Title */}
         <h2 className="text-sm font-bold tracking-[0.25em] text-gray-700 uppercase mb-5">
           User Login
         </h2>
 
-        {/* Form */}
         <form onSubmit={handleLogin} className="w-full flex flex-col gap-3">
-
           {/* Email Input */}
           <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-inner">
             <div className="px-4 py-3 flex items-center justify-center border-r border-white/20">
@@ -110,7 +103,7 @@ const Login = () => {
               type="email"
               value={loginData.email}
               onChange={handleChange}
-              placeholder="USERNAME"
+              placeholder="EMAIL"
               style={autofillFix}
               className="flex-1 bg-[#7a9e50] px-4 py-3 text-white placeholder-white/70 font-bold text-sm tracking-widest outline-none"
             />
@@ -139,7 +132,7 @@ const Login = () => {
             >
               {showPassword ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268-2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                 </svg>
               ) : (
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -150,14 +143,12 @@ const Login = () => {
             </button>
           </div>
 
-          {/* Forgot Password */}
           <div className="flex justify-end -mt-1">
             <a href="#" className="text-[11px] italic text-[#3B82F6] font-semibold hover:underline">
               Forgot Password?
             </a>
           </div>
 
-          {/* Login Button */}
           <div className="flex justify-center mt-2">
             <button
               type="submit"
@@ -169,20 +160,19 @@ const Login = () => {
             </button>
           </div>
 
-          {/* Sign Up Link */}
+          {/* BINAGO: Sign Up Link points to /verify-email instead of /register */}
           <div className="text-center mt-1">
             <p className="text-[11px] text-[#3B82F6] font-medium">
-              Don't have an account?{' '}
-              <Link to="/register" className="font-bold hover:underline">
-                Sign Up
+              Dont have an Account?{' '}
+              <Link to="/verify-email" className="font-bold hover:underline">
+                Register Here
               </Link>
             </p>
           </div>
         </form>
       </div>
 
-      {/* Footer text — visible on page like Figma */}
-      <p className="absolute bottom-6 text-center text-[11px] text-gray-600 px-10 max-w-2xl leading-snug">
+      <p className="absolute bottom-6 text-center text-[11px] text-gray-600 px-10 max-w-2xl leading-snug font-medium">
         An interactive language center is a system that engages students through active learning tools and encourages consistent language practice.
       </p>
 

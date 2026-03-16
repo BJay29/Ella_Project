@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import ErrorModal from "../../components/modals/errormodal"; 
 import { authAPI } from '../../services/authservice';
 
@@ -30,6 +30,12 @@ const SuccessModal = ({ isOpen, message, onClose }) => {
 // --- MAIN REGISTER COMPONENT ---
 const Register = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Kunin ang email at code mula sa VerifyEmail page state
+  const verifiedEmail = location.state?.verifiedEmail || "";
+  const verifiedCode = location.state?.verifiedCode || "";
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,10 +47,18 @@ const Register = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: '',
+    email: verifiedEmail,
+    code: verifiedCode, // Hidden/Background code para sa final registration
     password: '',
     confirmPassword: ''
   });
+
+  // Guard Logic: Pag walang verified email, balik sa simula
+  useEffect(() => {
+    if (!verifiedEmail) {
+      navigate('/verify-email', { replace: true });
+    }
+  }, [verifiedEmail, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -63,6 +77,7 @@ const Register = () => {
     setIsLoading(true);
 
     try {
+      // Isesend ang kompleto: name, email, password, at ang code na na-verify na kanina
       const response = await authAPI.register(formData);
       const data = await response.json();
 
@@ -70,13 +85,10 @@ const Register = () => {
         setModalMessage(data.message?.toUpperCase() || "USER REGISTERED SUCCESSFULLY!");
         setShowSuccessModal(true);
       } else {
-        // Papasok dito kung "Email already exists" o ibang validation error mula sa server
         setModalMessage(data.message?.toUpperCase() || "REGISTRATION FAILED");
         setShowErrorModal(true);
       }
     } catch (error) {
-      console.error("Error:", error);
-      // Ito ang lalabas kapag offline ang Render server
       setModalMessage("COULD NOT CONNECT TO SERVER. PLEASE TRY AGAIN LATER.");
       setShowErrorModal(true);
     } finally {
@@ -113,8 +125,16 @@ const Register = () => {
           </div>
 
           <div className="flex flex-col">
-            <label className="text-[10px] font-bold ml-1 italic uppercase">Email Address</label>
-            <input name="email" value={formData.email} onChange={handleChange} type="email" style={inputStyle} className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px]" required />
+            <label className="text-[10px] font-bold ml-1 italic uppercase text-gray-600">Email Address (Verified)</label>
+            <input 
+              name="email" 
+              value={formData.email} 
+              readOnly 
+              type="email" 
+              style={{...inputStyle, WebkitTextFillColor: "#4b5563"}} 
+              className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px] bg-black/5 cursor-not-allowed font-bold" 
+              required 
+            />
           </div>
 
           <div className="flex flex-col relative">
@@ -149,13 +169,13 @@ const Register = () => {
       </div>
 
       <FooterText />
-
       <SuccessModal isOpen={showSuccessModal} message={modalMessage} onClose={() => navigate('/login')} />
       <ErrorModal isOpen={showErrorModal} message={modalMessage} onClose={() => setShowErrorModal(false)} />
     </div>
   );
 };
 
+// ... same icons and footer components ...
 const EyeIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
     <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />

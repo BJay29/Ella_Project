@@ -18,7 +18,7 @@
     "react": "^19.2.0",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.2.0",
-    "recharts": "^3.7.0",
+    "recharts": "^3.8.0",
     "sweetalert2": "^11.26.18"
   },
   "devDependencies": {
