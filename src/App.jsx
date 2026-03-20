@@ -17,7 +17,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 
 // Instructor - FIXED: Tinitiyak na tama ang casing para sa Vercel (Linux) deployment
 // Siguraduhin na ang file sa folder ay eksaktong "InstructorDashboard.jsx" o palitan base sa actual filename
-import InstructorDashboard from './pages/instructor/InstructorDashboard';
+import InstructorDashboard from './pages/Instructor/InstructorDashboard';
 
 // Curriculum Manager (CM) - FIXED: Inayos ang casing (cmDashboard -> CMDashboard kung yan ang nasa file)
 import CMDashboard from './pages/cm/cmDashboard'; 
