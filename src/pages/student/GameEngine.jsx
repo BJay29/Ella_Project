@@ -1,25 +1,36 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { authAPI } from '../../services/APIservice';
 
 const GameEngine = () => {
-    // Kinukuha ang typeId (ito yung activityId o quizId) mula sa URL
+    // Kinukuha ang mga parameters mula sa URL
     const { questId, levelId, typeId } = useParams(); 
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const mode = searchParams.get('mode'); 
 
+    // --- STATES ---
     const [currentQuestion, setCurrentQuestion] = useState(null);
+    const [metadata, setMetadata] = useState({
+        answered_count: 0,
+        total_questions: 0,
+        display_number: 1 // Gagamitin natin ito para sa 1/10 display
+    });
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [answerText, setAnswerText] = useState('');
     const [loading, setLoading] = useState(true);
-    const [feedback, setFeedback] = useState(null); 
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [errorMessage, setErrorMessage] = useState(null); // New state for debugging
-    
-    // State para sa final summary screen
+    const [errorMessage, setErrorMessage] = useState(null); 
     const [quizSummary, setQuizSummary] = useState(null);
+    
+    // Timer State
+    const [timeLeft, setTimeLeft] = useState(30);
+    const timerRef = useRef(null);
 
+    // Ref para maiwasan ang double fetching
+    const hasFetchedInitial = useRef(false);
+
+    // --- 1. HANDLE FINISH MISSION ---
     const handleFinish = useCallback(async () => {
         try {
             setLoading(true);
@@ -27,19 +38,15 @@ const GameEngine = () => {
             let response;
 
             if (mode === 'activity') {
-                // Ipinapasa ang typeId bilang activityId
                 response = await authAPI.studentFinishActivity(questId, levelId, typeId, token);
             } else {
-                // Ipinapasa ang typeId bilang quizId
                 response = await authAPI.studentFinishQuiz(questId, levelId, typeId, token);
             }
 
             if (response.ok) {
                 const result = await response.json();
-                // Sine-set ang summary para lumabas ang Result UI imbes na alert
                 setQuizSummary(result);
             } else {
-                // Kung may error sa finish, bumalik sa levels
                 navigate(`/student/quest/${questId}/levels`);
             }
         } catch (error) {
@@ -50,161 +57,169 @@ const GameEngine = () => {
         }
     }, [questId, levelId, typeId, mode, navigate]);
 
-    const fetchQuestion = useCallback(async () => {
+    // --- 2. FETCH QUESTION ---
+    const fetchQuestion = useCallback(async (isNext = false) => {
         try {
             setLoading(true);
             setErrorMessage(null);
             const token = localStorage.getItem('token');
             
-            // Debugging log para makita kung ano ang ipinapasa sa API
-            console.log("Fetching Question Parameters:", { questId, levelId, typeId, mode });
-
             let response;
-
             if (mode === 'activity') {
-                // Ipinapasa ang typeId bilang activityId base sa documentation Step 8
                 response = await authAPI.studentGetNextActivityQuestion(questId, levelId, typeId, token);
             } else {
-                // Ipinapasa ang typeId bilang quizId
                 response = await authAPI.studentGetNextQuizQuestion(questId, levelId, typeId, token);
             }
             
-            if (response.status === 404) {
-                setErrorMessage(`Backend Error: 404 - Hindi mahanap ang activity/quiz questions. (ID: ${typeId})`);
-                setLoading(false);
-                return;
-            }
-
             if (response.status === 204) {
-                // No more questions
                 handleFinish();
                 return;
             }
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
-                console.error("API Error Response:", errorData);
-                setErrorMessage(`Backend Error: ${response.status} - ${errorData.error || "Pakicheck kung may questions na ang level na ito."}`);
+                setErrorMessage(`Error: ${response.status} - Failed to load question.`);
                 setLoading(false);
                 return;
             }
 
             const data = await response.json();
-            if (data && data.id) {
-                setCurrentQuestion(data);
+            
+            if (data.question) {
+                setCurrentQuestion(data.question);
+                
+                // Update Metadata: 
+                // Kung "isNext" (galing sa submission), i-increment natin ang display_number manually
+                setMetadata(prev => ({
+                    answered_count: data.answered_count,
+                    total_questions: data.total_questions,
+                    display_number: isNext ? prev.display_number + 1 : (data.answered_count + 1)
+                }));
+
                 setSelectedAnswer(null);
                 setAnswerText('');
-                setFeedback(null);
+                setTimeLeft(30); 
             } else {
                 handleFinish();
             }
         } catch (error) {
-            setErrorMessage("Hindi makakonekta sa server. Pakicheck ang internet o backend URL.");
+            setErrorMessage("Hindi makakonekta sa server.");
             console.error("Fetch error:", error);
         } finally {
             setLoading(false);
         }
     }, [questId, levelId, typeId, mode, handleFinish]);
 
-    useEffect(() => {
-        if (questId && levelId && mode && typeId) {
-            fetchQuestion();
-        } else {
-            console.warn("Missing URL parameters in GameEngine:", { questId, levelId, mode, typeId });
-        }
-    }, [questId, levelId, mode, typeId, fetchQuestion]);
-
-    const handleSubmitAnswer = async () => {
-        if ((!selectedAnswer && !answerText) || isSubmitting || feedback) return;
+    // --- 3. SUBMIT ANSWER ---
+    const handleSubmitAnswer = useCallback(async (isTimeUp = false) => {
+        if (isSubmitting || !currentQuestion) return;
 
         try {
             setIsSubmitting(true);
+            clearInterval(timerRef.current); 
+
             const token = localStorage.getItem('token');
-            const payload = { answer_id: selectedAnswer, answer_text: answerText };
+            const answerData = {
+                answer_id: isTimeUp ? null : selectedAnswer,
+                answer_text: isTimeUp ? "" : answerText
+            };
+
+            const payload = mode === 'activity' 
+                ? { student_activity_answer: answerData } 
+                : { student_quiz_answer: answerData };
+
+            const qId = currentQuestion.id || 
+                        currentQuestion.activity_question_id || 
+                        currentQuestion.quiz_question_id ||
+                        currentQuestion.quest_activity_question_id || 
+                        currentQuestion.quest_quiz_question_id;
 
             let response;
             if (mode === 'activity') {
-                response = await authAPI.studentSubmitActivityAnswer(questId, levelId, typeId, currentQuestion.id, payload, token);
+                response = await authAPI.studentSubmitActivityAnswer(questId, levelId, typeId, qId, payload, token);
             } else {
-                response = await authAPI.studentSubmitQuizAnswer(questId, levelId, typeId, currentQuestion.id, payload, token);
+                response = await authAPI.studentSubmitQuizAnswer(questId, levelId, typeId, qId, payload, token);
             }
 
-            const result = await response.json();
-            setFeedback(result.is_correct ? 'correct' : 'wrong');
-            
-            setTimeout(() => {
-                setIsSubmitting(false);
-                fetchQuestion(); 
-            }, 1200);
+            if (!response.ok) throw new Error("Submission failed");
+
+            // CHECKPOINT: Kung ito na yung huling display number, wag na mag-fetch, finish na agad.
+            if (metadata.display_number >= metadata.total_questions) {
+                handleFinish();
+            } else {
+                // Fetch next question and signal to increment display number
+                fetchQuestion(true);
+            }
 
         } catch (error) {
             console.error("Error submitting:", error);
+            // Re-fetch current state if error happens to avoid getting stuck
+            fetchQuestion(false);
+        } finally {
             setIsSubmitting(false);
         }
+    }, [isSubmitting, currentQuestion, selectedAnswer, answerText, mode, questId, levelId, typeId, metadata, handleFinish, fetchQuestion]);
+
+    // --- 4. TIMER LOGIC ---
+    useEffect(() => {
+        if (currentQuestion && !loading && !quizSummary) {
+            timerRef.current = setInterval(() => {
+                setTimeLeft((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(timerRef.current);
+                        handleSubmitAnswer(true); 
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(timerRef.current);
+    }, [currentQuestion, loading, quizSummary, handleSubmitAnswer]);
+
+    // Initial load
+    useEffect(() => {
+        if (!hasFetchedInitial.current && questId && levelId && mode && typeId) {
+            fetchQuestion(false);
+            hasFetchedInitial.current = true;
+        }
+    }, [questId, levelId, mode, typeId, fetchQuestion]);
+
+    // UI Helpers
+    const getQuestionText = () => {
+        if (!currentQuestion) return "";
+        return currentQuestion.question_text || currentQuestion.activity_question || currentQuestion.quiz_question || currentQuestion.question;
     };
 
-    // --- RESULT SCREEN UI (Base sa screenshots) ---
-    if (quizSummary) {
-        const isPassed = quizSummary.passed || quizSummary.status === 'passed';
-        const score = quizSummary.score || 0;
+    const getChoices = () => {
+        if (!currentQuestion) return [];
+        return currentQuestion.activity_answers || currentQuestion.quiz_answers || currentQuestion.answers || currentQuestion.choices || currentQuestion.quest_activity_answers || [];
+    };
 
+    // --- RENDER RESULT ---
+    if (quizSummary) {
+        const isPassed = quizSummary.passed || quizSummary.status === 'passed' || quizSummary.is_passed;
         return (
-            <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
-                <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full text-center border border-gray-100">
+            <div className="min-h-screen bg-gray-900/60 backdrop-blur-md flex items-center justify-center p-4 fixed inset-0 z-50">
+                <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-lg w-full text-center border-4 border-white">
                     <div className="mb-6 flex justify-center">
-                        <div className={`w-32 h-32 rounded-full border-8 flex items-center justify-center text-3xl font-black ${isPassed ? 'border-emerald-500 text-emerald-600' : 'border-rose-500 text-rose-600'}`}>
-                            {score}%
+                        <div className={`w-36 h-36 rounded-full border-[10px] flex items-center justify-center text-4xl font-black ${isPassed ? 'border-emerald-500 text-emerald-600' : 'border-rose-500 text-rose-600'}`}>
+                            {quizSummary.score || 0}%
                         </div>
                     </div>
-
-                    <h2 className="text-2xl font-black text-gray-800 mb-2">
-                        {isPassed ? "🎉 Activity Passed!" : "❌ Not quite..."}
-                    </h2>
-                    <p className="text-gray-500 mb-6 font-bold">
-                        {isPassed ? "Great job! The quiz for this level is now unlocked." : "You need at least 70% to unlock the quiz. Please review and retry."}
-                    </p>
-
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-                        <button 
-                            onClick={() => navigate(`/student/quest/${questId}/levels`)}
-                            className="px-8 py-3 bg-gray-200 text-gray-700 rounded-xl font-black hover:bg-gray-300 transition-colors"
-                        >
-                            Back to Quests
-                        </button>
-                        <button 
-                            onClick={() => isPassed ? navigate(`/student/quest/${questId}/levels`) : window.location.reload()}
-                            className={`px-8 py-3 text-white rounded-xl font-black transition-transform active:scale-95 ${isPassed ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                        >
-                            {isPassed ? "Continue" : "Retry Activity"}
-                        </button>
-                    </div>
+                    <h2 className="text-3xl font-black text-gray-800 mb-2">{isPassed ? "MISSION CLEARED!" : "MISSION FAILED"}</h2>
+                    <button onClick={() => navigate(`/student/quest/${questId}/levels`)} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black mt-4">CONTINUE</button>
                 </div>
             </div>
         );
     }
 
-    // Error View (Para sa 404 at 500 errors na nasa console mo)
     if (errorMessage) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
-                <div className="bg-white p-8 rounded-3xl shadow-xl border-2 border-rose-500 max-w-md">
-                    <h1 className="text-4xl mb-4">⚠️</h1>
-                    <h2 className="text-xl font-black text-gray-800 mb-2">Ops! May Problema</h2>
-                    <p className="text-gray-600 mb-6">{errorMessage}</p>
-                    <div className="flex flex-col gap-3">
-                        <button 
-                            onClick={() => fetchQuestion()}
-                            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold"
-                        >
-                            Subukan Muli (Retry)
-                        </button>
-                        <button 
-                            onClick={() => navigate(`/student/quest/${questId}/levels`)}
-                            className="w-full py-3 bg-gray-200 text-gray-800 rounded-xl font-bold"
-                        >
-                            Bumalik sa Levels
-                        </button>
-                    </div>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+                <div className="bg-white p-8 rounded-3xl shadow-xl border-2 border-rose-500 text-center">
+                    <h2 className="text-xl font-black mb-4">Error Encountered</h2>
+                    <p className="mb-6">{errorMessage}</p>
+                    <button onClick={() => fetchQuestion(false)} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold">Retry</button>
                 </div>
             </div>
         );
@@ -212,90 +227,95 @@ const GameEngine = () => {
 
     if (loading && !currentQuestion) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center font-black">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
-                <p className="text-gray-500 font-medium font-sans">Checking Mission Data...</p>
+                <p>SYNCING MISSION...</p>
             </div>
         );
     }
 
-    const progressPerc = currentQuestion ? (currentQuestion.question_number / currentQuestion.total_questions) * 100 : 0;
+    // Display variables
+    const displayNum = metadata.display_number;
+    const totalNum = metadata.total_questions || 0;
+    const progressPerc = totalNum > 0 ? (displayNum / totalNum) * 100 : 0;
+    const isLastItem = displayNum >= totalNum;
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900">
+        <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
             {/* Header */}
             <div className="max-w-4xl mx-auto flex justify-between items-center mb-6">
-                <button onClick={() => navigate(`/student/quest/${questId}/levels`)} className="bg-white border border-gray-200 px-5 py-2.5 rounded-xl shadow-sm text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors">
-                    ← Quit Quest
+                <button onClick={() => navigate(-1)} className="bg-white px-5 py-2.5 rounded-xl shadow-sm text-sm font-bold text-gray-600 hover:bg-gray-100 border">
+                    &larr; Quit
                 </button>
-                <div className="flex items-center gap-3">
-                    <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${mode === 'activity' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                        {mode}
-                    </span>
-                    <span className="text-gray-500 text-sm font-bold bg-white px-3 py-1 rounded-lg border border-gray-100 shadow-sm">
-                        Mission {levelId}
-                    </span>
+                <div className="flex items-center gap-4">
+                    <div className={`px-4 py-2 rounded-xl font-black shadow-sm bg-white border-2 ${timeLeft <= 10 ? 'border-rose-500 text-rose-500 animate-pulse' : 'border-gray-100 text-gray-700'}`}>
+                        {timeLeft}s
+                    </div>
                 </div>
             </div>
 
-            {/* Progress Bar */}
+            {/* Accurate Progress Bar */}
             <div className="max-w-4xl mx-auto mb-10">
-                <div className="flex justify-between items-end text-xs font-black text-gray-400 mb-2 tracking-widest">
-                    <span>PROGRESS</span>
-                    <span className="text-gray-600">{currentQuestion?.question_number || '0'} / {currentQuestion?.total_questions || '0'}</span>
+                <div className="flex justify-between items-end text-xs font-black text-gray-400 mb-2 tracking-widest uppercase">
+                    <span>Task Progress</span>
+                    <span className="text-gray-600">{displayNum} / {totalNum}</span>
                 </div>
-                <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
-                    <div className={`h-full transition-all duration-700 ease-out ${mode === 'activity' ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${progressPerc}%` }}></div>
+                <div className="h-4 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                    <div className={`h-full transition-all duration-700 ${mode === 'activity' ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${progressPerc}%` }}></div>
                 </div>
             </div>
 
             {/* Question Card */}
-            <div className={`max-w-4xl mx-auto bg-white rounded-[2rem] shadow-xl border-2 transition-all p-8 md:p-12 mb-8 ${feedback === 'correct' ? 'border-emerald-500 bg-emerald-50' : feedback === 'wrong' ? 'border-rose-500 bg-rose-50' : 'border-transparent'}`}>
-                <p className="text-indigo-500 text-xs font-black mb-4 uppercase tracking-widest">
-                    {feedback ? (feedback === 'correct' ? '✅ Correct!' : '❌ Wrong!') : `Question ${currentQuestion?.question_number}`}
-                </p>
-                <h2 className="text-2xl md:text-4xl font-black text-gray-800 leading-tight">
-                    {currentQuestion?.question_text}
+            <div className="max-w-4xl mx-auto bg-white rounded-[2rem] shadow-xl p-8 md:p-12 mb-8 border-2 border-gray-50">
+                <p className="text-indigo-500 text-xs font-black mb-4 uppercase tracking-widest">Question #{displayNum}</p>
+                <h2 className="text-2xl md:text-3xl font-black text-gray-800 leading-tight">
+                    {getQuestionText()}
                 </h2>
                 
-                {/* Identification Input */}
                 {currentQuestion?.question_type === 'identification' && (
                     <div className="mt-8">
                         <input 
                             type="text" 
                             value={answerText} 
                             onChange={(e) => setAnswerText(e.target.value)} 
-                            placeholder="Type answer here..." 
-                            className="w-full p-5 rounded-2xl border-2 border-gray-200 outline-none focus:border-indigo-500 text-xl font-bold" 
-                            disabled={!!feedback} 
+                            placeholder="Type your answer..." 
+                            className="w-full p-5 rounded-2xl border-4 border-gray-100 outline-none focus:border-indigo-500 text-xl font-bold transition-colors" 
+                            autoFocus
                         />
                     </div>
                 )}
             </div>
 
-            {/* Choices for Multiple Choice */}
+            {/* Choices Grid */}
             {currentQuestion?.question_type !== 'identification' && (
                 <div className="max-w-4xl mx-auto grid grid-cols-1 gap-4">
-                    {currentQuestion?.choices?.map((choice, idx) => (
-                        <button 
-                            key={choice.id || idx} 
-                            onClick={() => !feedback && setSelectedAnswer(choice.id)} 
-                            className={`flex items-center p-6 rounded-2xl border-2 transition-all text-left ${selectedAnswer === choice.id ? 'border-indigo-600 bg-indigo-50' : 'border-white bg-white hover:border-gray-300'}`}
-                        >
-                            <span className="text-xl font-bold">{choice.text || choice.choice_text}</span>
-                        </button>
-                    ))}
+                    {getChoices().map((choice, idx) => {
+                        const choiceId = choice.id || choice.quest_activity_answer_id || choice.quest_quiz_answer_id || idx; 
+                        const isSelected = selectedAnswer === choiceId;
+                        return (
+                            <button 
+                                key={idx} 
+                                onClick={() => setSelectedAnswer(choiceId)} 
+                                className={`flex items-center p-6 rounded-2xl border-2 transition-all text-left w-full ${isSelected ? 'border-indigo-600 bg-indigo-50 shadow-md' : 'bg-white border-transparent hover:border-gray-200 shadow-sm'}`}
+                            >
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mr-4 font-black ${isSelected ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                    {String.fromCharCode(65 + idx)}
+                                </div>
+                                <span className="text-xl font-bold text-gray-700">{choice.answer_text || choice.text}</span>
+                            </button>
+                        );
+                    })}
                 </div>
             )}
 
-            {/* Footer Actions */}
+            {/* Action Button */}
             <div className="max-w-4xl mx-auto mt-12 flex justify-end">
                 <button 
-                    onClick={handleSubmitAnswer} 
-                    disabled={(!selectedAnswer && !answerText) || !!feedback || isSubmitting} 
-                    className="px-12 py-5 bg-indigo-600 text-white rounded-3xl font-black text-xl shadow-xl active:scale-95 transition-transform disabled:opacity-50"
+                    onClick={() => handleSubmitAnswer(false)} 
+                    disabled={isSubmitting || (currentQuestion?.question_type !== 'identification' && selectedAnswer === null) || (currentQuestion?.question_type === 'identification' && !answerText.trim())} 
+                    className={`px-14 py-5 text-white rounded-3xl font-black text-xl shadow-xl active:scale-95 transition-all disabled:opacity-50 ${isLastItem ? 'bg-rose-600' : 'bg-indigo-600'}`}
                 >
-                    {isSubmitting ? 'Checking...' : (feedback ? 'Next Question' : 'Submit Answer')}
+                    {isSubmitting ? 'Verifying...' : (isLastItem ? 'SUBMIT MISSION' : 'NEXT TASK →')}
                 </button>
             </div>
         </div>

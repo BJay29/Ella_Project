@@ -43,14 +43,13 @@ const QuestLevels = () => {
     // UPDATE: Ngayon ay tumatanggap na rin ito ng specificId (activityId o quizId)
     const handlePlay = (levelId, mode, specificId) => {
         if (!specificId) {
-            console.error(`Missing ${mode} ID for this level`);
-            alert(`Error: No ${mode} found for this level.`);
+            console.error(`Missing ${mode} ID for this level.`, {levelId, mode, specificId});
+            alert(`Error: No ${mode} content found for this level yet.`);
             return;
         }
 
-        // Papunta ito sa GameEngine component base sa route sa App.jsx
-        // Idinagdag ang specificId sa URL para magamit ng API sa GameEngine
-        navigate(`/student/quest/${questId}/level/${levelId}/${mode}/${specificId}/play?mode=${mode}`);
+        // FIXED URL: Tugma na ito sa Route sa App.js: /student/quest/:questId/level/:levelId/play/:typeId
+        navigate(`/student/quest/${questId}/level/${levelId}/play/${specificId}?mode=${mode}`);
     };
 
     if (loading) return (
@@ -70,12 +69,12 @@ const QuestLevels = () => {
                     onClick={() => navigate('/student/dashboard', { state: { activeTab: 'My Quests' } })}
                     className="text-indigo-400 hover:text-indigo-300 mb-4 flex items-center gap-2 font-bold text-sm"
                 >
-                    ← Back to Library
+                    &larr; Back to Library
                 </button>
                 <div className="flex flex-col gap-1">
                     <span className="text-indigo-500 font-black tracking-[0.2em] text-xs uppercase">Adventure Mode</span>
                     <h1 className="text-4xl md:text-5xl font-black tracking-tight">
-                        {/* Ipinapakita ang Quest Title (e.g., Reading) */}
+                        {/* Ipinapakita ang Quest Title */}
                         {questData?.quest?.quest_title || questData?.quest?.quest_type || questData?.quest_title || 'Quest Missions'}
                     </h1>
                     <p className="text-gray-400 mt-2">Complete the initial training activity to unlock the Final Quiz.</p>
@@ -94,12 +93,23 @@ const QuestLevels = () => {
                         const isQuizUnlocked = level.activity_completed || level.is_activity_finished || level.level_status === 'activity_done';
                         const isLevelLocked = level.is_locked; 
 
-                        // Kunin ang mga kailangang IDs mula sa level data
-                        const currentLevelId = level.id || level.quest_level_id;
-                        const activityId = level.activity?.id || level.activity_id; 
-                        const quizId = level.quiz?.id || level.quiz_id;
+                        // --- IMPROVED ID EXTRACTION BASE SA CONSOLE LOG ---
+                        const currentLevelId = level.quest_level_id || level.id;
+                        
+                        // Sinisiguro natin na makuha ang ID kahit array o object ang format ng backend
+                        const activityId = 
+                            level.quest_activities?.[0]?.quest_activity_id || 
+                            level.activity?.quest_activity_id || 
+                            level.activity?.id || 
+                            level.activity_id; 
 
-                        // FALLBACK TITLES: Pinaka-importante para lumabas ang "SPELLING"
+                        const quizId = 
+                            level.quest_quizzes?.[0]?.quest_quiz_id || 
+                            level.quiz?.quest_quiz_id || 
+                            level.quiz?.id || 
+                            level.quiz_id;
+
+                        // FALLBACK TITLES
                         const displayTitle = 
                             level.level_title || 
                             level.title || 
@@ -118,7 +128,6 @@ const QuestLevels = () => {
                                         </div>
                                         <div className="flex flex-col gap-1">
                                             <h3 className="text-2xl font-black tracking-tight uppercase">
-                                                {/* DITO LALABAS ANG "SPELLING" */}
                                                 {displayTitle}
                                             </h3>
                                             <div className="flex gap-2">
@@ -139,7 +148,7 @@ const QuestLevels = () => {
                                                 {isQuizUnlocked ? 'REPLAY ACTIVITY' : 'START ACTIVITY'}
                                             </button>
                                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                                                Questions: {level.activity_questions_count || 0}
+                                                Questions: {level.quest_activities?.[0]?.questions_count || level.activity?.questions?.length || 0}
                                             </span>
                                         </div>
 
@@ -152,7 +161,7 @@ const QuestLevels = () => {
                                                 {isQuizUnlocked ? 'START QUIZ' : ' QUIZ LOCKED'}
                                             </button>
                                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                                                Questions: {level.quiz_questions_count || 0}
+                                                Questions: {level.quest_quizzes?.[0]?.questions_count || level.quiz?.questions?.length || 0}
                                             </span>
                                         </div>
                                     </div>

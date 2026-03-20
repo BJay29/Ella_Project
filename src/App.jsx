@@ -40,9 +40,9 @@ const ProtectedRoute = ({ children, allowedRole }) => {
     console.warn(`Access Denied: Role ${normalizedRole} is not authorized for ${targetRole} routes.`);
     
     // Imbes na basta ibalik, i-redirect sa tamang dashboard ng role niya
-    if (normalizedRole === 'student')             return <Navigate to="/student/dashboard" replace />;
-    if (normalizedRole === 'admin')               return <Navigate to="/admin/dashboard" replace />;
-    if (normalizedRole === 'instructor')          return <Navigate to="/instructor/dashboard" replace />;
+    if (normalizedRole === 'student')            return <Navigate to="/student/dashboard" replace />;
+    if (normalizedRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
+    if (normalizedRole === 'instructor')         return <Navigate to="/instructor/dashboard" replace />;
     if (normalizedRole === 'curriculum_manager') return <Navigate to="/cm/dashboard" replace />; 
     
     // Kung unknown role, logout
@@ -106,10 +106,8 @@ function App() {
           </ProtectedRoute>
         } />
 
-        {/* ACTUAL GAMEPLAY ROUTE (UPDATED) 
-          Idinagdag ang /:type/:typeId para sa activityId/quizId 
-        */}
-        <Route path="/student/quest/:questId/level/:levelId/:type/:typeId/play" element={
+        {/* ACTUAL GAMEPLAY ROUTE - FIXED: Added /:typeId to match GameEngine logic and API calls */}
+        <Route path="/student/quest/:questId/level/:levelId/play/:typeId" element={
           <ProtectedRoute allowedRole="student">
             <GameEngine />
           </ProtectedRoute>
