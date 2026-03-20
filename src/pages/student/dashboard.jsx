@@ -1,318 +1,292 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AnalyticsCard from './analyticscard';
+import StudentNavbar from '../../components/layout/studentnavbar';
+import MyCourses from './MyCourses';
+import MyQuests from './MyQuests';
+import MyProgress from './MyProgress';
+import Leaderboard from './Leaderboard';
+import MyBadges from './MyBadges';
+import Messages from './Messages';
+import SettingsCard from './settingscard';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://ellaquest-backend.onrender.com';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
-  const [activePage, setActivePage] = useState('Home');
-  const [selectedQuest, setSelectedQuest] = useState(null);
+  const [activePage, setActivePage] = useState('Dashboard');
+  const [activeTab, setActiveTab] = useState('Macro Skills');
 
-  // MODAL STATES
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showCourseModal, setShowCourseModal] = useState(false);
-  const [courseCode, setCourseCode] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const [showProfile,  setShowProfile]  = useState(false);
+  const [soundEffects, setSoundEffects] = useState(true);
 
-  // JOIN REQUEST STATES
-  const [joinStatus, setJoinStatus] = useState('idle'); // idle | loading | success | error
-  const [joinMessage, setJoinMessage] = useState('');
+  const [profileData, setProfileData] = useState({
+    firstName: sessionStorage.getItem('firstName') || localStorage.getItem('firstName') || '',
+    lastName:  sessionStorage.getItem('lastName')  || localStorage.getItem('lastName')  || '',
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMsg,    setProfileMsg]    = useState({ type: '', text: '' });
 
-  const handleLogoutClick = () => setShowLogoutModal(true);
+  const firstName = profileData.firstName || 'Student';
 
-  const confirmLogout = () => {
+  const handleLogout = () => {
     sessionStorage.clear();
+    localStorage.clear();
     navigate('/login', { replace: true });
   };
 
-  const handleJoinCourse = async () => {
-    const trimmedCode = courseCode.trim();
-    if (!trimmedCode) {
-      setJoinStatus('error');
-      setJoinMessage('Please enter a class code.');
-      return;
-    }
-
-    const token = sessionStorage.getItem('token');
-    if (!token) {
-      setJoinStatus('error');
-      setJoinMessage('You are not logged in. Please log in again.');
-      return;
-    }
-
-    setJoinStatus('loading');
-    setJoinMessage('');
-
+  const handleProfileSave = async () => {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (!token) return;
+    setProfileSaving(true);
+    setProfileMsg({ type: '', text: '' });
     try {
-      const response = await fetch(`${API_BASE}/course/join`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ class_code: trimmedCode }),
+      const res = await fetch(`${API_BASE}/api/student/student/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ first_name: profileData.firstName, last_name: profileData.lastName }),
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setJoinStatus('success');
-        setJoinMessage(data.message || 'Join request sent! Waiting for instructor approval.');
-        setCourseCode('');
+      const data = await res.json();
+      if (res.ok) {
+        sessionStorage.setItem('firstName', profileData.firstName);
+        sessionStorage.setItem('lastName',  profileData.lastName);
+        localStorage.setItem('firstName',   profileData.firstName);
+        localStorage.setItem('lastName',    profileData.lastName);
+        setProfileMsg({ type: 'success', text: 'Profile updated successfully!' });
       } else {
-        setJoinStatus('error');
-        setJoinMessage(data.detail || data.message || 'Invalid class code. Please try again.');
+        setProfileMsg({ type: 'error', text: data.message || 'Failed to update profile.' });
       }
-    } catch (err) {
-      setJoinStatus('error');
-      setJoinMessage('Network error. Please check your connection.');
+    } catch {
+      setProfileMsg({ type: 'error', text: 'Network error. Please try again.' });
+    } finally {
+      setProfileSaving(false);
     }
   };
 
-  const handleCloseModal = () => {
-    setShowCourseModal(false);
-    setJoinStatus('idle');
-    setJoinMessage('');
-    setCourseCode('');
-  };
-
-  const quests = [
-    { id: 1, title: 'Quest 1: Reading', locked: false, progress: 67 },
-    { id: 2, title: 'Quest 2: Reading', locked: false, progress: 0 },
-    { id: 3, title: 'Quest 3: Listening', locked: true },
-    { id: 4, title: 'Quest 4: Listening', locked: true },
-    { id: 5, title: 'Quest 5: Writing', locked: true },
-    { id: 6, title: 'Quest 6: Writing', locked: true },
+  const stats = [
+    { label: 'Activities Done', value: 7   },
+    { label: 'Quizzes Passed',  value: 4   },
+    { label: 'Avg Score',       value: '80%' },
+    { label: 'Global Rank',     value: '#3'  },
   ];
 
+  const macroSkills = [
+    { label: 'Reading',   emoji: '📖', percent: 80, status: 'Quest active', color: 'bg-[#4CAF50]'  },
+    { label: 'Listening', emoji: '🎧', percent: 0,  status: 'Quest active', color: 'bg-blue-400'   },
+    { label: 'Writing',   emoji: '✏️', percent: 0,  status: 'Quest active', color: 'bg-yellow-400' },
+    { label: 'Speaking',  emoji: '🎤', percent: 0,  status: 'Quest active', color: 'bg-purple-400' },
+  ];
+
+  const tabs = ['Macro Skills', 'Active Quest', 'My Results'];
+
   return (
-    <div className="flex flex-col md:flex-row h-screen w-full bg-white overflow-hidden font-sans relative">
+    <div className="min-h-screen bg-[#f0f4f0] dark:bg-gray-950 font-sans transition-colors duration-300">
+      <StudentNavbar
+        activePage={activePage}
+        setActivePage={setActivePage}
+        onSettingsClick={() => setShowSettings(true)}
+        onProfileClick={() => setShowProfile(true)}
+      />
 
-      {/* SIDEBAR */}
-      <aside className="fixed md:relative z-40 w-[260px] md:w-[280px] h-full bg-[#C1E1C1] flex flex-col p-5 border-r border-black/5">
-        <h1 className="text-4xl font-normal text-gray-800 mb-8 text-center">Ella Quest</h1>
+      {activePage === 'My Courses'  && <MyCourses />}
+      {activePage === 'My Quests'   && <MyQuests />}
+      {activePage === 'My Progress' && <MyProgress />}
+      {activePage === 'Leaderboard' && <Leaderboard />}
+      {activePage === 'My Badges'   && <MyBadges />}
+      {activePage === 'Messages'    && <Messages />}
 
-        <nav className="flex flex-col gap-2 w-full px-2">
-          {['Home', 'Analytics', 'Skin Shop', 'Settings'].map((page) => (
-            <button
-              key={page}
-              onClick={() => { setActivePage(page); setSelectedQuest(null); }}
-              className={`py-2 px-6 rounded-full font-medium transition-all text-sm border border-black/10
-                ${activePage === page ? 'bg-[#A2BC56] text-white shadow-sm' : 'bg-[#8DA674]/70 text-gray-700 hover:bg-[#8DA674]'}`}
-            >
-              {page}
-            </button>
-          ))}
-        </nav>
+      {activePage === 'Dashboard' && (
+        <div className="max-w-5xl mx-auto px-6 py-8">
 
-        <div className="mt-auto flex flex-col items-center w-full">
-          <div className="w-full flex justify-center">
-            <img
-              src="/src/assets/image.png"
-              alt="Ella"
-              className="w-44 md:w-52 h-auto object-contain max-h-[35vh] transform translate-y-3"
-            />
-          </div>
-          <button
-            onClick={handleLogoutClick}
-            className="bg-[#8DA674] hover:bg-red-500 hover:text-white text-white font-bold py-1.5 px-10 rounded-full border border-black/10 text-[11px] transition-all mb-4 z-10 shadow-md w-max"
-          >
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col p-4 md:p-8 bg-white overflow-hidden">
-
-        {/* HEADER */}
-        <div className="flex justify-between items-start mb-6 flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-[#A2BC56] border-2 border-white shadow-md flex items-center justify-center text-[10px] font-bold text-white uppercase">
-              Avatar
+          {/* Welcome Card */}
+          <div className="bg-[#d4edda] dark:bg-green-900/30 rounded-2xl p-6 mb-6 transition-colors">
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-1">
+                  Welcome back, {firstName}! 👋
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Keep going — your English journey...</p>
+              </div>
+              <div className="bg-[#4CAF50] text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 flex-shrink-0">
+                🔥 3-Day Streak! Don't stop now!
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-800">User Name</h2>
-              <p className="text-[10px] text-gray-500 font-bold">Lvl: 99999</p>
+            <div className="grid grid-cols-4 gap-3 mt-5">
+              {stats.map((stat) => (
+                <div key={stat.label} className="bg-white/70 dark:bg-gray-800/60 rounded-xl p-3 text-center">
+                  <p className="text-xl font-black text-gray-800 dark:text-white">{stat.value}</p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-tight leading-tight mt-0.5">
+                    {stat.label}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-4 mr-2">
-              {/* JOIN CLASS BUTTON */}
-              <button
-                onClick={() => setShowCourseModal(true)}
-                className="bg-[#4CAF50] text-white w-9 h-9 flex items-center justify-center rounded-full text-2xl font-bold shadow-sm hover:scale-110 transition-transform"
-                title="Join a class"
-              >
-                +
-              </button>
-              <div className="relative cursor-pointer">
-                <span className="text-3xl">💬</span>
-                <span className="absolute -top-1 -right-1 bg-[#FF4B4B] text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">1</span>
-              </div>
-              <div className="relative cursor-pointer">
-                <span className="text-3xl">🔔</span>
-                <span className="absolute -top-1 -right-1 bg-[#FF4B4B] text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">1</span>
-              </div>
+          {/* Tabs + Content Card */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
+            <div className="flex border-b border-gray-100 dark:border-gray-700">
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-3 text-xs font-semibold transition-all flex items-center justify-center gap-1.5
+                    ${activeTab === tab
+                      ? 'border-b-2 border-[#4CAF50] text-[#4CAF50]'
+                      : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                >
+                  {tab === 'Macro Skills' && '📊'}
+                  {tab === 'Active Quest' && '🎮'}
+                  {tab === 'My Results'   && '📋'}
+                  {tab}
+                </button>
+              ))}
             </div>
-            <div className="bg-[#A2BC56] text-white px-8 py-2 rounded-full border border-black/5 font-bold text-xs shadow-sm">
-              Coins: 9999999
-            </div>
-          </div>
-        </div>
 
-        {/* DYNAMIC CONTENT AREA */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-
-          {activePage === 'Home' && (
-            <div className="bg-[#C1E1C1]/60 rounded-[40px] p-6 md:p-10 flex flex-col items-center flex-1 min-h-0 max-w-5xl mx-auto w-full border border-black/5 shadow-inner overflow-hidden">
-              <div className="bg-white/60 px-16 py-1.5 rounded-full mb-8 text-xl font-medium text-gray-700 shadow-sm flex-shrink-0">
-                Quest
-              </div>
-
-              <div className="w-full space-y-4 overflow-y-auto scrollbar-hide flex-1 px-4">
-                {quests.map((quest) => (
-                  <div key={quest.id} className="w-full">
-                    <div
-                      onClick={() => !quest.locked && setSelectedQuest(selectedQuest === quest.id ? null : quest.id)}
-                      className={`
-                        relative rounded-full py-2.5 px-10 flex items-center transition-all border
-                        ${quest.locked
-                          ? 'bg-white/30 border-white/20'
-                          : 'bg-white/70 hover:bg-white/90 border-white/50 cursor-pointer shadow-sm active:scale-[0.98]'}
-                      `}
-                    >
-                      <span className={`font-medium text-sm md:text-base ${quest.locked ? 'text-gray-400 opacity-60' : 'text-gray-700'}`}>
-                        {quest.title}
-                      </span>
-                      {quest.locked && (
-                        <div className="absolute left-1/2 transform -translate-x-1/2">
-                          <span className="text-yellow-500 text-xl drop-shadow-sm">🔒</span>
+            <div className="p-5">
+              {activeTab === 'Macro Skills' && (
+                <div>
+                  <h3 className="font-bold text-gray-700 dark:text-gray-200 text-sm mb-1">Your Macro Skill</h3>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">See All of your Macro Skills</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {macroSkills.map((skill) => (
+                      <div key={skill.label} className="border border-gray-100 dark:border-gray-700 rounded-xl p-4 hover:shadow-sm transition-shadow cursor-pointer group bg-white dark:bg-gray-700/40">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <p className="text-xs text-gray-500 dark:text-gray-300 font-medium">{skill.emoji} {skill.label}</p>
+                            <p className="text-[10px] text-gray-300 dark:text-gray-500 mt-0.5">{skill.status}</p>
+                          </div>
+                          <span className="text-2xl opacity-20 group-hover:opacity-40 transition-opacity">{skill.emoji}</span>
                         </div>
-                      )}
-                    </div>
-
-                    {!quest.locked && selectedQuest === quest.id && (
-                      <div className="mt-2 ml-6 mr-6 bg-white/40 rounded-[30px] p-4 animate-in slide-in-from-top-2 duration-200">
-                        <div className="flex flex-col gap-4">
-                          <div className="flex justify-between items-center px-4">
-                            <span className="text-gray-700 text-sm font-medium">Progress: {quest.progress}%</span>
-                            <div className="w-32 h-3 bg-black rounded-full overflow-hidden relative">
-                              <div className="h-full bg-[#00FF00] shadow-[0_0_8px_#00FF00]" style={{ width: `${quest.progress}%` }}></div>
-                              <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-[#B5C7FF] rounded-full border border-gray-400" style={{ left: `calc(${quest.progress}% - 8px)` }}></div>
-                            </div>
-                          </div>
-                          <div className="flex gap-4 justify-center">
-                            <button className="bg-[#A2BC56] text-white px-8 py-2 rounded-xl font-bold shadow-md hover:scale-105 transition-all">Activity</button>
-                            <button className="bg-[#A2BC56] text-white px-10 py-2 rounded-xl font-bold shadow-md hover:scale-105 transition-all">Quiz</button>
-                          </div>
+                        <p className="text-2xl font-black text-gray-800 dark:text-white mb-2">{skill.percent}%</p>
+                        <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-600 rounded-full overflow-hidden">
+                          <div className={`h-full ${skill.color} rounded-full transition-all duration-700`} style={{ width: `${skill.percent}%` }} />
                         </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
 
-          {activePage === 'Analytics' && (
-            <div className="flex-1 overflow-y-auto scrollbar-hide">
-              <AnalyticsCard />
-            </div>
-          )}
+              {activeTab === 'Active Quest' && (
+                <div className="flex flex-col items-center justify-center py-10 text-gray-400 dark:text-gray-500">
+                  <span className="text-4xl mb-3">🎮</span>
+                  <p className="font-bold text-sm">No active quest yet</p>
+                  <p className="text-xs mt-1">Go to My Quests to start one</p>
+                </div>
+              )}
 
-          {activePage === 'Skin Shop' && (
-            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
-              <span className="text-6xl mb-4">👕</span>
-              <h3 className="text-2xl font-bold text-gray-400 italic">Skin Shop Coming Soon</h3>
-            </div>
-          )}
-
-          {activePage === 'Settings' && (
-            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
-              <span className="text-6xl mb-4">⚙️</span>
-              <h3 className="text-2xl font-bold text-gray-400 italic">Settings Coming Soon</h3>
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* JOIN CLASS MODAL */}
-      {showCourseModal && (
-        <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-[#C1E1C1] p-8 rounded-[30px] border border-white/30 shadow-2xl max-w-sm w-full text-center relative">
-            <button onClick={handleCloseModal} className="absolute top-4 right-4 text-gray-600 font-bold text-lg hover:text-black transition-colors">✕</button>
-
-            <h2 className="text-2xl font-semibold mb-2 text-gray-800">Enter Course Code</h2>
-            <p className="text-xs text-gray-500 mb-6 font-medium">Ask your instructor for the class code.</p>
-
-            <input
-              type="text"
-              value={courseCode}
-              onChange={(e) => { setCourseCode(e.target.value); setJoinStatus('idle'); setJoinMessage(''); }}
-              onKeyDown={(e) => e.key === 'Enter' && handleJoinCourse()}
-              className="w-full py-3 px-6 rounded-full mb-4 text-center outline-none shadow-inner border-2 border-transparent focus:border-[#A2BC56] transition-colors text-gray-800 font-bold tracking-widest text-lg uppercase"
-              placeholder="e.g. ABC123"
-              maxLength={10}
-              disabled={joinStatus === 'loading' || joinStatus === 'success'}
-            />
-
-            {/* Status Messages */}
-            {joinStatus === 'error' && (
-              <div className="bg-red-100 border border-red-300 text-red-700 text-xs font-bold rounded-2xl px-4 py-2 mb-4">
-                ❌ {joinMessage}
-              </div>
-            )}
-            {joinStatus === 'success' && (
-              <div className="bg-green-100 border border-green-300 text-green-700 text-xs font-bold rounded-2xl px-4 py-2 mb-4">
-                ✅ {joinMessage}
-              </div>
-            )}
-
-            {/* Buttons */}
-            {joinStatus === 'success' ? (
-              <button
-                onClick={handleCloseModal}
-                className="bg-[#A2BC56] text-white px-12 py-2.5 rounded-full font-bold shadow-md hover:scale-105 transition-all"
-              >
-                Done
-              </button>
-            ) : (
-              <button
-                onClick={handleJoinCourse}
-                disabled={joinStatus === 'loading'}
-                className="bg-[#A2BC56] text-white px-12 py-2.5 rounded-full font-bold shadow-md hover:scale-105 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
-              >
-                {joinStatus === 'loading' ? (
-                  <>
-                    <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
-                    Sending...
-                  </>
-                ) : 'Join'}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* LOGOUT MODAL */}
-      {showLogoutModal && (
-        <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-[#C1E1C1] p-10 rounded-[40px] border border-white/30 shadow-2xl max-w-sm w-full text-center">
-            <h2 className="text-xl font-bold mb-8 text-gray-800">Are you sure you want to Logout!?</h2>
-            <div className="flex gap-4 justify-center">
-              <button onClick={confirmLogout} className="bg-[#7B9565] text-white px-10 py-2.5 rounded-full font-bold hover:bg-red-600 transition-all shadow-md">Yes</button>
-              <button onClick={() => setShowLogoutModal(false)} className="bg-[#A4C46B] text-white px-10 py-2.5 rounded-full font-bold hover:bg-[#8DA674] transition-all shadow-md">No</button>
+              {activeTab === 'My Results' && (
+                <div className="flex flex-col items-center justify-center py-10 text-gray-400 dark:text-gray-500">
+                  <span className="text-4xl mb-3">📋</span>
+                  <p className="font-bold text-sm">No results yet</p>
+                  <p className="text-xs mt-1">Complete a quest to see your results here</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-      `}} />
+      {!['Dashboard','My Courses','My Quests','My Progress','Leaderboard','My Badges','Messages'].includes(activePage) && (
+        <div className="max-w-5xl mx-auto px-6 py-16 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+          <span className="text-5xl mb-4">🚧</span>
+          <p className="font-bold text-lg">{activePage}</p>
+          <p className="text-sm mt-1">Coming soon</p>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <SettingsCard
+          onClose={() => setShowSettings(false)}
+          soundEffects={soundEffects}
+          setSoundEffects={setSoundEffects}
+        />
+      )}
+
+      {/* Profile Modal */}
+      {showProfile && (
+        <div className="fixed inset-0 bg-black/30 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden transition-colors">
+
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">👤</span>
+                <h2 className="font-bold text-gray-800 dark:text-white text-base">Edit Profile</h2>
+              </div>
+              <button
+                onClick={() => { setShowProfile(false); setProfileMsg({ type: '', text: '' }); }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors text-xl font-bold leading-none w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+              >×</button>
+            </div>
+
+            <div className="flex flex-col items-center pt-6 pb-2">
+              <div className="w-16 h-16 bg-[#4CAF50] rounded-full flex items-center justify-center text-white font-black text-2xl mb-2">
+                {profileData.firstName?.[0]?.toUpperCase() || 'S'}
+              </div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">Student</p>
+            </div>
+
+            <div className="px-5 py-4 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">First Name</label>
+                <input
+                  type="text"
+                  value={profileData.firstName}
+                  onChange={(e) => setProfileData((p) => ({ ...p, firstName: e.target.value }))}
+                  className="w-full border-2 border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:border-[#4CAF50] transition-colors bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400"
+                  placeholder="First name"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Last Name</label>
+                <input
+                  type="text"
+                  value={profileData.lastName}
+                  onChange={(e) => setProfileData((p) => ({ ...p, lastName: e.target.value }))}
+                  className="w-full border-2 border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:border-[#4CAF50] transition-colors bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400"
+                  placeholder="Last name"
+                />
+              </div>
+
+              {profileMsg.text && (
+                <div className={`text-xs font-semibold rounded-lg px-4 py-2.5 flex items-center gap-2
+                  ${profileMsg.type === 'success'
+                    ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-300'
+                    : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'}`}>
+                  {profileMsg.type === 'success' ? '✅' : '❌'} {profileMsg.text}
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-gray-100 dark:border-gray-700 mt-4">
+                <button
+                  onClick={handleLogout}
+                  className="w-full py-2.5 rounded-xl text-red-500 font-bold text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center justify-center gap-2 border border-red-100 dark:border-red-800"
+                >
+                  <span className="text-lg">🚪</span> Logout Account
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3 px-5 pb-5">
+              <button
+                onClick={() => { setShowProfile(false); setProfileMsg({ type: '', text: '' }); }}
+                className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >Cancel</button>
+              <button
+                onClick={handleProfileSave}
+                disabled={profileSaving}
+                className="flex-1 py-2.5 rounded-xl bg-[#4CAF50] text-white font-bold text-sm hover:bg-[#43A047] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {profileSaving ? (
+                  <><span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full inline-block" /> Saving...</>
+                ) : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
