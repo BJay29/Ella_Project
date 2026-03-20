@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import ErrorModal from "../../components/modals/errormodal"; 
-import { authAPI } from '../../services/authservice';
+import { authAPI } from '../../services/APIservice';
 
 // --- SUCCESS MODAL COMPONENT ---
 const SuccessModal = ({ isOpen, message, onClose }) => {

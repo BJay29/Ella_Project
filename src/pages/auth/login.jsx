@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import AuthInput from '../../components/common/authinput';
 import ellaLogo from '../../assets/image.png';
 import ErrorModal from "../../components/modals/errormodal";
-import { authAPI } from '../../services/authservice';
+import { authAPI } from '../../services/APIservice';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -18,7 +17,7 @@ const Login = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Gisingin ang Render server sa background pag-load ng Login page
+  // Gisingin ang Render server pag-load ng Login page
   useEffect(() => {
     authAPI.ping();
   }, []);
@@ -45,24 +44,37 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
+        // 1. Kunin ang role mula sa iba't ibang posibleng key sa backend
         const rawRole = data.role || data.user?.role || data.userRole || 'student';
         const normalizedRole = rawRole.toLowerCase().trim();
 
+        localStorage.clear();
+
+    
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', normalizedRole);
         
+        console.log("LOGIN SUCCESSFUL!");
+        console.log("Token Saved:", data.token ? "YES" : "NO");
+        console.log("User Role:", normalizedRole);
+
+        // 3. REDIRECT LOGIC
         if (normalizedRole === 'instructor') {
           navigate('/instructor/dashboard', { replace: true });
         } else if (normalizedRole === 'admin') {
           navigate('/admin/dashboard', { replace: true });
+          } else if (normalizedRole === 'curriculum_manager') { 
+          navigate('/cm/dashboard', { replace: true });
         } else {
           navigate('/student/dashboard', { replace: true });
         }
       } else {
+        // Ipakita ang error message mula sa backend
         setErrorMessage(data.message?.toUpperCase() || "INVALID EMAIL OR PASSWORD!");
         setShowErrorModal(true);
       }
     } catch (error) {
+      console.error("Login Error:", error);
       setErrorMessage("SERVER ERROR: CANNOT CONNECT TO BACKEND");
       setShowErrorModal(true);
     } finally {
@@ -70,6 +82,7 @@ const Login = () => {
     }
   };
 
+  // Fix para sa yellow background ng chrome autofill
   const autofillFix = {
     WebkitBoxShadow: "0 0 0px 1000px #7a9e50 inset",
     WebkitTextFillColor: "#ffffff",
@@ -106,6 +119,7 @@ const Login = () => {
               placeholder="EMAIL"
               style={autofillFix}
               className="flex-1 bg-[#7a9e50] px-4 py-3 text-white placeholder-white/70 font-bold text-sm tracking-widest outline-none"
+              required
             />
           </div>
 
@@ -124,29 +138,21 @@ const Login = () => {
               placeholder="PASSWORD"
               style={autofillFix}
               className="flex-1 bg-[#7a9e50] px-4 py-3 text-white placeholder-white/70 font-bold text-sm tracking-widest outline-none"
+              required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="px-4 py-3 text-white/80 hover:text-white transition-colors"
+              className="px-4 py-3 text-white/80 hover:text-white transition-colors text-[10px] font-black"
             >
-              {showPassword ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268-2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              )}
+              {showPassword ? "HIDE" : "SHOW"}
             </button>
           </div>
 
           <div className="flex justify-end -mt-1">
-            <a href="#" className="text-[11px] italic text-[#3B82F6] font-semibold hover:underline">
+            <Link to="/forgot-password" title="Feature coming soon" className="text-[11px] italic text-[#3B82F6] font-semibold hover:underline">
               Forgot Password?
-            </a>
+            </Link>
           </div>
 
           <div className="flex justify-center mt-2">
@@ -160,7 +166,6 @@ const Login = () => {
             </button>
           </div>
 
-          {/* BINAGO: Sign Up Link points to /verify-email instead of /register */}
           <div className="text-center mt-1">
             <p className="text-[11px] text-[#3B82F6] font-medium">
               Dont have an Account?{' '}

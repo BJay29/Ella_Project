@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import ellaLogo from '../../assets/image.png';
 import ErrorModal from "../../components/modals/errormodal";
-import { authAPI } from '../../services/authservice';
+import { authAPI } from '../../services/APIservice';
 
 const VerifyEmail = () => {
   const navigate = useNavigate();
@@ -53,9 +53,7 @@ const VerifyEmail = () => {
         return;
       }
 
-      // Dahil ang backend niyo ay sa /register chinicheck ang code,
-      // hindi na tayo tatawag ng verifyCode API dito.
-      // Didiretso na tayo sa Register page at ipapasa ang code doon.
+
       setIsLoading(true);
       
       // Simulate konting delay para sa UX

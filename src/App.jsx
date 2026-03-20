@@ -14,29 +14,51 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 
 // Instructor
 import InstructorDashboard from './pages/instructor/InstructorDashboard';
-import ClassProgress from './pages/instructor/ClassProgress';
-import AlertQueue from './pages/instructor/AlertQueue';
-import ReviewTask from './pages/instructor/ReviewTask';
-import Analytics from './pages/instructor/Analytics';
-import Messaging from './pages/instructor/Messaging';
+
+// Curriculum Manager (CM)
+import CMDashboard from './pages/cm/cmDashboard'; 
 
 // ── Protected Route Guard ─────────────────────────────────────────
 const ProtectedRoute = ({ children, allowedRole }) => {
   const token = localStorage.getItem('token');
   const userRole = localStorage.getItem('userRole');
+  
+  // Normalize ang role para iwas error sa casing
   const normalizedRole = userRole ? userRole.toLowerCase().trim() : '';
 
+  // 1. Kung walang token, balik sa login
   if (!token || token === '') {
     return <Navigate to="/login" replace />;
   }
 
+  // 2. Kung may token pero hindi match ang role sa "allowedRole"
   if (allowedRole && normalizedRole !== allowedRole.toLowerCase()) {
-    if (normalizedRole === 'student')    return <Navigate to="/student/dashboard" replace />;
-    if (normalizedRole === 'admin')      return <Navigate to="/admin/dashboard" replace />;
-    if (normalizedRole === 'instructor') return <Navigate to="/instructor/dashboard" replace />;
+    // Redirection Logic base sa role para hindi sila ma-stuck
+    if (normalizedRole === 'student')            return <Navigate to="/student/dashboard" replace />;
+    if (normalizedRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
+    if (normalizedRole === 'instructor')         return <Navigate to="/instructor/dashboard" replace />;
+    if (normalizedRole === 'curriculum_manager') return <Navigate to="/cm/dashboard" replace />; 
+    
+    // Fallback kung logged in pero weird ang role
+    localStorage.clear(); // Clean up para sigurado
     return <Navigate to="/login" replace />;
   }
 
+  // 3. Kung pasado sa lahat, ipakita ang page
+  return children;
+};
+
+// ── Public Route Guard (Bawal mag-login/register kung logged in na) ──
+const PublicRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  const userRole = localStorage.getItem('userRole')?.toLowerCase().trim();
+
+  if (token && token !== '') {
+    if (userRole === 'student')            return <Navigate to="/student/dashboard" replace />;
+    if (userRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
+    if (userRole === 'instructor')         return <Navigate to="/instructor/dashboard" replace />;
+    if (userRole === 'curriculum_manager') return <Navigate to="/cm/dashboard" replace />;
+  }
   return children;
 };
 
@@ -44,17 +66,29 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* BINAGO: Ang default "/" ay magdidirect na sa Verify Email imbes na Login */}
-        <Route path="/" element={<Navigate to="/verify-email" replace />} />
+        {/* Default route - I-check kung logged in o hindi */}
+        <Route path="/" element={
+            <PublicRoute>
+                <Navigate to="/login" replace />
+            </PublicRoute>
+        } />
 
         {/* Public Routes */}
-        <Route path="/login" element={<Login />} />
-        
-        {/* Verification flow: Verification muna bago Register */}
+        <Route path="/login" element={
+            <PublicRoute>
+                <Login />
+            </PublicRoute>
+        } />
+        <Route path="/register" element={
+            <PublicRoute>
+                <Register />
+            </PublicRoute>
+        } />
         <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/register" element={<Register />} />
 
-        {/* Student - supports parehong /dashboard at /student/dashboard */}
+        {/* ── ROLE-BASED DASHBOARD ROUTES ── */}
+
+        {/* Student Routes */}
         <Route path="/dashboard" element={
           <ProtectedRoute allowedRole="student">
             <StudentDashboard />
@@ -79,34 +113,16 @@ function App() {
             <InstructorDashboard />
           </ProtectedRoute>
         } />
-        <Route path="/instructor/progress" element={
-          <ProtectedRoute allowedRole="instructor">
-            <ClassProgress />
-          </ProtectedRoute>
-        } />
-        <Route path="/instructor/alerts" element={
-          <ProtectedRoute allowedRole="instructor">
-            <AlertQueue />
-          </ProtectedRoute>
-        } />
-        <Route path="/instructor/review" element={
-          <ProtectedRoute allowedRole="instructor">
-            <ReviewTask />
-          </ProtectedRoute>
-        } />
-        <Route path="/instructor/analytics" element={
-          <ProtectedRoute allowedRole="instructor">
-            <Analytics />
-          </ProtectedRoute>
-        } />
-        <Route path="/instructor/messaging" element={
-          <ProtectedRoute allowedRole="instructor">
-            <Messaging />
+
+        {/* Curriculum Manager (CM) Routes */}
+        <Route path="/cm/dashboard" element={
+          <ProtectedRoute allowedRole="curriculum_manager">
+            <CMDashboard />
           </ProtectedRoute>
         } />
 
-        {/* BINAGO: Catch-all route ay magdidirect na sa Verify Email */}
-        <Route path="*" element={<Navigate to="/verify-email" replace />} />
+        {/* Catch-all route - Redirect sa login kung walang match */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
   );
