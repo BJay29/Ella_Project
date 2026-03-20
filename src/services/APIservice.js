@@ -312,7 +312,7 @@ export const authAPI = {
     });
   },
 
-  // --- LEVEL LOGIC (Consolidated with /api prefix) ---
+  // --- LEVEL LOGIC ---
   getLevelsByQuest: async (questId, token) => {
     return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels`, {
       method: 'GET',
@@ -343,27 +343,27 @@ export const authAPI = {
         'Content-Type': 'application/json'
       },
     });
-    
   },
+
   updateLevel: async (questId, levelId, payload, token) => {
-  return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
-},
+    return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+  },
 
-deleteLevel: async (questId, levelId, token) => {
-  return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}`, {
-    method: 'DELETE',
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-},
+  deleteLevel: async (questId, levelId, token) => {
+    return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+  },
 
-// --- ACTIVITY LOGIC ---
+  // --- ACTIVITY LOGIC ---
   getActivities: async (questId, levelId, token) => {
     return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/activities`, {
       method: 'GET',
@@ -375,8 +375,6 @@ deleteLevel: async (questId, levelId, token) => {
   },
 
   createActivity: async (questId, levelId, data, token) => {
-console.log("Creating Activity with:", { questId, levelId, data }); 
-    
     return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/activities`, {
       method: 'POST',
       headers: { 
@@ -385,7 +383,7 @@ console.log("Creating Activity with:", { questId, levelId, data });
       },
       body: JSON.stringify(data)
     });
-},
+  },
 
   updateActivity: async (questId, levelId, activityId, data, token) => {
     return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/activities/${activityId}`, {
@@ -406,7 +404,7 @@ console.log("Creating Activity with:", { questId, levelId, data });
   },
 
   // --- QUIZ LOGIC ---
-getQuizzes: async (questId, levelId, token) => {
+  getQuizzes: async (questId, levelId, token) => {
     return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/quizzes`, {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -417,9 +415,10 @@ getQuizzes: async (questId, levelId, token) => {
     return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/quizzes`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(data) // { title, difficulty, passing_score }
+      body: JSON.stringify(data) 
     });
   },  
+
   updateQuiz: async (questId, levelId, quizId, data, token) => {
     return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/quizzes/${quizId}`, {
       method: 'PUT',
@@ -438,7 +437,7 @@ getQuizzes: async (questId, levelId, token) => {
     });
   },
 
-addActivityQuestion: async (questId, levelId, activityId, data, token) => {
+  addActivityQuestion: async (questId, levelId, activityId, data, token) => {
     validateParams({ questId, levelId, activityId });
     return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/activities/${activityId}/questions`, {
       method: 'POST',
@@ -453,6 +452,85 @@ addActivityQuestion: async (questId, levelId, activityId, data, token) => {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
+    });
+  },
+
+  // --- 🎓 STUDENT QUEST LOGIC ---
+
+  studentBrowseQuests: async (token) => {
+    return await fetchWithTimeout(`${BASE_URL}/api/student/student/quests`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
+  studentOpenQuest: async (questId, token) => {
+    validateParams({ questId });
+    return await fetchWithTimeout(`${BASE_URL}/api/student/student/quests/${questId}`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
+  studentGetNextActivityQuestion: async (questId, levelId, activityId, token) => {
+    validateParams({ questId, levelId, activityId });
+    // Ref: Documentation Step 8
+    return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/activities/${activityId}/next-question`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
+  studentSubmitActivityAnswer: async (questId, levelId, activityId, questionId, payload, token) => {
+    validateParams({ questId, levelId, activityId, questionId });
+    // Ref: Documentation Step 9
+    return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/activities/${activityId}/questions/${questionId}/answer`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  studentFinishActivity: async (questId, levelId, activityId, token) => {
+    validateParams({ questId, levelId, activityId });
+    // Ref: Documentation Step 10
+    return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/activities/${activityId}/finish`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
+  studentGetNextQuizQuestion: async (questId, levelId, quizId, token) => {
+    validateParams({ questId, levelId, quizId });
+    // Ref: Documentation Step 11
+    return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/quizzes/${quizId}/next-question`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
+  studentSubmitQuizAnswer: async (questId, levelId, quizId, questionId, payload, token) => {
+    validateParams({ questId, levelId, quizId, questionId });
+    // Ref: Documentation Step 12
+    return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/quizzes/${quizId}/questions/${questionId}/answer`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  studentFinishQuiz: async (questId, levelId, quizId, token) => {
+    validateParams({ questId, levelId, quizId });
+    // Ref: Documentation Step 13
+    return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/quizzes/${quizId}/finish`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
     });
   },
   

@@ -11,7 +11,7 @@ const AlertModal = ({ isOpen, onClose, message, title = "Notice" }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-sm rounded-[35px] p-8 shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
+      <div className="bg-white w-full max-sm rounded-[35px] p-8 shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
         <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
           <AlertTriangle size={32} />
         </div>
@@ -56,9 +56,10 @@ const AddQuestion = () => {
 
   // --- DEBUGGING: Check if IDs exist on mount ---
   useEffect(() => {
-    console.log("Current URL Params:", { questId, levelId, activityId });
+    console.log("%c 🚀 [DEBUG] Component Mounted ", "background: #4f46e5; color: white; padding: 4px; border-radius: 4px;");
+    console.log("📍 Current URL Params:", { questId, levelId, activityId });
     if (!activityId) {
-        console.error("CRITICAL: activityId is missing from the URL!");
+        console.error("❌ [CRITICAL] activityId is missing from the URL! Check your routes.");
     }
   }, [questId, levelId, activityId]);
 
@@ -116,25 +117,35 @@ const AddQuestion = () => {
   };
 
   const handleSave = async (shouldExit = false) => {
-    // 1. Validation for UI
+    // 1. Initial Click Log - Mandatory Check
+    console.log("%c 🖱️ [DEBUG] handleSave Clicked! ", "background: #10b981; color: white; font-weight: bold; padding: 10px;");
+    console.log("🔹 Exit Mode Active:", shouldExit);
+    console.log("🔹 Current State:", questionData);
+
+    // 2. Data Validation Logs
     if (!questionData.question_text.trim()) {
+      console.warn("⚠️ [DEBUG] Validation Failed: question_text is empty.");
       return showAlert("Please enter a question", "Missing Info");
     }
     
     const hasCorrect = questionData.answers.some(a => a.is_correct && a.answer_text.trim() !== '');
     if (!hasCorrect) {
+      console.warn("⚠️ [DEBUG] Validation Failed: No valid correct answer marked.");
       return showAlert("Please provide a correct answer and mark it as correct.", "Validation Error");
     }
 
-    // 2. Critical Validation for activityId (Para hindi mag-error sa APIService)
     if (!activityId) {
+        console.error("❌ [DEBUG] Save Blocked: activityId is null.");
         return showAlert("Activity ID is missing. Please re-open the activity builder.", "System Error");
     }
 
     setLoading(true);
+    console.log("⏳ [DEBUG] Loading state set to TRUE. Starting API call...");
+
     try {
       const token = localStorage.getItem('token');
       
+      // 3. Payload Construction Log
       const payload = {
         question_text: questionData.question_text,
         question_type: questionData.question_type,
@@ -147,6 +158,8 @@ const AddQuestion = () => {
           }))
       };
 
+      console.log("📤 [DEBUG] Payload being sent to authAPI:", JSON.stringify(payload, null, 2));
+
       const res = await authAPI.addActivityQuestion(
         questId, 
         levelId, 
@@ -155,13 +168,19 @@ const AddQuestion = () => {
         token
       );
 
+      // 4. API Response Log
+      console.log("%c 📥 [DEBUG] API RESPONSE RECEIVED ", "background: #f59e0b; color: black; font-weight: bold;");
+      console.log("🔹 Status:", res.status);
+      console.log("🔹 OK Status:", res.ok);
+
       if (res.ok || res.status === 201) {
+        console.log("✅ [DEBUG] Success! Question saved to database.");
+        
         if (shouldExit) {
-          // DITO ANG REDIRECT: Papunta sa page kung nasaan ang mga ginawang activity content
-          // Binabago nito ang view para makita ang listahan ng questions/activities
-          navigate(`/cm/dashboard/quest/${questId}/level/${levelId}/activity/${activityId}`);
+          console.log("➡️ [DEBUG] Navigating to dashboard...");
+          navigate(`/cm/dashboard/quest/${questId}`);
         } else {
-          // Success Feedback at Reset Form para sa sunod na tanong
+          console.log("🔄 [DEBUG] Cleaning form for next entry...");
           setQuestionData({
             question_text: '',
             question_type: questionData.question_type,
@@ -183,14 +202,17 @@ const AddQuestion = () => {
           showAlert("Question saved successfully! You can add another one.", "Success");
         }
       } else {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => ({}));
+        console.error("❌ [DEBUG] Backend Error Details:", errorData);
         showAlert(errorData.message || 'Failed to save question', "Error");
       }
     } catch (err) {
-      console.error("Save Error:", err);
+      console.error("%c 🔥 [DEBUG] CRITICAL NETWORK/SYSTEM ERROR ", "background: red; color: white; font-weight: bold;");
+      console.error(err);
       showAlert("Failed to save question. Please check your connection.", "Network Error");
     } finally {
       setLoading(false);
+      console.log("🏁 [DEBUG] handleSave process ended. Loading set to FALSE.");
     }
   };
 
@@ -222,7 +244,10 @@ const AddQuestion = () => {
                  <select 
                   className="bg-slate-900 text-white text-[11px] font-black uppercase px-6 py-4 rounded-[20px] outline-none shadow-xl hover:bg-black transition-all cursor-pointer"
                   value={questionData.question_type}
-                  onChange={(e) => setQuestionData({...questionData, question_type: e.target.value})}
+                  onChange={(e) => {
+                    console.log("🔄 [DEBUG] Question Type changed to:", e.target.value);
+                    setQuestionData({...questionData, question_type: e.target.value});
+                  }}
                 >
                   <option value="multiple_choice">Multiple Choice</option>
                   <option value="true_false">True / False</option>
@@ -272,7 +297,10 @@ const AddQuestion = () => {
                   >
                     <button 
                       type="button"
-                      onClick={() => setCorrectAnswer(index)}
+                      onClick={() => {
+                        console.log("🎯 [DEBUG] Marked answer index", index, "as correct.");
+                        setCorrectAnswer(index);
+                      }}
                       className={`w-14 h-14 rounded-[22px] flex items-center justify-center transition-all shadow-md active:scale-90
                         ${answer.is_correct 
                           ? 'bg-green-500 text-white shadow-lg shadow-green-200' 
@@ -333,7 +361,7 @@ const AddQuestion = () => {
             </div>
             
             <div className="flex gap-4 w-full sm:w-auto">
-              {/* BUTTON 1: FINISH & EXIT (Mag-re-redirect sa listahan) */}
+              {/* BUTTON 1: FINISH & EXIT */}
               <button 
                 type="button"
                 onClick={() => handleSave(true)}
@@ -343,7 +371,7 @@ const AddQuestion = () => {
                 <Save size={16}/> Finish & Exit
               </button>
               
-              {/* BUTTON 2: SAVE & NEXT (Mag-re-reset lang para sa bagong question) */}
+              {/* BUTTON 2: SAVE & NEXT */}
               <button 
                 type="button"
                 onClick={() => handleSave(false)}

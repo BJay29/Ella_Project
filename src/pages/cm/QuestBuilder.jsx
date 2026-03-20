@@ -10,7 +10,6 @@ const QuestBuilder = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Views: 'list', 'manage-levels', 'selection-view'
   const [view, setView] = useState('list'); 
   const [selectedQuest, setSelectedQuest] = useState(null);
   const [selectedLevel, setSelectedLevel] = useState(null);
@@ -20,14 +19,12 @@ const QuestBuilder = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentQuestId, setCurrentQuestId] = useState(null);
 
-  // Levels State
   const [levels, setLevels] = useState([]); 
   const [showLevelModal, setShowLevelModal] = useState(false);
   const [showDeleteLevelModal, setShowDeleteLevelModal] = useState(false); 
   const [isEditingLevel, setIsEditingLevel] = useState(false); 
   const [currentLevelId, setCurrentLevelId] = useState(null); 
   
-  // MODAL STATES FOR ACTIVITY & QUIZ
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false); 
 
@@ -181,8 +178,9 @@ const QuestBuilder = () => {
     e.stopPropagation(); 
     setIsEditingLevel(true);
     setCurrentLevelId(level.quest_level_id || level.id);
+    // Updated to handle multiple title possibilities
     setLevelData({
-      title: level.level_title || level.quest_level_title || '',
+      title: level.level_title || level.quest_level_title || level.title || '',
       level_order: level.level_number || level.level_order || 1
     });
     setShowLevelModal(true);
@@ -198,6 +196,8 @@ const QuestBuilder = () => {
     e.preventDefault();
     setIsSubmitting(true);
     const token = localStorage.getItem('token');
+    
+    // Consistent Payload: Sinisend natin ang level_title
     const payload = {
       level_title: levelData.title,
       level_order: parseInt(levelData.level_order),
@@ -205,7 +205,10 @@ const QuestBuilder = () => {
     };
 
     try {
-      let res = isEditingLevel ? await authAPI.updateLevel(currentQuestId, currentLevelId, payload, token) : await authAPI.createLevel(currentQuestId, payload, token);
+      let res = isEditingLevel 
+        ? await authAPI.updateLevel(currentQuestId, currentLevelId, payload, token) 
+        : await authAPI.createLevel(currentQuestId, payload, token);
+        
       if (res.ok || res.status === 201 || res.status === 200) {
         setShowLevelModal(false);
         await fetchLevels(currentQuestId); 
@@ -258,16 +261,23 @@ const QuestBuilder = () => {
     } catch (error) { console.error(error); } finally { setIsSubmitting(false); }
   };
 
+  // --- PUBLISH LOGIC ---
   const handleTogglePublish = async (e, questId) => {
     e.stopPropagation();
     try {
       const token = localStorage.getItem('token');
       const res = await authAPI.toggleQuestPublish(questId, token);
-      if (res.ok || res.status === 200) fetchQuests();
-    } catch (error) { console.error(error); }
+      
+      if (res.ok || res.status === 200) {
+        alert("Quest visibility updated! Check Student Dashboard.");
+        fetchQuests();
+      }
+    } catch (error) { 
+      console.error("Publish Error:", error); 
+      alert("Failed to update status. Check backend connection.");
+    }
   };
 
-  // SUCCESS CALLBACK PARA SA ACTIVITY O QUIZ
   const handleSuccessCallback = (newId) => {
     console.log("Content successfully created with ID:", newId);
     fetchLevels(currentQuestId); 
@@ -275,36 +285,28 @@ const QuestBuilder = () => {
     setShowQuizModal(false);
   };
 
-  // --- RENDER SELECTION VIEW ---
+  // --- RENDER VIEWS ---
   if (view === 'selection-view') {
     return (
       <div className="w-full font-sans p-6 bg-gray-50 min-h-screen flex flex-col items-center justify-center relative">
-        <button 
-          onClick={goBackToLevels} 
-          className="absolute top-10 left-10 flex items-center gap-2 text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:gap-4 transition-all"
-        >
+        <button onClick={goBackToLevels} className="absolute top-10 left-10 flex items-center gap-2 text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:gap-4 transition-all">
           ← Back to Levels
         </button>
-        
         <div className="text-center mb-12">
             <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter italic mb-2">
                 {selectedQuest?.quest_type} - Quest #{selectedQuest?.quest_number}
             </h2>
             <p className="text-indigo-600 font-bold uppercase text-xs tracking-widest">
-                Level: {selectedLevel?.level_title || selectedLevel?.quest_level_title}
+                Level: {selectedLevel?.level_title || selectedLevel?.quest_level_title || selectedLevel?.title}
             </p>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
-            {/* ACTIVITY CARD */}
             <div onClick={() => setShowActivityModal(true)} className="bg-white p-10 rounded-[40px] shadow-sm border border-gray-100 hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group text-center">
                 <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 group-hover:scale-110 transition-transform">📝</div>
                 <h3 className="text-xl font-black text-slate-800 uppercase mb-2">Activity</h3>
                 <p className="text-gray-400 text-sm mb-6 uppercase font-bold tracking-tight">Create lessons and interactive tasks</p>
                 <span className="text-indigo-600 font-black text-[10px] uppercase tracking-widest bg-indigo-50 px-4 py-2 rounded-full group-hover:bg-indigo-600 group-hover:text-white transition-colors">Manage Activities →</span>
             </div>
-
-            {/* QUIZ CARD */}
             <div onClick={() => setShowQuizModal(true)} className="bg-white p-10 rounded-[40px] shadow-sm border border-gray-100 hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group text-center">
                 <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 group-hover:scale-110 transition-transform">🏆</div>
                 <h3 className="text-xl font-black text-slate-800 uppercase mb-2">Quiz</h3>
@@ -312,26 +314,12 @@ const QuestBuilder = () => {
                 <span className="text-indigo-600 font-black text-[10px] uppercase tracking-widest bg-indigo-50 px-4 py-2 rounded-full group-hover:bg-indigo-600 group-hover:text-white transition-colors">Manage Quizzes →</span>
             </div>
         </div>
-
-        <ActivityCreator 
-          isOpen={showActivityModal} 
-          onClose={() => setShowActivityModal(false)} 
-          questId={currentQuestId} 
-          levelId={currentLevelId} 
-          onActivityCreated={handleSuccessCallback} 
-        />
-        <QuizCreator 
-          isOpen={showQuizModal} 
-          onClose={() => setShowQuizModal(false)} 
-          questId={currentQuestId} 
-          levelId={currentLevelId} 
-          onSuccess={handleSuccessCallback} 
-        />
+        <ActivityCreator isOpen={showActivityModal} onClose={() => setShowActivityModal(false)} questId={currentQuestId} levelId={currentLevelId} onActivityCreated={handleSuccessCallback} />
+        <QuizCreator isOpen={showQuizModal} onClose={() => setShowQuizModal(false)} questId={currentQuestId} levelId={currentLevelId} onSuccess={handleSuccessCallback} />
       </div>
     );
   }
 
-  // --- LIST VIEW ---
   if (view === 'list') {
     return (
       <div className="w-full font-sans p-4 bg-gray-50 min-h-screen text-slate-900">
@@ -343,7 +331,6 @@ const QuestBuilder = () => {
             </div>
             <button onClick={openCreateModal} className="bg-[#6366F1] hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md transition-all active:scale-95">+ Create New Quest</button>
           </div>
-
           {isLoading ? (
             <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>
           ) : (
@@ -354,7 +341,11 @@ const QuestBuilder = () => {
                     <div className="bg-[#DCFCE7] w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-sm">
                       {quest.quest_type === 'Writing' ? '🐸' : quest.quest_type === 'Reading' ? '📖' : '🎧'}
                     </div>
-                    <button onClick={(e) => handleTogglePublish(e, quest.quest_id || quest.id)} className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-wider ${quest.is_published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                    <button 
+                      onClick={(e) => handleTogglePublish(e, quest.quest_id || quest.id)} 
+                      className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-wider transition-colors ${quest.is_published ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-400 hover:bg-indigo-100 hover:text-indigo-600'}`}
+                      title={quest.is_published ? "Click to unpublish" : "Click to send to students"}
+                    >
                       {quest.is_published ? '● Published' : '○ Draft'}
                     </button>
                   </div>
@@ -370,24 +361,25 @@ const QuestBuilder = () => {
           )}
         </div>
 
+        {/* Quest Modal */}
         {showModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
             <div className="bg-white w-full max-w-md rounded-[24px] shadow-2xl p-8 border border-gray-100 animate-in fade-in zoom-in duration-200">
               <h3 className="text-2xl font-bold text-gray-900 mb-6">{isEditing ? '✏️ Edit Quest' : '+ Create New Quest'}</h3>
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-5 text-slate-900">
                 <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Macro Skill</label>
-                  <select className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium outline-none" value={questData.quest_type} onChange={(e) => setQuestData({...questData, quest_type: e.target.value})} required>
+                  <select className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium outline-none text-slate-900" value={questData.quest_type} onChange={(e) => setQuestData({...questData, quest_type: e.target.value})} required>
                     <option value="" disabled>Select Skill</option><option value="Reading">Reading</option><option value="Writing">Writing</option><option value="Listening">Listening</option><option value="Speaking">Speaking</option>
                   </select>
                 </div>
                 <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Difficulty</label>
-                  <select className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium outline-none" value={questData.quest_level} onChange={(e) => setQuestData({...questData, quest_level: e.target.value})} required>
+                  <select className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium outline-none text-slate-900" value={questData.quest_level} onChange={(e) => setQuestData({...questData, quest_level: e.target.value})} required>
                     <option value="" disabled>Select Level</option><option value="Beginner">Beginner</option><option value="Intermediate">Intermediate</option><option value="Advanced">Advanced</option>
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Quest No.</label><input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm" value={questData.quest_number} onChange={(e) => setQuestData({...questData, quest_number: e.target.value})} required /></div>
-                  <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Passing Score</label><input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm" value={questData.passing_score} onChange={(e) => setQuestData({...questData, passing_score: e.target.value})} required /></div>
+                  <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Quest No.</label><input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-slate-900" value={questData.quest_number} onChange={(e) => setQuestData({...questData, quest_number: e.target.value})} required /></div>
+                  <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Passing Score</label><input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-slate-900" value={questData.passing_score} onChange={(e) => setQuestData({...questData, passing_score: e.target.value})} required /></div>
                 </div>
                 <div className="flex justify-between items-center pt-6 gap-4">
                   <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-6 py-3.5 border border-gray-200 rounded-xl font-bold text-gray-500 text-xs">Cancel</button>
@@ -398,6 +390,7 @@ const QuestBuilder = () => {
           </div>
         )}
 
+        {/* Delete Modal */}
         {showDeleteModal && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
             <div className="bg-white w-full max-w-sm rounded-[24px] p-8 text-center animate-in fade-in zoom-in duration-200">
@@ -427,7 +420,6 @@ const QuestBuilder = () => {
                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Select a level to manage content</p>
             </div>
         </div>
-
         <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden min-h-[500px] flex flex-col">
             <div className="p-8">
                 <div className="flex justify-between items-center mb-8 border-b border-gray-50 pb-6">
@@ -437,7 +429,6 @@ const QuestBuilder = () => {
                     </div>
                     <button onClick={openLevelCreateModal} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md transition-all active:scale-95">+ Create Level</button>
                 </div>
-
                 {isLoading ? (
                     <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div></div>
                 ) : !levels || levels.length === 0 ? (
@@ -458,15 +449,9 @@ const QuestBuilder = () => {
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {levels.map((lvl, index) => (
-                                    <tr 
-                                      key={lvl.quest_level_id || lvl.id || index} 
-                                      onClick={() => goToSelection(lvl)}
-                                      className="group hover:bg-indigo-50/50 transition-all cursor-pointer"
-                                    >
-                                        <td className="py-5 pl-4"><span className="bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs">{lvl.level_order || (index + 1)}</span></td>
-                                        <td className="py-5">
-                                            <p className="font-bold text-slate-800 group-hover:text-indigo-600 text-sm uppercase transition-colors">{lvl.level_title || `MISSION ${index + 1}`}</p>
-                                        </td>
+                                    <tr key={lvl.quest_level_id || lvl.id || index} onClick={() => goToSelection(lvl)} className="group hover:bg-indigo-50/50 transition-all cursor-pointer">
+                                        <td className="py-5 pl-4"><span className="bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs">{lvl.level_order || lvl.level_number || (index + 1)}</span></td>
+                                        <td className="py-5"><p className="font-bold text-slate-800 group-hover:text-indigo-600 text-sm uppercase transition-colors">{lvl.level_title || lvl.quest_level_title || lvl.title || `MISSION ${index + 1}`}</p></td>
                                         <td className="py-5 text-right pr-4">
                                             <div className="flex justify-end items-center gap-3">
                                                 <button onClick={(e) => openLevelEditModal(e, lvl)} className="p-2 text-indigo-400 hover:text-indigo-600 transition-all text-sm">✏️</button>
@@ -482,18 +467,35 @@ const QuestBuilder = () => {
             </div>
         </div>
 
+        {/* --- LEVEL MODAL --- */}
         {showLevelModal && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
             <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl p-10 animate-in fade-in zoom-in duration-200">
-              <h3 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tighter italic">
+              <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tighter italic">
                 {isEditingLevel ? '✏️ Update Mission' : '🚀 New Mission'}
               </h3>
               <form onSubmit={handleLevelSubmit} className="space-y-6">
-                <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Level Title</label>
-                    <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm font-bold outline-none" value={levelData.title} onChange={(e) => setLevelData({...levelData, title: e.target.value})} required />
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Level Title</label>
+                  <input 
+                    type="text" 
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm font-bold outline-none text-slate-900 placeholder:text-gray-300" 
+                    value={levelData.title} 
+                    onChange={(e) => setLevelData({...levelData, title: e.target.value})} 
+                    placeholder="Enter mission title (e.g., SPELLING)"
+                    required 
+                  />
                 </div>
-                <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Order / Number</label>
-                    <input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm font-bold outline-none" value={levelData.level_order} onChange={(e) => setLevelData({...levelData, level_order: e.target.value})} required />
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Order / Number</label>
+                  <input 
+                    type="number" 
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm font-bold outline-none text-slate-900 placeholder:text-gray-300" 
+                    value={levelData.level_order} 
+                    onChange={(e) => setLevelData({...levelData, level_order: e.target.value})} 
+                    placeholder="1"
+                    required 
+                  />
                 </div>
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={() => setShowLevelModal(false)} className="flex-1 px-6 py-4 border border-gray-200 rounded-2xl font-black text-gray-400 text-[11px] uppercase tracking-widest transition-all hover:bg-gray-50">Cancel</button>

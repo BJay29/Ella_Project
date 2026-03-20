@@ -8,6 +8,9 @@ import VerifyEmail from './pages/auth/verifyemail';
 
 // Student
 import StudentDashboard from './pages/student/dashboard';
+// Dinagdag na Student Components
+import QuestLevels from './pages/student/QuestLevels'; 
+import GameEngine from './pages/student/GameEngine';
 
 // Admin
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -23,20 +26,26 @@ const ProtectedRoute = ({ children, allowedRole }) => {
   const token = localStorage.getItem('token');
   const userRole = localStorage.getItem('userRole');
   
-  const normalizedRole = userRole ? userRole.toLowerCase().trim() : '';
+  // Siguraduhin na string ito at naka-lowercase para sa comparison
+  const normalizedRole = userRole ? String(userRole).toLowerCase().trim() : '';
+  const targetRole = allowedRole ? String(allowedRole).toLowerCase().trim() : '';
 
   // 1. Kung walang token, balik sa login
   if (!token || token === '') {
     return <Navigate to="/login" replace />;
   }
 
-  // 2. Kung may token pero hindi match ang role
-  if (allowedRole && normalizedRole !== allowedRole.toLowerCase()) {
-    if (normalizedRole === 'student')            return <Navigate to="/student/dashboard" replace />;
-    if (normalizedRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
-    if (normalizedRole === 'instructor')         return <Navigate to="/instructor/dashboard" replace />;
+  // 2. Role Check: Kung hindi match ang role sa kailangan ng route
+  if (targetRole && normalizedRole !== targetRole) {
+    console.warn(`Access Denied: Role ${normalizedRole} is not authorized for ${targetRole} routes.`);
+    
+    // Imbes na basta ibalik, i-redirect sa tamang dashboard ng role niya
+    if (normalizedRole === 'student')             return <Navigate to="/student/dashboard" replace />;
+    if (normalizedRole === 'admin')               return <Navigate to="/admin/dashboard" replace />;
+    if (normalizedRole === 'instructor')          return <Navigate to="/instructor/dashboard" replace />;
     if (normalizedRole === 'curriculum_manager') return <Navigate to="/cm/dashboard" replace />; 
     
+    // Kung unknown role, logout
     localStorage.clear(); 
     return <Navigate to="/login" replace />;
   }
@@ -63,7 +72,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* FIX: Default route ay Login/Verify, hindi agad Dashboard */}
+        {/* Default route */}
         <Route path="/" element={<Navigate to="/login" replace />} />
 
         {/* Public Routes */}
@@ -78,7 +87,7 @@ function App() {
             </PublicRoute>
         } />
         
-        {/* Verification Page - Mas maganda kung accessible ito nang walang guard habang nagte-test */}
+        {/* Verification Page */}
         <Route path="/verify-email" element={<VerifyEmail />} />
 
         {/* ── ROLE-BASED DASHBOARD ROUTES ── */}
@@ -87,6 +96,22 @@ function App() {
         <Route path="/student/dashboard" element={
           <ProtectedRoute allowedRole="student">
             <StudentDashboard />
+          </ProtectedRoute>
+        } />
+
+        {/* Level Selection View */}
+        <Route path="/student/quest/:questId/levels" element={
+          <ProtectedRoute allowedRole="student">
+            <QuestLevels />
+          </ProtectedRoute>
+        } />
+
+        {/* ACTUAL GAMEPLAY ROUTE (UPDATED) 
+          Idinagdag ang /:type/:typeId para sa activityId/quizId 
+        */}
+        <Route path="/student/quest/:questId/level/:levelId/:type/:typeId/play" element={
+          <ProtectedRoute allowedRole="student">
+            <GameEngine />
           </ProtectedRoute>
         } />
 

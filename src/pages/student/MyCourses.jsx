@@ -107,7 +107,7 @@ const JoinModal = ({ sectionCode, setSectionCode, joinStatus, setJoinStatus, joi
   <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden transition-colors">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-        <h2 className="text-base font-bold text-gray-800 dark:text-white">🎯 Join a Course / Section</h2>
+        <h2 className="text-base font-bold text-gray-800 dark:text-white">🎯 Join a Section</h2>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl font-bold leading-none">×</button>
       </div>
       <div className="px-6 py-5">

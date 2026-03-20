@@ -158,7 +158,6 @@ const QuizCreator = ({ isOpen, onClose, questId, levelId, onSuccess }) => {
 
       if (res.ok || res.status === 201) {
         if (isNext) {
-          // --- CHECK MAX LIMIT ---
           if (currentQuestionNumber >= MAX_QUESTIONS) {
             setErrorModal({
               show: true,
@@ -168,7 +167,6 @@ const QuizCreator = ({ isOpen, onClose, questId, levelId, onSuccess }) => {
             return;
           }
 
-          // RESET PARA SA NEXT QUESTION
           setQuestionText("");
           if (questionType === 'true_false') {
             setAnswers([{ text: 'True', is_correct: false }, { text: 'False', is_correct: false }]);
@@ -181,7 +179,6 @@ const QuizCreator = ({ isOpen, onClose, questId, levelId, onSuccess }) => {
             ]);
           }
           
-          // --- UPDATE COUNTER ---
           setCurrentQuestionNumber(prev => prev + 1);
         } else {
           if (onSuccess) onSuccess(newQuizId);
@@ -230,7 +227,7 @@ const QuizCreator = ({ isOpen, onClose, questId, levelId, onSuccess }) => {
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Quiz Title</label>
                 <input 
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold focus:ring-2 ring-indigo-500 outline-none transition-all"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold text-gray-900 focus:ring-2 ring-indigo-500 outline-none transition-all"
                   placeholder="e.g. Grammar Mastery Test"
                   value={formData.title}
                   onChange={(e) => setFormData({...formData, title: e.target.value})}
@@ -241,7 +238,7 @@ const QuizCreator = ({ isOpen, onClose, questId, levelId, onSuccess }) => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Difficulty</label>
                   <select 
-                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold outline-none cursor-pointer hover:bg-gray-100 transition-colors"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold text-gray-900 outline-none cursor-pointer hover:bg-gray-100 transition-colors"
                     value={formData.difficulty}
                     onChange={(e) => setFormData({...formData, difficulty: e.target.value})}
                   >
@@ -254,7 +251,7 @@ const QuizCreator = ({ isOpen, onClose, questId, levelId, onSuccess }) => {
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Passing Score</label>
                   <input 
                     type="number" 
-                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold outline-none"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold text-gray-900 outline-none"
                     placeholder="7"
                     value={formData.passing_score}
                     onChange={(e) => setFormData({...formData, passing_score: e.target.value})}
@@ -299,10 +296,10 @@ const QuizCreator = ({ isOpen, onClose, questId, levelId, onSuccess }) => {
                   onChange={(e) => setQuestionType(e.target.value)}
                   className="bg-slate-900 text-[11px] font-black uppercase text-white px-6 py-3 rounded-2xl outline-none hover:bg-black transition-colors"
                 >
-                  <option value="multiple_choice">Multiple Choice</option>
-                  <option value="true_false">True / False</option>
-                  <option value="identification">Identification</option>
-                  <option value="fill_in_the_blanks">Fill in the Blanks</option>
+                  <option value="multiple_choice" className="bg-white text-gray-900">Multiple Choice</option>
+                  <option value="true_false" className="bg-white text-gray-900">True / False</option>
+                  <option value="identification" className="bg-white text-gray-900">Identification</option>
+                  <option value="fill_in_the_blanks" className="bg-white text-gray-900">Fill in the Blanks</option>
                 </select>
                 <div className="text-right border-l pl-4 border-gray-100">
                     <h2 className="text-xl font-black text-gray-900 uppercase italic">Add Question</h2>
