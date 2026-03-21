@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const BASE_URL = 'https://ellaquest-backend.onrender.com';
 
 const fetchWithTimeout = (url, options = {}, timeout = 15000) => {
   const controller = new AbortController();
