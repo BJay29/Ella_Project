@@ -3,13 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import ellaLogo from '../../assets/image.png';
 import ErrorModal from "../../components/modals/errormodal";
 import { authAPI } from '../../services/APIservice';
-<<<<<<< HEAD
 
 // Import React Icons
 import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi'; 
 import { FcGoogle } from 'react-icons/fc'; 
-=======
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
 
 const Login = () => {
   const navigate = useNavigate();
@@ -26,11 +23,7 @@ const Login = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-<<<<<<< HEAD
   // Ping server on mount para magising ang Render (optional)
-=======
-  // Gisingin ang Render server pag-load ng Login page
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
   useEffect(() => {
     authAPI.ping();
   }, []);
@@ -63,11 +56,6 @@ const Login = () => {
         const normalizedRole = rawRole.toLowerCase().trim();
 
         localStorage.clear();
-<<<<<<< HEAD
-=======
-
-    
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', normalizedRole);
         
@@ -80,11 +68,7 @@ const Login = () => {
           navigate('/instructor/dashboard', { replace: true });
         } else if (normalizedRole === 'admin') {
           navigate('/admin/dashboard', { replace: true });
-<<<<<<< HEAD
         } else if (normalizedRole === 'curriculum_manager') { 
-=======
-          } else if (normalizedRole === 'curriculum_manager') { 
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
           navigate('/cm/dashboard', { replace: true });
         } else {
           navigate('/student/dashboard', { replace: true });
@@ -103,7 +87,6 @@ const Login = () => {
     }
   };
 
-<<<<<<< HEAD
   // --- GOOGLE LOGIN LOGIC ---
   const handleGoogleLogin = () => {
     try {
@@ -115,9 +98,6 @@ const Login = () => {
     }
   };
 
-=======
-  // Fix para sa yellow background ng chrome autofill
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
   const autofillFix = {
     WebkitBoxShadow: "0 0 0px 1000px #7a9e50 inset",
     WebkitTextFillColor: "#ffffff",
@@ -154,11 +134,7 @@ const Login = () => {
               onChange={handleChange}
               placeholder="EMAIL"
               style={autofillFix}
-<<<<<<< HEAD
               className="flex-1 bg-[#7a9e50] px-2 py-2 text-white placeholder-white/70 font-bold text-[11px] tracking-widest outline-none"
-=======
-              className="flex-1 bg-[#7a9e50] px-4 py-3 text-white placeholder-white/70 font-bold text-sm tracking-widest outline-none"
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
               required
             />
           </div>
@@ -175,17 +151,13 @@ const Login = () => {
               onChange={handleChange}
               placeholder="PASSWORD"
               style={autofillFix}
-<<<<<<< HEAD
               className="flex-1 bg-[#7a9e50] px-2 py-2 text-white placeholder-white/70 font-bold text-[11px] tracking-widest outline-none"
-=======
               className="flex-1 bg-[#7a9e50] px-4 py-3 text-white placeholder-white/70 font-bold text-sm tracking-widest outline-none"
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
               required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-<<<<<<< HEAD
               className="pr-4 text-white/80 hover:text-white transition-all flex items-center justify-center"
               tabIndex="-1"
             >
@@ -200,16 +172,6 @@ const Login = () => {
           {/* Forgot Password Link */}
           <div className="flex justify-end -mt-1 mr-2">
             <Link to="/forgot-password" size="small" className="text-[9px] italic text-[#3B82F6] font-semibold hover:underline">
-=======
-              className="px-4 py-3 text-white/80 hover:text-white transition-colors text-[10px] font-black"
-            >
-              {showPassword ? "HIDE" : "SHOW"}
-            </button>
-          </div>
-
-          <div className="flex justify-end -mt-1">
-            <Link to="/forgot-password" title="Feature coming soon" className="text-[11px] italic text-[#3B82F6] font-semibold hover:underline">
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
               Forgot Password?
             </Link>
           </div>
@@ -226,7 +188,6 @@ const Login = () => {
             </button>
           </div>
 
-<<<<<<< HEAD
           {/* Separator */}
           <div className="flex items-center my-1 w-full px-4">
             <div className="flex-grow border-t border-black/10"></div>
@@ -249,8 +210,6 @@ const Login = () => {
           </div>
 
           {/* Registration Redirect - IN-UPDATE ANG PATH AT CLASS */}
-=======
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
           <div className="text-center mt-1">
             <p className="text-[9px] text-[#3B82F6] font-medium">
               Don't have an Account?{' '}
