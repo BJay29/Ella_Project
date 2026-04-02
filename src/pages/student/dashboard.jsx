@@ -105,6 +105,7 @@ const StudentDashboard = () => {
           activePage={activePage}
           setActivePage={setActivePage}
           onSettingsClick={() => setShowSettings(true)}
+          // Update: Ginawa nating toggle functionality
           onProfileClick={() => setShowDropdown(!showDropdown)} 
         />
 
@@ -112,7 +113,7 @@ const StudentDashboard = () => {
         {showDropdown && (
           <div 
             ref={dropdownRef}
-            className="absolute right-6 top-16 w-52 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 z-[300] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            className="absolute right-6 top-16 w-52 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 z-[300] overflow-hidden"
           >
             <div className="p-2 space-y-1">
               <button
@@ -130,7 +131,7 @@ const StudentDashboard = () => {
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors group"
               >
                 <span className="text-lg group-hover:scale-110 transition-transform">🚪</span> 
-                Logout
+                Logout Account
               </button>
             </div>
           </div>
@@ -217,26 +218,27 @@ const StudentDashboard = () => {
         />
       )}
 
-      {/* Logout Confirmation (Logout Message) */}
+      {/* Simplified Logout Confirmation */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black/60 z-[500] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white dark:bg-gray-800 rounded-[32px] shadow-2xl w-full max-w-[320px] overflow-hidden border border-white/20 animate-in fade-in zoom-in-90 duration-300">
-            <div className="pt-8 pb-4 flex flex-col items-center">
-              <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-4xl mb-4 animate-bounce">
-                👋
-              </div>
-              <h3 className="text-lg font-black text-gray-800 dark:text-white uppercase tracking-tighter">Leaving so soon?</h3>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 font-bold uppercase mt-1 tracking-wide">Are you sure you want to logout?</p>
-            </div>
-            <div className="p-6 grid grid-cols-2 gap-3">
+        <div className="fixed inset-0 bg-black/50 z-[500] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-[300px] p-6 text-center animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Confirm Logout</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              Are you sure you want to sign out?
+            </p>
+            <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className="py-3 rounded-2xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-black text-[10px] uppercase hover:bg-gray-200 transition-all"
-              >Stay Here</button>
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold text-[10px] uppercase hover:bg-gray-200 transition-all"
+              >
+                Cancel
+              </button>
               <button
                 onClick={handleConfirmLogout}
-                className="py-3 rounded-2xl bg-red-500 text-white font-black text-[10px] uppercase shadow-lg shadow-red-200 hover:bg-red-600 transition-all"
-              >Yes, Logout</button>
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold text-[10px] uppercase shadow-md shadow-red-200 dark:shadow-none transition-all hover:bg-red-600"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </div>
