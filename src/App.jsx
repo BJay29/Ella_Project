@@ -13,21 +13,26 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import InstructorDashboard from './pages/instructor/InstructorDashboard';
 import CMDashboard from './pages/cm/cmDashboard'; 
 
-// --- DAGDAG NA IMPORTS (IMPORTANT!) ---
+// Student Specific Pages
 import QuestLevels from './pages/student/QuestLevels'; 
 import GameEngine from './pages/student/GameEngine'; 
 
-// --- Protected Route Guard ---
+/**
+ * ProtectedRoute: Humaharang sa mga user na walang valid token 
+ * o maling role para sa page na sinusubukang puntahan.
+ */
 const ProtectedRoute = ({ children, allowedRole }) => {
   const token = localStorage.getItem('token');
   const userRole = localStorage.getItem('userRole');
   
   const normalizedRole = userRole ? userRole.toLowerCase().trim() : '';
 
+  // Kung walang token, balik sa login
   if (!token || token === '') {
     return <Navigate to="/login" replace />;
   }
 
+  // Kung may token pero maling role, i-redirect sa tamang dashboard nila
   if (allowedRole && normalizedRole !== allowedRole.toLowerCase()) {
     if (normalizedRole === 'student')            return <Navigate to="/student/dashboard" replace />;
     if (normalizedRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
@@ -41,11 +46,15 @@ const ProtectedRoute = ({ children, allowedRole }) => {
   return children;
 };
 
-// --- Public Route Guard ---
+/**
+ * PublicRoute: Humaharang sa mga user na NAKA-LOGIN na para hindi na 
+ * sila makabalik sa Login/Register pages hangga't hindi nag-log out.
+ */
 const PublicRoute = ({ children }) => {
   const token = localStorage.getItem('token');
   const userRole = localStorage.getItem('userRole')?.toLowerCase().trim();
 
+  // Kung may token (naka-login na), i-redirect sa kani-kanilang dashboard
   if (token && token !== '') {
     if (userRole === 'student')            return <Navigate to="/student/dashboard" replace />;
     if (userRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
@@ -59,6 +68,7 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* DEFAULT ROUTE: Ngayon ay nakaturo muna sa PublicRoute/Login */}
         <Route path="/" element={
             <PublicRoute>
                 <Navigate to="/login" replace />
@@ -85,41 +95,47 @@ function App() {
 
         <Route path="/auth/callback" element={<GoogleCallback />} />
 
-        {/* Student Dashboard */}
+        {/* STUDENT ROUTES */}
         <Route path="/student/dashboard" element={
+          <ProtectedRoute allowedRole="student">
+            <StudentDashboard />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/student/quests" element={
           <ProtectedRoute allowedRole="student">
             <QuestLevels />
           </ProtectedRoute>
         } />
 
-        {/* Game Engine Route */}
         <Route path="/student/quest/:questId/level/:levelId/play/:typeId" element={
           <ProtectedRoute allowedRole="student">
             <GameEngine />
           </ProtectedRoute>
         } />
 
-        {/* Admin Dashboard */}
+        {/* ADMIN ROUTES */}
         <Route path="/admin/dashboard" element={
           <ProtectedRoute allowedRole="admin">
             <AdminDashboard />
           </ProtectedRoute>
         } />
 
-        {/* Instructor Dashboard */}
+        {/* INSTRUCTOR ROUTES */}
         <Route path="/instructor/dashboard" element={
           <ProtectedRoute allowedRole="instructor">
             <InstructorDashboard />
           </ProtectedRoute>
         } />
 
-        {/* Curriculum Manager Dashboard */}
+        {/* CURRICULUM MANAGER ROUTES */}
         <Route path="/cm/dashboard" element={
           <ProtectedRoute allowedRole="curriculum_manager">
             <CMDashboard />
           </ProtectedRoute>
         } />
 
+        {/* 404 CATCH-ALL: Balik sa Login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
