@@ -152,7 +152,7 @@ const Login = () => {
               placeholder="PASSWORD"
               style={autofillFix}
               className="flex-1 bg-[#7a9e50] px-2 py-2 text-white placeholder-white/70 font-bold text-[11px] tracking-widest outline-none"
-              className="flex-1 bg-[#7a9e50] px-4 py-3 text-white placeholder-white/70 font-bold text-sm tracking-widest outline-none"
+
               required
             />
             <button

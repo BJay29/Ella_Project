@@ -31,26 +31,6 @@ const QuestBuilder = () => {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false); 
 
-<<<<<<< HEAD
-=======
-  // --- HANDLERS FOR TYPING (FIXES THE "WHITE" INPUT ISSUE) ---
-  const handleLevelInputChange = (e) => {
-    const { name, value } = e.target;
-    setLevelData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleQuestInputChange = (e) => {
-    const { name, value } = e.target;
-    setQuestData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
   const [levelData, setLevelData] = useState({
     title: '',         
     level_order: 1     
@@ -96,7 +76,6 @@ const QuestBuilder = () => {
       const res = await authAPI.getLevelsByQuest(questId, token);
       const data = res.data ? res.data : (res.json ? await res.json() : res);
 
-<<<<<<< HEAD
       if (data && data.quest_levels && Array.isArray(data.quest_levels)) {
         setLevels(data.quest_levels);
       } else if (Array.isArray(data)) {
@@ -106,26 +85,6 @@ const QuestBuilder = () => {
       } else {
         setLevels([]);
       }
-=======
-      let fetchedLevels = [];
-      if (data && data.quest_levels && Array.isArray(data.quest_levels)) {
-        fetchedLevels = data.quest_levels;
-      } else if (Array.isArray(data)) {
-        fetchedLevels = data;
-      } else if (data.levels && Array.isArray(data.levels)) {
-        fetchedLevels = data.levels;
-      }
-
-      setLevels(fetchedLevels);
-
-      if (currentLevelId) {
-        const updatedLevel = fetchedLevels.find(l => (l.quest_level_id || l.id) === currentLevelId);
-        if (updatedLevel) {
-            setSelectedLevel(updatedLevel);
-        }
-      }
-
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
     } catch (error) {
       console.error("Fetch Error:", error);
       setLevels([]);
@@ -308,10 +267,7 @@ const QuestBuilder = () => {
     } catch (error) { console.error(error); }
   };
 
-<<<<<<< HEAD
   // SUCCESS CALLBACK PARA SA ACTIVITY O QUIZ
-=======
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
   const handleSuccessCallback = (newId) => {
     console.log("Content successfully created with ID:", newId);
     fetchLevels(currentQuestId); 
@@ -321,12 +277,6 @@ const QuestBuilder = () => {
 
   // --- RENDER SELECTION VIEW ---
   if (view === 'selection-view') {
-<<<<<<< HEAD
-=======
-    const activityCount = selectedLevel?.activities?.length || 0;
-    const quizCount = selectedLevel?.quizzes?.length || 0;
-
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
     return (
       <div className="w-full font-sans p-6 bg-gray-50 min-h-screen flex flex-col items-center justify-center relative">
         <button 
@@ -346,7 +296,6 @@ const QuestBuilder = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
-<<<<<<< HEAD
             {/* ACTIVITY CARD */}
             <div onClick={() => setShowActivityModal(true)} className="bg-white p-10 rounded-[40px] shadow-sm border border-gray-100 hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group text-center">
                 <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 group-hover:scale-110 transition-transform">📝</div>
@@ -360,46 +309,10 @@ const QuestBuilder = () => {
                 <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 group-hover:scale-110 transition-transform">🏆</div>
                 <h3 className="text-xl font-black text-slate-800 uppercase mb-2">Quiz</h3>
                 <p className="text-gray-400 text-sm mb-6 uppercase font-bold tracking-tight">Set up questions and assessments</p>
-=======
-            <div onClick={() => setShowActivityModal(true)} className="bg-white p-10 rounded-[40px] shadow-sm border border-gray-100 hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group text-center relative overflow-hidden">
-                {activityCount > 0 && (
-                  <div className="absolute top-6 right-6 bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-md animate-in zoom-in duration-300">
-                    ✓
-                  </div>
-                )}
-                <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 group-hover:scale-110 transition-transform">📝</div>
-                <h3 className="text-xl font-black text-slate-800 uppercase mb-2">Activity</h3>
-                <div className="text-gray-400 text-sm mb-6 uppercase font-bold tracking-tight h-5">
-                  {activityCount > 0 ? (
-                    <span className="text-green-600 font-black">✨ {activityCount} QUESTIONS ADDED</span>
-                  ) : (
-                    "Create lessons and interactive tasks"
-                  )}
-                </div>
-                <span className="text-indigo-600 font-black text-[10px] uppercase tracking-widest bg-indigo-50 px-4 py-2 rounded-full group-hover:bg-indigo-600 group-hover:text-white transition-colors">Manage Activities →</span>
-            </div>
-
-            <div onClick={() => setShowQuizModal(true)} className="bg-white p-10 rounded-[40px] shadow-sm border border-gray-100 hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group text-center relative overflow-hidden">
-                {quizCount > 0 && (
-                  <div className="absolute top-6 right-6 bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-md animate-in zoom-in duration-300">
-                    ✓
-                  </div>
-                )}
-                <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 group-hover:scale-110 transition-transform">🏆</div>
-                <h3 className="text-xl font-black text-slate-800 uppercase mb-2">Quiz</h3>
-                <div className="text-gray-400 text-sm mb-6 uppercase font-bold tracking-tight h-5">
-                  {quizCount > 0 ? (
-                    <span className="text-green-600 font-black">✨ {quizCount} QUESTIONS ADDED</span>
-                  ) : (
-                    "Set up questions and assessments"
-                  )}
-                </div>
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
                 <span className="text-indigo-600 font-black text-[10px] uppercase tracking-widest bg-indigo-50 px-4 py-2 rounded-full group-hover:bg-indigo-600 group-hover:text-white transition-colors">Manage Quizzes →</span>
             </div>
         </div>
 
-<<<<<<< HEAD
         <ActivityCreator 
           isOpen={showActivityModal} 
           onClose={() => setShowActivityModal(false)} 
@@ -414,10 +327,6 @@ const QuestBuilder = () => {
           levelId={currentLevelId} 
           onSuccess={handleSuccessCallback} 
         />
-=======
-        <ActivityCreator isOpen={showActivityModal} onClose={() => setShowActivityModal(false)} questId={currentQuestId} levelId={currentLevelId} onActivityCreated={handleSuccessCallback} />
-        <QuizCreator isOpen={showQuizModal} onClose={() => setShowQuizModal(false)} questId={currentQuestId} levelId={currentLevelId} onSuccess={handleSuccessCallback} />
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
       </div>
     );
   }
@@ -467,31 +376,18 @@ const QuestBuilder = () => {
               <h3 className="text-2xl font-bold text-gray-900 mb-6">{isEditing ? '✏️ Edit Quest' : '+ Create New Quest'}</h3>
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Macro Skill</label>
-<<<<<<< HEAD
                   <select className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium outline-none" value={questData.quest_type} onChange={(e) => setQuestData({...questData, quest_type: e.target.value})} required>
-=======
-                  <select name="quest_type" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium outline-none" value={questData.quest_type} onChange={handleQuestInputChange} required>
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
                     <option value="" disabled>Select Skill</option><option value="Reading">Reading</option><option value="Writing">Writing</option><option value="Listening">Listening</option><option value="Speaking">Speaking</option>
                   </select>
                 </div>
                 <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Difficulty</label>
-<<<<<<< HEAD
                   <select className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium outline-none" value={questData.quest_level} onChange={(e) => setQuestData({...questData, quest_level: e.target.value})} required>
-=======
-                  <select name="quest_level" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium outline-none" value={questData.quest_level} onChange={handleQuestInputChange} required>
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
                     <option value="" disabled>Select Level</option><option value="Beginner">Beginner</option><option value="Intermediate">Intermediate</option><option value="Advanced">Advanced</option>
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-<<<<<<< HEAD
                   <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Quest No.</label><input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm" value={questData.quest_number} onChange={(e) => setQuestData({...questData, quest_number: e.target.value})} required /></div>
                   <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Passing Score</label><input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm" value={questData.passing_score} onChange={(e) => setQuestData({...questData, passing_score: e.target.value})} required /></div>
-=======
-                  <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Quest No.</label><input name="quest_number" type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm" value={questData.quest_number} onChange={handleQuestInputChange} required /></div>
-                  <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Passing Score</label><input name="passing_score" type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm" value={questData.passing_score} onChange={handleQuestInputChange} required /></div>
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
                 </div>
                 <div className="flex justify-between items-center pt-6 gap-4">
                   <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-6 py-3.5 border border-gray-200 rounded-xl font-bold text-gray-500 text-xs">Cancel</button>
@@ -562,15 +458,11 @@ const QuestBuilder = () => {
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {levels.map((lvl, index) => (
-<<<<<<< HEAD
                                     <tr 
                                       key={lvl.quest_level_id || lvl.id || index} 
                                       onClick={() => goToSelection(lvl)}
                                       className="group hover:bg-indigo-50/50 transition-all cursor-pointer"
                                     >
-=======
-                                    <tr key={lvl.quest_level_id || lvl.id || index} onClick={() => goToSelection(lvl)} className="group hover:bg-indigo-50/50 transition-all cursor-pointer">
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
                                         <td className="py-5 pl-4"><span className="bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs">{lvl.level_order || (index + 1)}</span></td>
                                         <td className="py-5">
                                             <p className="font-bold text-slate-800 group-hover:text-indigo-600 text-sm uppercase transition-colors">{lvl.level_title || `MISSION ${index + 1}`}</p>
@@ -598,18 +490,10 @@ const QuestBuilder = () => {
               </h3>
               <form onSubmit={handleLevelSubmit} className="space-y-6">
                 <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Level Title</label>
-<<<<<<< HEAD
                     <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm font-bold outline-none" value={levelData.title} onChange={(e) => setLevelData({...levelData, title: e.target.value})} required />
                 </div>
                 <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Order / Number</label>
                     <input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm font-bold outline-none" value={levelData.level_order} onChange={(e) => setLevelData({...levelData, level_order: e.target.value})} required />
-=======
-                    {/* FIXED INPUTS HERE */}
-                    <input name="title" type="text" className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm font-bold outline-none text-slate-900" value={levelData.title} onChange={handleLevelInputChange} required />
-                </div>
-                <div className="space-y-1.5"><label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Order / Number</label>
-                    <input name="level_order" type="number" className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm font-bold outline-none text-slate-900" value={levelData.level_order} onChange={handleLevelInputChange} required />
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
                 </div>
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={() => setShowLevelModal(false)} className="flex-1 px-6 py-4 border border-gray-200 rounded-2xl font-black text-gray-400 text-[11px] uppercase tracking-widest transition-all hover:bg-gray-50">Cancel</button>
@@ -636,9 +520,4 @@ const QuestBuilder = () => {
     </div>
   );
 };
-<<<<<<< HEAD
-
-=======
-  
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
 export default QuestBuilder;

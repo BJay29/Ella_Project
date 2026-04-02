@@ -817,11 +817,7 @@ return (
         key={tab} 
         onClick={() => { setActiveTab(tab); setViewMode('courses'); }} 
         className={`pb-4 text-[10px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${ 
-<<<<<<< HEAD
           activeTab === tab ? 'text-green-700' : 'text-gray-400 hover:text-gray-600'
-=======
-          activeTab === tab ? 'text-green-700' : 'text-gray-400 hover:text-gray-600'  
->>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
         }`}
       >
         {tab}
