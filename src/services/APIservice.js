@@ -23,7 +23,7 @@ const validateParams = (params) => {
 };
 
 export const authAPI = {
-    // --- SERVER STATUS ---
+    // --- SERVER STATUS ---D
     // Used to "wake up" the Render server on app load
     ping: async () => {
         try {
