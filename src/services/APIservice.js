@@ -1,5 +1,4 @@
-const BASE_URL = 'https://ellaquest-backend.onrender.com';
-
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://ellaquest-backend.onrender.com';
 /**
  * Utility to handle fetch with a timeout to prevent infinite loading.
  */
