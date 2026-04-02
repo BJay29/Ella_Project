@@ -224,7 +224,7 @@ const StudentDashboard = () => {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-[300px] p-6 text-center animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white">Confirm Logout</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-              Are you sure you want to sign out?
+              Are you sure you want to log out?
             </p>
             <div className="flex gap-3 mt-6">
               <button
