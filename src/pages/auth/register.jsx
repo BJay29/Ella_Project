@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import ErrorModal from "../../components/modals/errormodal"; 
 import { authAPI } from '../../services/APIservice';
+<<<<<<< HEAD
 import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
+=======
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
 
 // --- SUCCESS MODAL COMPONENT ---
 const SuccessModal = ({ isOpen, message, onClose }) => {

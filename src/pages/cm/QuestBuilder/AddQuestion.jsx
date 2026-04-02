@@ -30,12 +30,48 @@ const AlertModal = ({ isOpen, onClose, message, title = "Notice" }) => {
   );
 };
 
+<<<<<<< HEAD
 const AddQuestion = () => {
   // Kunin ang IDs mula sa URL params
   const { questId, levelId, activityId } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   
+=======
+// --- SUB-COMPONENT: SUCCESS MODAL ---
+const SuccessModal = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+      <div className="bg-white rounded-[40px] p-10 max-w-sm w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+        <div className="w-20 h-20 bg-green-100 text-green-500 rounded-[24px] flex items-center justify-center mb-6 shadow-lg shadow-green-50">
+          <CheckCircle2 size={48} strokeWidth={3} />
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter italic mb-2">Awesome!</h2>
+        <p className="text-gray-500 text-sm font-medium mb-8 leading-relaxed">
+          Your question has been successfully saved to the database. This activity now has its content updated.
+        </p>
+        <button 
+          onClick={onClose} 
+          className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95"
+        >
+          Back to Summary
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const AddQuestion = () => {
+  const { questId, levelId, activityId, quizId } = useParams(); 
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Helper to check if we are in Quiz mode
+  const isQuiz = Boolean(quizId);
+
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
   // --- ALERT STATE ---
   const [alertConfig, setAlertConfig] = useState({ show: false, message: '', title: '' });
 
@@ -43,10 +79,19 @@ const AddQuestion = () => {
     setAlertConfig({ show: true, message, title });
   };
 
+<<<<<<< HEAD
   const [questionData, setQuestionData] = useState({
     question_text: '',
     question_type: 'multiple_choice', 
     answers: [
+=======
+  // State para sa form (internal state is kept consistent)
+  // Gagamit tayo ng consistent keys sa UI (activity_question) pero i-ma-map natin sa payload later
+  const [questionData, setQuestionData] = useState({
+    activity_question: '',
+    question_type: 'multiple_choice', 
+    activity_answer: [
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
       { answer_text: '', is_correct: false },
       { answer_text: '', is_correct: false },
       { answer_text: '', is_correct: false },
@@ -54,6 +99,7 @@ const AddQuestion = () => {
     ]
   });
 
+<<<<<<< HEAD
   // --- DEBUGGING: Check if IDs exist on mount ---
   useEffect(() => {
     console.log("Current URL Params:", { questId, levelId, activityId });
@@ -61,13 +107,23 @@ const AddQuestion = () => {
         console.error("CRITICAL: activityId is missing from the URL!");
     }
   }, [questId, levelId, activityId]);
+=======
+  // --- DEBUGGING ---
+  useEffect(() => {
+    console.log("DEBUG [Mount]: Current URL Params:", { questId, levelId, activityId, quizId });
+  }, [questId, levelId, activityId, quizId]);
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
 
   // --- AUTOMATIC LAYOUT HANDLER ---
   useEffect(() => {
     if (questionData.question_type === 'true_false') {
       setQuestionData(prev => ({
         ...prev,
+<<<<<<< HEAD
         answers: [
+=======
+        activity_answer: [
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
           { answer_text: 'True', is_correct: false },
           { answer_text: 'False', is_correct: false }
         ]
@@ -75,6 +131,7 @@ const AddQuestion = () => {
     } else if (questionData.question_type === 'identification') {
       setQuestionData(prev => ({
         ...prev,
+<<<<<<< HEAD
         answers: [{ answer_text: '', is_correct: true }]
       }));
     } else if (questionData.question_type === 'multiple_choice') {
@@ -82,6 +139,15 @@ const AddQuestion = () => {
         setQuestionData(prev => ({
           ...prev,
           answers: [
+=======
+        activity_answer: [{ answer_text: '', is_correct: true }]
+      }));
+    } else if (questionData.question_type === 'multiple_choice') {
+      if (questionData.activity_answer.length < 2 || questionData.activity_answer[0].answer_text === 'True') {
+        setQuestionData(prev => ({
+          ...prev,
+          activity_answer: [
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
             { answer_text: '', is_correct: false },
             { answer_text: '', is_correct: false },
             { answer_text: '', is_correct: false },
@@ -96,12 +162,17 @@ const AddQuestion = () => {
     if (questionData.question_type === 'multiple_choice') {
       setQuestionData({
         ...questionData,
+<<<<<<< HEAD
         answers: [...questionData.answers, { answer_text: '', is_correct: false }]
+=======
+        activity_answer: [...questionData.activity_answer, { answer_text: '', is_correct: false }]
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
       });
     }
   };
 
   const setCorrectAnswer = (index) => {
+<<<<<<< HEAD
     const updatedAnswers = questionData.answers.map((ans, i) => ({
       ...ans,
       is_correct: i === index
@@ -122,19 +193,47 @@ const AddQuestion = () => {
     }
     
     const hasCorrect = questionData.answers.some(a => a.is_correct && a.answer_text.trim() !== '');
+=======
+    const updatedAnswers = questionData.activity_answer.map((ans, i) => ({
+      ...ans,
+      is_correct: i === index
+    }));
+    setQuestionData({ ...questionData, activity_answer: updatedAnswers });
+  };
+
+  const updateAnswerText = (index, val) => {
+    const updated = [...questionData.activity_answer];
+    updated[index].answer_text = val;
+    setQuestionData({ ...questionData, activity_answer: updated });
+  };
+
+  const handleSave = async (shouldExit = false) => {
+    if (!questionData.activity_question.trim()) {
+      return showAlert("Please enter a question", "Missing Info");
+    }
+    
+    const hasCorrect = questionData.activity_answer.some(a => a.is_correct && a.answer_text.trim() !== '');
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
     if (!hasCorrect) {
       return showAlert("Please provide a correct answer and mark it as correct.", "Validation Error");
     }
 
+<<<<<<< HEAD
     // 2. Critical Validation for activityId (Para hindi mag-error sa APIService)
     if (!activityId) {
         return showAlert("Activity ID is missing. Please re-open the activity builder.", "System Error");
+=======
+    const targetId = activityId || quizId;
+    if (!targetId) {
+        return showAlert("Identifier missing. Please re-open the builder.", "System Error");
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
     }
 
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
       
+<<<<<<< HEAD
       const payload = {
         question_text: questionData.question_text,
         question_type: questionData.question_type,
@@ -166,6 +265,47 @@ const AddQuestion = () => {
             question_text: '',
             question_type: questionData.question_type,
             answers: questionData.question_type === 'multiple_choice' 
+=======
+      const filteredAnswers = questionData.activity_answer
+        .filter(a => a.answer_text.trim() !== "") 
+        .map((a, index) => ({
+          answer_text: a.answer_text,
+          is_correct: a.is_correct,
+          order_index: index + 1
+        }));
+
+      // --- SMART PAYLOAD LOGIC ---
+      let payload = {};
+      if (isQuiz) {
+        payload = {
+          quiz_question: questionData.activity_question, // Map UI question to quiz_question
+          question_type: questionData.question_type,
+          quiz_answer: filteredAnswers                  // Map UI answers to quiz_answer
+        };
+      } else {
+        payload = {
+          activity_question: questionData.activity_question,
+          question_type: questionData.question_type,
+          activity_answer: filteredAnswers
+        };
+      }
+
+      const apiCall = activityId 
+        ? authAPI.addActivityQuestion(questId, levelId, activityId, payload, token)
+        : authAPI.addQuizQuestion(questId, levelId, quizId, payload, token);
+
+      const res = await apiCall;
+
+      if (res.ok || res.status === 201) {
+        if (shouldExit) {
+          setShowSuccess(true);
+        } else {
+          // --- DYNAMIC RESET STATE ---
+          setQuestionData({
+            activity_question: '',
+            question_type: questionData.question_type,
+            activity_answer: questionData.question_type === 'multiple_choice' 
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
               ? [
                   { answer_text: '', is_correct: false }, 
                   { answer_text: '', is_correct: false },
@@ -180,6 +320,7 @@ const AddQuestion = () => {
                 : [{ answer_text: '', is_correct: true }]
           });
           window.scrollTo({ top: 0, behavior: 'smooth' });
+<<<<<<< HEAD
           showAlert("Question saved successfully! You can add another one.", "Success");
         }
       } else {
@@ -189,11 +330,33 @@ const AddQuestion = () => {
     } catch (err) {
       console.error("Save Error:", err);
       showAlert("Failed to save question. Please check your connection.", "Network Error");
+=======
+          showAlert("Question saved! You can add another one.", "Success");
+        }
+      } else {
+        const errorData = await res.json().catch(() => ({ message: "Unknown Backend Error" }));
+        showAlert(errorData.message || 'Failed to save question', "Error");
+      }
+    } catch (err) {
+      showAlert("Failed to save. Please check your connection.", "Network Error");
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
     } finally {
       setLoading(false);
     }
   };
 
+<<<<<<< HEAD
+=======
+  const handleFinishRedirect = () => {
+    setShowSuccess(false);
+    if (activityId) {
+        navigate(`/cm/dashboard/quest/${questId}/level/${levelId}/activity/${activityId}`);
+    } else {
+        navigate(`/cm/dashboard/quest/${questId}`);
+    }
+  };
+
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
   return (
     <>
       <div className="min-h-screen bg-slate-50/50 p-4 md:p-8 font-sans">
@@ -210,9 +373,15 @@ const AddQuestion = () => {
               </button>
               <div>
                 <span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600">
+<<<<<<< HEAD
                   activity builder
                 </span>
                 <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mt-1 ml-1">Setup content for Activity</p>
+=======
+                  {activityId ? 'activity builder' : 'quiz builder'}
+                </span>
+                <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mt-1 ml-1">Setup Content</p>
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
               </div>
             </div>
             
@@ -229,17 +398,23 @@ const AddQuestion = () => {
                   <option value="identification">Identification</option>
                 </select>
               </div>
+<<<<<<< HEAD
               <div className="text-right border-l pl-4 border-gray-100 hidden md:block">
                   <h2 className="text-xl font-black text-gray-900 uppercase italic">Add Question</h2>
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Type: {questionData.question_type.replace('_', ' ')}</p>
               </div>
+=======
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
             </div>
           </div>
 
           {/* MAIN BODY */}
           <div className="p-10 md:p-14 space-y-16">
+<<<<<<< HEAD
             
             {/* QUESTION TEXT */}
+=======
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-indigo-500 font-black text-[10px] uppercase tracking-[0.2em] ml-1">
                  <Type size={14}/> Question Prompt
@@ -247,17 +422,26 @@ const AddQuestion = () => {
               <textarea 
                 className="w-full text-4xl md:text-5xl font-black tracking-tighter text-gray-900 placeholder:text-slate-100 outline-none border-none resize-none min-h-[120px] leading-[1.1] italic border-b-2 border-indigo-50 pb-6 focus:border-indigo-600 transition-all"
                 placeholder="Type your question here..."
+<<<<<<< HEAD
                 value={questionData.question_text}
                 onChange={(e) => setQuestionData({...questionData, question_text: e.target.value})}
               />
             </div>
 
             {/* ANSWERS SECTION */}
+=======
+                value={questionData.activity_question}
+                onChange={(e) => setQuestionData({...questionData, activity_question: e.target.value})}
+              />
+            </div>
+
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
             <div className="space-y-6">
               <div className="flex justify-between items-center ml-1">
                 <label className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">
                   {questionData.question_type === 'identification' ? 'Expected Correct Answer' : 'Configure Choices (Mark the correct one)'}
                 </label>
+<<<<<<< HEAD
                 <span className="text-[9px] font-bold text-indigo-400 uppercase bg-indigo-50 px-2 py-1 rounded-md">
                   {questionData.question_type === 'identification' ? 'Case Sensitive Check' : 'Click icon to set correct answer'}
                 </span>
@@ -265,6 +449,12 @@ const AddQuestion = () => {
               
               <div className={`grid gap-6 ${questionData.question_type === 'identification' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
                 {questionData.answers.map((answer, index) => (
+=======
+              </div>
+              
+              <div className={`grid gap-6 ${questionData.question_type === 'identification' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+                {questionData.activity_answer.map((answer, index) => (
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
                   <div key={index} className={`group flex items-center gap-4 p-4 border-2 rounded-[30px] transition-all duration-300
                     ${answer.is_correct 
                       ? 'border-green-400 bg-white shadow-xl shadow-green-100/30' 
@@ -294,27 +484,44 @@ const AddQuestion = () => {
                         onChange={(e) => updateAnswerText(index, e.target.value)}
                       />
                       
+<<<<<<< HEAD
                       {questionData.question_type === 'multiple_choice' && questionData.answers.length > 2 && (
                         <button 
                           type="button"
                           onClick={() => setQuestionData({...questionData, answers: questionData.answers.filter((_, i) => i !== index)})}
+=======
+                      {questionData.question_type === 'multiple_choice' && questionData.activity_answer.length > 2 && (
+                        <button 
+                          type="button"
+                          onClick={() => setQuestionData({...questionData, activity_answer: questionData.activity_answer.filter((_, i) => i !== index)})}
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
                           className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-200 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all p-2"
                         >
                           <Trash2 size={18} />
                         </button>
                       )}
                     </div>
+<<<<<<< HEAD
                     {answer.is_correct && <CheckCircle2 size={22} className="text-green-500 mr-2 animate-in zoom-in" />}
+=======
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
                   </div>
                 ))}
               </div>
 
+<<<<<<< HEAD
               {/* ADD OPTION BUTTON */}
+=======
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
               {questionData.question_type === 'multiple_choice' && (
                 <button 
                   type="button"
                   onClick={addOption}
+<<<<<<< HEAD
                   className="w-full mt-4 flex items-center justify-center gap-3 p-6 border-2 border-dashed border-slate-100 rounded-[30px] text-slate-300 font-black uppercase text-[11px] tracking-widest hover:border-indigo-200 hover:text-indigo-400 hover:bg-white transition-all group"
+=======
+                  className="w-full mt-4 flex items-center justify-center gap-3 p-6 border-2 border-dashed border-slate-100 rounded-[30px] text-slate-300 font-black uppercase text-[11px] tracking-widest hover:border-indigo-200 hover:text-indigo-400 transition-all group"
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
                 >
                   <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
                   Add Choice
@@ -333,37 +540,62 @@ const AddQuestion = () => {
             </div>
             
             <div className="flex gap-4 w-full sm:w-auto">
+<<<<<<< HEAD
               {/* BUTTON 1: FINISH & EXIT (Mag-re-redirect sa listahan) */}
+=======
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
               <button 
                 type="button"
                 onClick={() => handleSave(true)}
                 disabled={loading}
+<<<<<<< HEAD
                 className="flex-1 sm:flex-none px-10 py-5 bg-white border border-slate-200 rounded-[24px] font-black text-[11px] uppercase text-slate-500 hover:bg-white hover:shadow-xl hover:shadow-slate-200 transition-all active:scale-95 flex items-center justify-center gap-3"
+=======
+                className="flex-1 sm:flex-none px-10 py-5 bg-white border border-slate-200 rounded-[24px] font-black text-[11px] uppercase text-slate-500 hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3"
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
               >
                 <Save size={16}/> Finish & Exit
               </button>
               
+<<<<<<< HEAD
               {/* BUTTON 2: SAVE & NEXT (Mag-re-reset lang para sa bagong question) */}
+=======
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
               <button 
                 type="button"
                 onClick={() => handleSave(false)}
                 disabled={loading}
                 className="flex-1 sm:flex-none px-12 py-5 bg-indigo-600 text-white rounded-[24px] font-black text-[11px] uppercase shadow-2xl shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
               >
+<<<<<<< HEAD
                 {loading ? 'Saving...' : 'Save & Next Question'} <Send size={16} />
+=======
+                {loading ? 'Saving...' : 'Save & Next'} <Send size={16} />
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
               </button>
             </div>
           </div>
         </div>
       </div>
 
+<<<<<<< HEAD
       {/* CUSTOM ALERT MODAL */}
+=======
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
       <AlertModal 
         isOpen={alertConfig.show} 
         title={alertConfig.title}
         message={alertConfig.message} 
         onClose={() => setAlertConfig({ ...alertConfig, show: false })} 
       />
+<<<<<<< HEAD
+=======
+
+      <SuccessModal 
+        isOpen={showSuccess} 
+        onClose={handleFinishRedirect} 
+      />
+>>>>>>> 2ca6c40983cd11eb31d2709ddb89b6a426ac70e1
     </>
   );
 };
