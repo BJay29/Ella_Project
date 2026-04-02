@@ -44,7 +44,7 @@ export const authAPI = {
     },
     
     register: async (formData) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/user/register`, {
+        return await fetchWithTimeout(`${BASE_URL}/api/user/register-sso`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
