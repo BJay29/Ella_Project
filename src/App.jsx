@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// Auth Pages
+// Auth Pages - Siniguro na tugma sa small letters na filenames
 import Login from './pages/auth/login';
 import Register from './pages/auth/register';
 import SignupMethod from './pages/auth/preregister'; 
@@ -68,7 +68,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* DEFAULT ROUTE: Ngayon ay nakaturo muna sa PublicRoute/Login */}
+        {/* DEFAULT ROUTE */}
         <Route path="/" element={
             <PublicRoute>
                 <Navigate to="/login" replace />
@@ -93,7 +93,10 @@ function App() {
             </PublicRoute>
         } />
 
+        {/* GOOGLE AUTH CALLBACK ROUTES */}
+        {/* Ang /sso-callback ay kailangan para sa auto-fill feature pagka-verify ni Google */}
         <Route path="/auth/callback" element={<GoogleCallback />} />
+        <Route path="/sso-callback" element={<GoogleCallback />} />
 
         {/* STUDENT ROUTES */}
         <Route path="/student/dashboard" element={
