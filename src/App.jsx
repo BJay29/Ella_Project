@@ -95,8 +95,8 @@ function App() {
 
         {/* GOOGLE AUTH CALLBACK ROUTES */}
         {/* Ang /sso-callback ay kailangan para sa auto-fill feature pagka-verify ni Google */}
-        <Route path="/auth/callback" element={<GoogleCallback />} />
-        <Route path="/sso-callback" element={<GoogleCallback />} />
+        <Route path="/auth/googlecallback" element={<GoogleCallback />} />
+        <Route path="/sso-googlecallback" element={<GoogleCallback />} />
 
         {/* STUDENT ROUTES */}
         <Route path="/student/dashboard" element={
