@@ -31,7 +31,6 @@ export const authAPI = {
         } catch { /* Silently ignore errors for ping */ }
     },
 
-    // --- AUTHENTICATION & REGISTRATION ----
     
     // Step 1: Initiate Google Login (Redirects the whole page to Google Auth)
     initiateGoogleLogin: () => {

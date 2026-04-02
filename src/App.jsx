@@ -5,7 +5,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/auth/login';
 import Register from './pages/auth/register';
 import SignupMethod from './pages/auth/preregister'; 
-import GoogleCallback from './pages/auth/GoogleCallback'; 
+import GoogleCallback from './pages/auth/googlecallback'; 
 
 // Role-based Pages
 import StudentDashboard from './pages/student/dashboard';
