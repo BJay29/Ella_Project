@@ -1,24 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import AuthInput from '../../components/common/authinput';
 import ellaLogo from '../../assets/image.png';
 import ErrorModal from "../../components/modals/errormodal";
-import { authAPI } from '../../services/authservice';
+import { authAPI } from '../../services/APIservice';
+
+// Import React Icons
+import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi'; 
+import { FcGoogle } from 'react-icons/fc'; 
 
 const Login = () => {
   const navigate = useNavigate();
 
+  // State for form inputs
   const [loginData, setLoginData] = useState({
     email: '',
     password: ''
   });
 
+  // UI States
   const [showPassword, setShowPassword] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Gisingin ang Render server sa background pag-load ng Login page
+  // Ping server on mount para magising ang Render (optional)
   useEffect(() => {
     authAPI.ping();
   }, []);
@@ -28,6 +33,7 @@ const Login = () => {
     setLoginData({ ...loginData, [name]: value });
   };
 
+  // --- STANDARD EMAIL/PASSWORD LOGIN ---
   const handleLogin = async (e) => {
     e.preventDefault();
     const { email, password } = loginData;
@@ -48,6 +54,7 @@ const Login = () => {
         const rawRole = data.role || data.user?.role || data.userRole || 'student';
         const normalizedRole = rawRole.toLowerCase().trim();
 
+        localStorage.clear();
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', normalizedRole);
         
@@ -55,6 +62,8 @@ const Login = () => {
           navigate('/instructor/dashboard', { replace: true });
         } else if (normalizedRole === 'admin') {
           navigate('/admin/dashboard', { replace: true });
+        } else if (normalizedRole === 'curriculum_manager') { 
+          navigate('/cm/dashboard', { replace: true });
         } else {
           navigate('/student/dashboard', { replace: true });
         }
@@ -63,10 +72,22 @@ const Login = () => {
         setShowErrorModal(true);
       }
     } catch (error) {
+      console.error("Login Error:", error);
       setErrorMessage("SERVER ERROR: CANNOT CONNECT TO BACKEND");
       setShowErrorModal(true);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // --- GOOGLE LOGIN LOGIC ---
+  const handleGoogleLogin = () => {
+    try {
+      authAPI.initiateGoogleLogin();
+    } catch (error) {
+      console.error("Google Redirect Error:", error);
+      setErrorMessage("FAILED TO INITIATE GOOGLE LOGIN");
+      setShowErrorModal(true);
     }
   };
 
@@ -77,26 +98,27 @@ const Login = () => {
 
   return (
     <div className="h-screen w-screen bg-[#C8E6C0] flex flex-col items-center justify-center font-sans relative overflow-hidden">
-      <div className="w-full max-w-[420px] flex flex-col items-center px-6">
-        <div className="mb-3">
+      <div className="w-full max-w-[350px] flex flex-col items-center px-4">
+        
+        {/* Logo Section */}
+        <div className="mb-2">
           <img
             src={ellaLogo}
             alt="Ella Character"
-            className="w-44 h-44 object-contain drop-shadow-md"
+            className="w-32 h-32 object-contain drop-shadow-md"
           />
         </div>
 
-        <h2 className="text-sm font-bold tracking-[0.25em] text-gray-700 uppercase mb-5">
+        <h2 className="text-[10px] font-bold tracking-[0.3em] text-gray-700 uppercase mb-4">
           User Login
         </h2>
 
-        <form onSubmit={handleLogin} className="w-full flex flex-col gap-3">
+        <form onSubmit={handleLogin} className="w-full flex flex-col gap-2.5">
+          
           {/* Email Input */}
           <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-inner">
-            <div className="px-4 py-3 flex items-center justify-center border-r border-white/20">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-              </svg>
+            <div className="pl-4 pr-2 py-2 flex items-center justify-center">
+              <HiOutlineMail className="w-4 h-4 text-white" />
             </div>
             <input
               name="email"
@@ -105,16 +127,15 @@ const Login = () => {
               onChange={handleChange}
               placeholder="EMAIL"
               style={autofillFix}
-              className="flex-1 bg-[#7a9e50] px-4 py-3 text-white placeholder-white/70 font-bold text-sm tracking-widest outline-none"
+              className="flex-1 bg-[#7a9e50] px-2 py-2 text-white placeholder-white/70 font-bold text-[11px] tracking-widest outline-none"
+              required
             />
           </div>
 
           {/* Password Input */}
-          <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-inner">
-            <div className="px-4 py-3 flex items-center justify-center border-r border-white/20">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M18 8h-1V6A5 5 0 007 6v2H6a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V10a2 2 0 00-2-2zm-6 9a2 2 0 110-4 2 2 0 010 4zm3.1-9H8.9V6a3.1 3.1 0 016.2 0v2z"/>
-              </svg>
+          <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-inner relative">
+            <div className="pl-4 pr-2 py-2 flex items-center justify-center">
+              <HiOutlineLockClosed className="w-4 h-4 text-white" />
             </div>
             <input
               name="password"
@@ -123,48 +144,71 @@ const Login = () => {
               onChange={handleChange}
               placeholder="PASSWORD"
               style={autofillFix}
-              className="flex-1 bg-[#7a9e50] px-4 py-3 text-white placeholder-white/70 font-bold text-sm tracking-widest outline-none"
+              className="flex-1 bg-[#7a9e50] px-2 py-2 text-white placeholder-white/70 font-bold text-[11px] tracking-widest outline-none"
+              required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="px-4 py-3 text-white/80 hover:text-white transition-colors"
+              className="pr-4 text-white/80 hover:text-white transition-all flex items-center justify-center"
+              tabIndex="-1"
             >
               {showPassword ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268-2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                </svg>
+                <HiOutlineEyeOff className="w-4 h-4 transition-transform active:scale-90" />
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
+                <HiOutlineEye className="w-4 h-4 transition-transform active:scale-90" />
               )}
             </button>
           </div>
 
-          <div className="flex justify-end -mt-1">
-            <a href="#" className="text-[11px] italic text-[#3B82F6] font-semibold hover:underline">
+          {/* Forgot Password Link */}
+          <div className="flex justify-end -mt-1 mr-2">
+            <Link to="/forgot-password" size="small" className="text-[9px] italic text-[#3B82F6] font-semibold hover:underline">
               Forgot Password?
-            </a>
+            </Link>
           </div>
 
-          <div className="flex justify-center mt-2">
+          {/* Login Button */}
+          <div className="flex justify-center mt-1">
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-52 bg-[#8aab45] hover:bg-[#9abb55] text-white border border-[#6a8a30] rounded-full py-3 font-black text-sm tracking-[0.3em] uppercase shadow-md transition-all active:scale-95
-                ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`w-40 bg-[#8aab45] hover:bg-[#9abb55] text-white border border-[#6a8a30] rounded-full py-2 font-black text-[11px] tracking-[0.2em] uppercase shadow-sm transition-all active:scale-95
+                ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`} 
             >
-              {isLoading ? 'Processing...' : 'LOGIN'}
+              {isLoading ? '...' : 'LOGIN'}
             </button>
           </div>
 
-          {/* BINAGO: Sign Up Link points to /verify-email instead of /register */}
+          {/* Separator */}
+          <div className="flex items-center my-1 w-full px-4">
+            <div className="flex-grow border-t border-black/10"></div>
+            <span className="px-2 text-[8px] text-gray-500 font-bold whitespace-nowrap uppercase tracking-tighter">
+              Or continue with
+            </span>
+            <div className="flex-grow border-t border-black/10"></div>
+          </div>
+
+          {/* Google SSO Button */}
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="flex items-center justify-center gap-2 w-36 bg-white hover:bg-gray-50 text-gray-600 border border-gray-200 rounded-full py-1.5 shadow-sm transition-all active:scale-95"
+            >
+              <FcGoogle className="w-4 h-4" /> 
+              <span className="text-[11px] font-bold">Google</span>
+            </button>
+          </div>
+
+          {/* Registration Redirect - IN-UPDATE ANG PATH AT CLASS */}
           <div className="text-center mt-1">
-            <p className="text-[11px] text-[#3B82F6] font-medium">
-              Dont have an Account?{' '}
-              <Link to="/verify-email" className="font-bold hover:underline">
+            <p className="text-[9px] text-[#3B82F6] font-medium">
+              Don't have an Account?{' '}
+              <Link 
+                to="/signup" 
+                className="relative z-50 font-bold hover:underline cursor-pointer"
+              >
                 Register Here
               </Link>
             </p>
@@ -172,20 +216,17 @@ const Login = () => {
         </form>
       </div>
 
-      <p className="absolute bottom-6 text-center text-[11px] text-gray-600 px-10 max-w-2xl leading-snug font-medium">
+      {/* Footer text */}
+      <p className="absolute bottom-4 text-center text-[9px] text-gray-600 px-8 max-w-lg leading-tight font-medium opacity-80">
         An interactive language center is a system that engages students through active learning tools and encourages consistent language practice.
       </p>
 
+      {/* Error Modal */}
       <ErrorModal
         isOpen={showErrorModal}
         message={errorMessage}
         onClose={() => setShowErrorModal(false)}
       />
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        form { animation: fadeIn 0.5s ease-out; }
-      `}} />
     </div>
   );
 };

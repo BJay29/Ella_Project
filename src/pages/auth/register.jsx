@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import ErrorModal from "../../components/modals/errormodal"; 
-import { authAPI } from '../../services/authservice';
+import { authAPI } from '../../services/APIservice';
+import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 
 // --- SUCCESS MODAL COMPONENT ---
 const SuccessModal = ({ isOpen, message, onClose }) => {
@@ -32,31 +33,32 @@ const Register = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Kunin ang email at code mula sa VerifyEmail page state
-  const verifiedEmail = location.state?.verifiedEmail || "";
-  const verifiedCode = location.state?.verifiedCode || "";
+  // Data from previous pages (Manual Verify Email or Google Redirect)
+  const googleData = location.state?.googleUser;
+  const verifiedEmail = location.state?.verifiedEmail || googleData?.email || "";
+  const googleFirstName = googleData?.firstName || "";
+  const googleLastName = googleData?.lastName || "";
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    firstName: googleFirstName,
+    lastName: googleLastName,
     email: verifiedEmail,
-    code: verifiedCode, // Hidden/Background code para sa final registration
     password: '',
     confirmPassword: ''
   });
 
-  // Guard Logic: Pag walang verified email, balik sa simula
+  // Proteksyon: Kung walang email na bitbit, ibalik sa simula
   useEffect(() => {
     if (!verifiedEmail) {
-      navigate('/verify-email', { replace: true });
+      // Kung walang email, ibalik sa signup method selection
+      navigate('/signup', { replace: true });
     }
   }, [verifiedEmail, navigate]);
 
@@ -74,21 +76,33 @@ const Register = () => {
       return;
     }
 
+    if (formData.password.length < 6) {
+      setModalMessage("PASSWORD MUST BE AT LEAST 6 CHARACTERS!");
+      setShowErrorModal(true);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Isesend ang kompleto: name, email, password, at ang code na na-verify na kanina
+      // Tinatawag ang register function sa APIService.js (wala nang 'code' field)
       const response = await authAPI.register(formData);
       const data = await response.json();
 
       if (response.ok) {
-        setModalMessage(data.message?.toUpperCase() || "USER REGISTERED SUCCESSFULLY!");
+        setModalMessage("ACCOUNT CREATED SUCCESSFULLY! YOU CAN NOW LOG IN.");
         setShowSuccessModal(true);
       } else {
-        setModalMessage(data.message?.toUpperCase() || "REGISTRATION FAILED");
+        const serverMsg = data.message?.toUpperCase() || "";
+        if (response.status === 409 || serverMsg.includes("EXISTS") || serverMsg.includes("ALREADY")) {
+          setModalMessage("EMAIL ALREADY REGISTERED. PLEASE LOG IN INSTEAD.");
+        } else {
+          setModalMessage(serverMsg || "REGISTRATION FAILED. PLEASE TRY AGAIN.");
+        }
         setShowErrorModal(true);
       }
     } catch (error) {
+      console.error("Registration Error:", error);
       setModalMessage("COULD NOT CONNECT TO SERVER. PLEASE TRY AGAIN LATER.");
       setShowErrorModal(true);
     } finally {
@@ -137,19 +151,25 @@ const Register = () => {
             />
           </div>
 
+          {/* Password */}
           <div className="flex flex-col relative">
             <label className="text-[10px] font-bold ml-1 uppercase">Password</label>
             <div className="relative">
               <input name="password" value={formData.password} onChange={handleChange} type={showPassword ? "text" : "password"} style={inputStyle} className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px] pr-8" required />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40"><EyeIcon /></button>
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black">
+                {showPassword ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
+          {/* Confirm Password */}
           <div className="flex flex-col relative">
             <label className="text-[10px] font-bold ml-1 uppercase">Confirm Password</label>
             <div className="relative">
               <input name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} type={showConfirmPassword ? "text" : "password"} style={inputStyle} className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px] pr-8" required />
-              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40"><EyeIcon /></button>
+              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black">
+                {showConfirmPassword ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
@@ -168,27 +188,16 @@ const Register = () => {
         </form>
       </div>
 
-      <FooterText />
+      <div className="absolute bottom-6 w-full text-center px-10 hidden md:block">
+        <p className="text-[10px] text-gray-700 max-w-2xl mx-auto leading-tight italic">
+          An interactive language center is a system that engages students through active learning tools and encourages consistent language practice.
+        </p>
+      </div>
+
       <SuccessModal isOpen={showSuccessModal} message={modalMessage} onClose={() => navigate('/login')} />
       <ErrorModal isOpen={showErrorModal} message={modalMessage} onClose={() => setShowErrorModal(false)} />
     </div>
   );
 };
-
-// ... same icons and footer components ...
-const EyeIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-  </svg>
-);
-
-const FooterText = () => (
-  <div className="absolute bottom-6 w-full text-center px-10 hidden md:block">
-    <p className="text-[10px] text-gray-700 max-w-2xl mx-auto leading-tight italic">
-      An interactive language center is a system that engages students through active learning tools and encourages consistent language practice.
-    </p>
-  </div>
-);
 
 export default Register;
