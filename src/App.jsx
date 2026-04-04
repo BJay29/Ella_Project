@@ -49,14 +49,12 @@ const ProtectedRoute = ({ children, allowedRole }) => {
 
 /**
  * PublicRoute: Humaharang sa mga user na NAKA-LOGIN na.
- * FIX: Dinagdagan ng 'shouldForceStop' check para putulin ang auto-redirect 
- * loop kapag ang user ay dumaan sa existing account check ng Google SSO.
  */
 const PublicRoute = ({ children }) => {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   const userRole = (localStorage.getItem('userRole') || sessionStorage.getItem('userRole'))?.toLowerCase().trim();
   
-  // I-check kung ang URL ay may signal na dapat huminto (mula sa GoogleCallback Nuclear Fix)
+  // I-check kung ang URL ay may signal na dapat huminto (mula sa GoogleCallback check)
   const shouldForceStop = window.location.search.includes('status=existing') || 
                           window.location.search.includes('isNewUser=false') ||
                           window.location.search.includes('stop=true');
@@ -95,11 +93,11 @@ function App() {
             </PublicRoute>
         } />
 
-        <Route path="/register" element={
-            <PublicRoute>
-                <Register />
-            </PublicRoute>
-        } />
+        {/* IMPORTANT FIX: Inalis ang /register sa PublicRoute.
+          Dahil ang NEW USER ay may temporary token na galing GoogleCallback,
+          haharangin siya ng PublicRoute at itatapon sa Dashboard kung hindi natin ito aalisin.
+        */}
+        <Route path="/register" element={<Register />} />
 
         {/* GOOGLE AUTH CALLBACK ROUTES */}
         <Route path="/callback" element={<GoogleCallback />} />

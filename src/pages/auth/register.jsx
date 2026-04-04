@@ -33,15 +33,15 @@ const Register = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Read sso_token from URL params
+  // 1. Get sso_token from URL (if present)
   const params = new URLSearchParams(location.search);
   const ssoToken = params.get('sso_token');
 
-  // Data from previous pages (Manual Verify Email or Google Redirect)
+  // 2. Get data from location.state (from GoogleCallback redirect)
   const googleData = location.state?.googleUser;
-  const verifiedEmail = location.state?.verifiedEmail || googleData?.email || "";
-  const googleFirstName = googleData?.firstName || "";
-  const googleLastName = googleData?.lastName || "";
+  
+  // 3. Get token from localStorage (as saved by GoogleCallback)
+  const storedToken = localStorage.getItem('token');
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -51,33 +51,36 @@ const Register = () => {
   const [modalMessage, setModalMessage] = useState('');
 
   const [formData, setFormData] = useState({
-    firstName: googleFirstName,
-    lastName: googleLastName,
-    email: verifiedEmail,
+    firstName: googleData?.firstName || "",
+    lastName: googleData?.lastName || "",
+    email: googleData?.email || location.state?.verifiedEmail || "",
     password: '',
     confirmPassword: ''
   });
 
-  // Decode sso_token and pre-fill form if coming from Google SSO
+  // Pre-fill logic and security check
   useEffect(() => {
+    // If coming via sso_token in URL (Manual or legacy flow)
     if (ssoToken) {
       try {
         const base64Payload = ssoToken.split('.')[1];
         const decoded = JSON.parse(atob(base64Payload));
         setFormData(prev => ({
           ...prev,
-          firstName: decoded.first_name || '',
-          lastName: decoded.last_name || '',
+          firstName: decoded.first_name || decoded.firstName || '',
+          lastName: decoded.last_name || decoded.lastName || '',
           email: decoded.email || ''
         }));
       } catch (err) {
         console.error('Failed to decode SSO token:', err);
-        navigate('/signup', { replace: true });
       }
-    } else if (!verifiedEmail) {
+    } 
+    // If no data is present at all, send them back to signup to start over
+    else if (!googleData && !location.state?.verifiedEmail) {
+      console.warn("No verified data found. Redirecting to signup.");
       navigate('/signup', { replace: true });
     }
-  }, [ssoToken, verifiedEmail, navigate]);
+  }, [ssoToken, googleData, location.state, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -103,22 +106,29 @@ const Register = () => {
 
     try {
       let response, data;
+      const activeToken = ssoToken || storedToken;
 
-      if (ssoToken) {
-        // SSO registration — only needs sso_token + password
+      // Check if we are using an SSO flow (Google)
+      if (activeToken && (googleData || ssoToken)) {
+        console.log("Registering via SSO flow...");
         response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/register-sso`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sso_token: ssoToken, password: formData.password })
+          body: JSON.stringify({ 
+            sso_token: activeToken, 
+            password: formData.password 
+          })
         });
         data = await response.json();
       } else {
-        // Manual registration
+        // Manual registration flow
         response = await authAPI.register(formData);
         data = await response.json();
       }
 
       if (response.ok) {
+        // Clear temp token after successful registration
+        localStorage.removeItem('token');
         setModalMessage("ACCOUNT CREATED SUCCESSFULLY! YOU CAN NOW LOG IN.");
         setShowSuccessModal(true);
       } else {
@@ -166,7 +176,7 @@ const Register = () => {
                 type="text" 
                 style={inputStyle} 
                 className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px]" 
-                readOnly={!!ssoToken}
+                readOnly={!!googleData || !!ssoToken}
                 required 
               />
             </div>
@@ -179,7 +189,7 @@ const Register = () => {
                 type="text" 
                 style={inputStyle} 
                 className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px]" 
-                readOnly={!!ssoToken}
+                readOnly={!!googleData || !!ssoToken}
                 required 
               />
             </div>
