@@ -50,7 +50,7 @@ const Register = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
-  const [modalTitle, setModalTitle] = useState(''); // Added dynamic title state
+  const [modalTitle, setModalTitle] = useState(''); 
 
   const [formData, setFormData] = useState({
     firstName: googleData?.firstName || "",
@@ -137,8 +137,11 @@ const Register = () => {
       } else {
         const serverMsg = data.message?.toUpperCase() || "";
         if (response.status === 409 || serverMsg.includes("EXISTS") || serverMsg.includes("ALREADY")) {
+          // IMPORTANT: If account exists, clear the bad registration session
+          localStorage.clear();
+          sessionStorage.setItem('sso_intent', 'login'); // Switch intent so next SSO attempt goes to dashboard
           setModalTitle("Account Exists");
-          setModalMessage("This email is already registered. Please log in to your existing account.");
+          setModalMessage("THIS EMAIL IS ALREADY REGISTERED. PLEASE LOG IN TO YOUR EXISTING ACCOUNT.");
         } else {
           setModalTitle("Registration Failed");
           setModalMessage(serverMsg || "COULD NOT COMPLETE REGISTRATION.");
@@ -156,9 +159,17 @@ const Register = () => {
   };
 
   /**
-   * IMPORTANT: Helper function to switch intent to login
-   * before navigating to the login page.
+   * Helper function for the Error Modal close action
    */
+  const handleErrorModalClose = () => {
+    setShowErrorModal(false);
+    // If the error was about an existing account, it's better to send them to login
+    if (modalTitle === "Account Exists") {
+      sessionStorage.setItem('sso_intent', 'login');
+      navigate('/login');
+    }
+  };
+
   const handleSwitchToLogin = () => {
     sessionStorage.setItem('sso_intent', 'login');
     navigate('/login');
@@ -292,7 +303,7 @@ const Register = () => {
         isOpen={showErrorModal} 
         title={modalTitle} 
         message={modalMessage} 
-        onClose={() => setShowErrorModal(false)} 
+        onClose={handleErrorModalClose} 
       />
     </div>
   );

@@ -43,7 +43,11 @@ const GoogleCallback = () => {
     const rawRole = params.get('role');
     const role = rawRole ? rawRole.toLowerCase().trim() : 'student';
 
-    // Kunin ang intent (login or register)
+    /**
+     * IMPORTANTE: 
+     * Kunin ang intent (login or register). 
+     * Siguraduhin na sa Signup page ay may: sessionStorage.setItem('sso_intent', 'register')
+     */
     const intent = sessionStorage.getItem('sso_intent') || 'login';
 
     console.log("Parsed SSO Data:", { hasToken: !!token, role, isNewUser, email, intent });
@@ -51,8 +55,10 @@ const GoogleCallback = () => {
     if (token) {
       const isNew = String(isNewUser).toLowerCase() === 'true';
 
+      // --- STEP 1: SEGREGATION NG LOGIC ---
+      
       if (isNew) {
-        // --- CASE A: NEW USER ---
+        // --- CASE A: TALAGANG BAGONG USER ---
         console.log("Action: NEW USER. Proceeding to Register Form.");
         
         localStorage.setItem('token', token);
@@ -66,31 +72,27 @@ const GoogleCallback = () => {
           },
           replace: true 
         });
-      } else {
-        // --- CASE B: EXISTING ACCOUNT ---
-        
+      } 
+      else {
+        // --- CASE B: EXISTING ACCOUNT NA ---
+
+        // Siguraduhin nating hindi ito mag-a-auto dashboard sa pamamagitan ng pag-clear ng storage muna
+        // bago pumasok sa condition ng intent
         if (intent === 'register') {
-          /**
-           * SCENARIO: Sinubukang mag-register pero may account na.
-           * FIX: Ipakita ang modal at WAG mag-navigate hangga't hindi naki-click ang Close.
-           */
           console.log("Action: EXISTING USER during registration. Triggering Modal.");
           
-          // IMPORTANT: Clear storage AGAD bago pa mag-render ang kahit ano
+          // CRITICAL: Burahin ang lahat para hindi mahabol ng ProtectedRoute
           localStorage.clear();
           sessionStorage.clear();
-
+          
           setErrorMsg("THIS ACCOUNT IS ALREADY REGISTERED. PLEASE LOGIN TO YOUR ACCOUNT.");
           setShowError(true);
           
-          // Gamit ang return para itigil ang script execution dito.
+          // STOP: Wag nang mag-navigate, hayaan lang sa state na ito hanggang ma-close ang modal.
           return; 
         } 
         else {
-          /**
-           * SCENARIO: Normal Login.
-           * ACTION: Dashboard agad base sa role.
-           */
+          // NORMAL LOGIN FLOW
           console.log("Action: EXISTING USER login. Directing to Dashboard.");
           
           localStorage.setItem('token', token);
@@ -120,7 +122,7 @@ const GoogleCallback = () => {
   // Handler para sa pag-close ng modal - Dito na mangyayari ang redirect sa Login
   const handleModalClose = () => {
     setShowError(false);
-    // Linisin ulit para sigurado bago lumipat
+    // Double check clean up
     localStorage.clear();
     sessionStorage.clear();
     navigate('/login', { replace: true });
@@ -128,12 +130,12 @@ const GoogleCallback = () => {
 
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#C8E6C0]">
-      {/* Loading Spinner - Mananatili ito habang hindi pa naki-click ang Close sa modal */}
+      {/* Loading Spinner */}
       <div className="flex flex-col items-center gap-4 animate-in fade-in duration-500">
         <div className="w-12 h-12 border-4 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
         <div className="text-center">
           <h2 className="text-[11px] font-black tracking-widest text-gray-700 uppercase animate-pulse">
-            {showError ? "Action Required" : "Verifying Gmail..."}
+            {showError ? "Notice" : "Verifying Account..."}
           </h2>
           <p className="text-[10px] text-gray-500 italic mt-1 font-bold">
             {showError ? "Account already exists." : "Checking records, please wait."}
