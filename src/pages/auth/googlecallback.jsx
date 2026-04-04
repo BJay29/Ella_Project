@@ -76,14 +76,15 @@ const GoogleCallback = () => {
            */
           console.log("Action: EXISTING USER during registration. Triggering Modal.");
           
+          // IMPORTANT: Clear storage AGAD bago pa mag-render ang kahit ano
+          localStorage.clear();
+          sessionStorage.clear();
+
           setErrorMsg("THIS ACCOUNT IS ALREADY REGISTERED. PLEASE LOGIN TO YOUR ACCOUNT.");
           setShowError(true);
           
-          // Linisin ang storage para siguradong fresh login ang susunod
-          localStorage.clear();
-          sessionStorage.clear();
-          
-          // IMPORTANT: Wala tayong 'navigate' dito para hindi mag-redirect agad.
+          // Gamit ang return para itigil ang script execution dito.
+          return; 
         } 
         else {
           /**
@@ -119,6 +120,9 @@ const GoogleCallback = () => {
   // Handler para sa pag-close ng modal - Dito na mangyayari ang redirect sa Login
   const handleModalClose = () => {
     setShowError(false);
+    // Linisin ulit para sigurado bago lumipat
+    localStorage.clear();
+    sessionStorage.clear();
     navigate('/login', { replace: true });
   };
 
@@ -132,7 +136,7 @@ const GoogleCallback = () => {
             {showError ? "Action Required" : "Verifying Gmail..."}
           </h2>
           <p className="text-[10px] text-gray-500 italic mt-1 font-bold">
-            {showError ? "Please check the notification." : "Checking records, please wait."}
+            {showError ? "Account already exists." : "Checking records, please wait."}
           </p>
         </div>
       </div>
