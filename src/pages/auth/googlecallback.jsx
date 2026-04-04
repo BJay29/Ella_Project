@@ -16,22 +16,36 @@ const GoogleCallback = () => {
     const token = params.get('token');
     const email = params.get('email');
     
-    // Support for both camelCase and lowercase from backend
+    // Support for parehong camelCase at lowercase mula sa backend
     const firstName = params.get('firstName') || params.get('firstname');
     const lastName = params.get('lastName') || params.get('lastname');
     
-    // I-normalize ang role (gawing lowercase at tanggalin ang spaces)
+    // I-normalize ang role
     const rawRole = params.get('role') || 'student';
     const role = rawRole.toLowerCase().trim();
     
     const isNewUser = params.get('isNewUser'); 
 
     if (token) {
-      // 2. REDIRECT LOGIC
+      // --- REDIRECT LOGIC ---
       
-      // CASE A: BAGO ANG USER
-      // I-save ang session at ipasa ang details sa Register page para sa auto-fill
-      if (String(isNewUser).toLowerCase() === 'true') {
+      // CASE A: EXISTING ACCOUNT (Dito nagkakaroon ng error dati)
+      if (String(isNewUser).toLowerCase() === 'false') {
+        console.log("Existing account detected. Clearing storage and forcing redirect to login...");
+        
+        // STEP 1: Siguraduhing BURADO ang lahat ng traces ng login
+        localStorage.removeItem('token');
+        localStorage.removeItem('userRole');
+        sessionStorage.clear();
+
+        // STEP 2: Force hard refresh patungong login page.
+        // Nagdagdag tayo ng query parameter (?status=existing) para harangin ng PublicRoute sa App.jsx
+        window.location.href = '/login?status=existing';
+      } 
+      
+      // CASE B: NEW USER (Bago pa lang magre-register)
+      else if (String(isNewUser).toLowerCase() === 'true') {
+        // I-save ang pansamantalang token para sa registration process
         localStorage.setItem('token', token);
         localStorage.setItem('userRole', role);
         
@@ -41,31 +55,11 @@ const GoogleCallback = () => {
           },
           replace: true 
         });
-      } 
-      
-      // CASE B: EXISTING NA ANG ACCOUNT
-      // FIX: Huwag i-save ang token sa localStorage para hindi siya mag-auto login.
-      // Idiretso siya sa Login page at magpasa ng state para alam ng Login page na existing na siya.
-      else {
-        console.log("Existing account detected. Redirecting to login page...");
-        
-        // Siguraduhing malinis ang storage para hindi makalusot sa ProtectedRoutes
-        localStorage.removeItem('token');
-        localStorage.removeItem('userRole');
-        sessionStorage.clear();
-
-        navigate('/login', { 
-          state: { 
-            existingUser: true,
-            message: "Account already exists. Please login to continue."
-          }, 
-          replace: true 
-        });
       }
     } else {
-      // Kung walang token na natanggap, error ito (balik sa login)
+      // Kung walang token, balik sa login
       console.error("Auth Error: No token received from server.");
-      navigate('/login', { replace: true });
+      window.location.href = '/login';
     }
   }, [location, navigate]);
 

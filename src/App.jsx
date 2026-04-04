@@ -48,20 +48,26 @@ const ProtectedRoute = ({ children, allowedRole }) => {
 };
 
 /**
- * PublicRoute: Humaharang sa mga user na NAKA-LOGIN na para hindi na 
- * sila makabalik sa Login/Register pages hangga't hindi nag-log out.
+ * PublicRoute: Humaharang sa mga user na NAKA-LOGIN na.
+ * FIX: Dinagdagan ng check para sa 'existing' status para hindi mag-auto-redirect
+ * ang system kapag ang user ay galing sa SSO existing account check.
  */
 const PublicRoute = ({ children }) => {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   const userRole = (localStorage.getItem('userRole') || sessionStorage.getItem('userRole'))?.toLowerCase().trim();
+  
+  // I-check kung ang current URL ay may signal na existing user (mula sa redirect)
+  const isExistingUserRedirect = window.location.search.includes('status=existing') || 
+                                 window.location.search.includes('isNewUser=false');
 
-  // Kung may token (naka-login na), i-redirect sa kani-kanilang dashboard
-  if (token && token !== '') {
+  // Kung may token at HINDI ito existing user redirect, papasukin sa dashboard
+  if (token && token !== '' && !isExistingUserRedirect) {
     if (userRole === 'student')            return <Navigate to="/student/dashboard" replace />;
     if (userRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
     if (userRole === 'instructor')         return <Navigate to="/instructor/dashboard" replace />;
     if (userRole === 'curriculum_manager') return <Navigate to="/cm/dashboard" replace />;
   }
+  
   return children;
 };
 
@@ -94,10 +100,7 @@ function App() {
             </PublicRoute>
         } />
 
-        {/* GOOGLE AUTH CALLBACK ROUTES 
-            Dito sa component na ito (GoogleCallback) dapat ilagay ang logic:
-            if (isExistingUser) navigate('/login') else navigate('/dashboard')
-        */}
+        {/* GOOGLE AUTH CALLBACK ROUTES */}
         <Route path="/callback" element={<GoogleCallback />} />
         <Route path="/sso-callback" element={<GoogleCallback />} />
 
