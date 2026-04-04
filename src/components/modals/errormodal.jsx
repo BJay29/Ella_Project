@@ -1,8 +1,13 @@
 import React from 'react';
 import ellaThinking from '../../assets/image.png';
 
-const ErrorModal = ({ isOpen, onClose, message }) => {
+const ErrorModal = ({ isOpen, onClose, message, title }) => {
   if (!isOpen) return null;
+
+  // I-check kung ang message ay tungkol sa existing account para palitan ang kulay o title kung kailangan
+  const isInfo = message?.includes("ALREADY REGISTERED");
+  const displayTitle = title || (isInfo ? "Account Info" : "Login Error");
+  const buttonText = isInfo ? "Got it" : "Try Again";
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
@@ -20,20 +25,23 @@ const ErrorModal = ({ isOpen, onClose, message }) => {
         {/* MODAL BOX */}
         <div className="bg-white rounded-[40px] p-10 shadow-2xl flex flex-col items-center relative border border-gray-100 animate-in fade-in zoom-in duration-300">
           <div className="text-center mb-8">
-            <h2 className="text-[#D22B2B] text-xl font-black tracking-widest uppercase mb-2">
-              Login Error
+            {/* Dynamic Title: Mag-iiba depende kung Error o Info */}
+            <h2 className={`${isInfo ? 'text-[#3B82F6]' : 'text-[#D22B2B]'} text-xl font-black tracking-widest uppercase mb-2`}>
+              {displayTitle}
             </h2>
-            {/* DITO LALABAS YUNG "INVALID EMAIL OR PASSWORD" */}
-            <p className="text-[#1A2E35] text-xl md:text-2xl font-semibold leading-tight uppercase">
+            
+            {/* Main Message */}
+            <p className="text-[#1A2E35] text-lg md:text-xl font-bold leading-tight uppercase">
               {message || "SOMETHING WENT WRONG"}
             </p>
           </div>
 
+          {/* Dynamic Button */}
           <button
             onClick={onClose}
-            className="bg-[#D22B2B] hover:bg-[#b02424] text-white font-bold py-3 px-12 rounded-xl text-xl transition-all active:scale-95 shadow-lg uppercase tracking-widest"
+            className={`${isInfo ? 'bg-[#3B82F6] hover:bg-[#2563EB]' : 'bg-[#D22B2B] hover:bg-[#b02424]'} text-white font-bold py-3 px-12 rounded-xl text-xl transition-all active:scale-95 shadow-lg uppercase tracking-widest`}
           >
-            Try Again
+            {buttonText}
           </button>
         </div>
       </div>

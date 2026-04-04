@@ -18,8 +18,8 @@ import QuestLevels from './pages/student/QuestLevels';
 import GameEngine from './pages/student/GameEngine'; 
 
 /**
- * ProtectedRoute: Humaharang sa mga user na walang valid token 
- * o maling role para sa page na sinusubukang puntahan.
+ * ProtectedRoute: Humaharang sa mga user na walang valid token.
+ * Ginagamit ito para sa mga pages na kailangan ng login.
  */
 const ProtectedRoute = ({ children, allowedRole }) => {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -27,18 +27,19 @@ const ProtectedRoute = ({ children, allowedRole }) => {
   
   const normalizedRole = userRole ? userRole.toLowerCase().trim() : '';
 
-  // Kung walang token, balik sa login
+  // Kung walang token, balik sa login screen
   if (!token || token === '') {
     return <Navigate to="/login" replace />;
   }
 
-  // Kung may token pero maling role, i-redirect sa tamang dashboard nila
+  // Kung may token pero maling dashboard ang sinusubukang pasukin
   if (allowedRole && normalizedRole !== allowedRole.toLowerCase()) {
     if (normalizedRole === 'student')            return <Navigate to="/student/dashboard" replace />;
     if (normalizedRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
     if (normalizedRole === 'instructor')         return <Navigate to="/instructor/dashboard" replace />;
     if (normalizedRole === 'curriculum_manager') return <Navigate to="/cm/dashboard" replace />; 
     
+    // Security fallback
     localStorage.clear(); 
     sessionStorage.clear();
     return <Navigate to="/login" replace />;
@@ -48,19 +49,22 @@ const ProtectedRoute = ({ children, allowedRole }) => {
 };
 
 /**
- * PublicRoute: Humaharang sa mga user na NAKA-LOGIN na.
+ * PublicRoute: Humaharang sa mga user na NAKA-LOGIN na para hindi na bumalik sa Login/Signup.
+ * FIX: Papayagan ang user kung isPendingRegistration (may token galing Google pero wala pang role).
  */
 const PublicRoute = ({ children }) => {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   const userRole = (localStorage.getItem('userRole') || sessionStorage.getItem('userRole'))?.toLowerCase().trim();
   
-  // I-check kung ang URL ay may signal na dapat huminto (mula sa GoogleCallback check)
-  const shouldForceStop = window.location.search.includes('status=existing') || 
-                          window.location.search.includes('isNewUser=false') ||
-                          window.location.search.includes('stop=true');
+  // Eto ang "Magic Condition" para sa New Google Users
+  const isPendingRegistration = token && !userRole;
 
-  // Kung may token at HINDI ito pinatitigil (force stop), saka lang mag-dashboard redirect
-  if (token && token !== '' && !shouldForceStop) {
+  // Check kung may force stop signal sa URL (ginagamit minsan sa logout/error flow)
+  const params = new URLSearchParams(window.location.search);
+  const shouldForceStop = params.get('stop') === 'true';
+
+  // Kung naka-login na (may token + role), dideretso sa Dashboard
+  if (token && token !== '' && !shouldForceStop && !isPendingRegistration) {
     if (userRole === 'student')            return <Navigate to="/student/dashboard" replace />;
     if (userRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
     if (userRole === 'instructor')         return <Navigate to="/instructor/dashboard" replace />;
@@ -74,13 +78,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* DEFAULT ROUTE */}
-        <Route path="/" element={
-            <PublicRoute>
-                <Navigate to="/login" replace />
-            </PublicRoute>
-        } />
-
+        {/* --- PUBLIC ACCESSIBLE ROUTES --- */}
         <Route path="/login" element={
             <PublicRoute>
                 <Login />
@@ -93,17 +91,17 @@ function App() {
             </PublicRoute>
         } />
 
-        {/* IMPORTANT FIX: Inalis ang /register sa PublicRoute.
-          Dahil ang NEW USER ay may temporary token na galing GoogleCallback,
-          haharangin siya ng PublicRoute at itatapon sa Dashboard kung hindi natin ito aalisin.
+        {/* REGISTER: Hindi nakabalot sa PublicRoute para payagan 
+            ang New Google User na may temporary token na pumasok dito.
         */}
         <Route path="/register" element={<Register />} />
 
-        {/* GOOGLE AUTH CALLBACK ROUTES */}
+        {/* GOOGLE CALLBACK: Middleman para sa SSO logic */}
         <Route path="/callback" element={<GoogleCallback />} />
         <Route path="/sso-callback" element={<GoogleCallback />} />
 
-        {/* STUDENT ROUTES */}
+
+        {/* --- PROTECTED STUDENT ROUTES --- */}
         <Route path="/student/dashboard" element={
           <ProtectedRoute allowedRole="student">
             <StudentDashboard />
@@ -122,28 +120,40 @@ function App() {
           </ProtectedRoute>
         } />
 
-        {/* ADMIN ROUTES */}
+
+        {/* --- PROTECTED ADMIN ROUTES --- */}
         <Route path="/admin/dashboard" element={
           <ProtectedRoute allowedRole="admin">
             <AdminDashboard />
           </ProtectedRoute>
         } />
 
-        {/* INSTRUCTOR ROUTES */}
+
+        {/* --- PROTECTED INSTRUCTOR ROUTES --- */}
         <Route path="/instructor/dashboard" element={
           <ProtectedRoute allowedRole="instructor">
             <InstructorDashboard />
           </ProtectedRoute>
         } />
 
-        {/* CURRICULUM MANAGER ROUTES */}
+
+        {/* --- PROTECTED CM ROUTES --- */}
         <Route path="/cm/dashboard" element={
           <ProtectedRoute allowedRole="curriculum_manager">
             <CMDashboard />
           </ProtectedRoute>
         } />
 
-        {/* 404 CATCH-ALL: Balik sa Login */}
+
+        {/* --- REDIRECTS & FALLBACKS --- */}
+        {/* Default landing: Kung may login, dashboard. Kung wala, login. */}
+        <Route path="/" element={
+          <PublicRoute>
+            <Navigate to="/login" replace />
+          </PublicRoute>
+        } />
+        
+        {/* 404 Catch-all */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

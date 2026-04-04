@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom'; // Idinagdag ang useLocation
 import ellaLogo from '../../assets/image.png';
 import ErrorModal from "../../components/modals/errormodal";
 import { authAPI } from '../../services/APIservice';
@@ -10,6 +10,7 @@ import { FcGoogle } from 'react-icons/fc';
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // Hook para makuha ang URL parameters
 
   // State for form inputs
   const [loginData, setLoginData] = useState({
@@ -22,6 +23,21 @@ const Login = () => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // --- EFFECT PARA SA SSO ERROR MESSAGES ---
+  useEffect(() => {
+    // Kinukuha ang parameter galing sa URL (e.g. ?info=account_exists)
+    const params = new URLSearchParams(location.search);
+    const infoType = params.get('info');
+
+    if (infoType === 'account_exists') {
+      setErrorMessage("THIS EMAIL ACCOUNT IS ALREADY REGISTERED. PLEASE LOG IN MANUALLY OR USE GOOGLE LOGIN TO ACCESS YOUR DASHBOARD.");
+      setShowErrorModal(true);
+
+      // Linisin ang URL para hindi mag-pop up ulit ang modal pag nag-refresh ang user
+      navigate('/login', { replace: true });
+    }
+  }, [location, navigate]);
 
   // Ping server on mount para magising ang Render (optional)
   useEffect(() => {
@@ -51,7 +67,6 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
-        // 1. Kunin ang role mula sa iba't ibang posibleng key sa backend
         const rawRole = data.role || data.user?.role || data.userRole || 'student';
         const normalizedRole = rawRole.toLowerCase().trim();
 
@@ -60,10 +75,8 @@ const Login = () => {
         localStorage.setItem('userRole', normalizedRole);
         
         console.log("LOGIN SUCCESSFUL!");
-        console.log("Token Saved:", data.token ? "YES" : "NO");
-        console.log("User Role:", normalizedRole);
 
-        // 3. REDIRECT LOGIC
+        // REDIRECT LOGIC
         if (normalizedRole === 'instructor') {
           navigate('/instructor/dashboard', { replace: true });
         } else if (normalizedRole === 'admin') {
@@ -74,7 +87,6 @@ const Login = () => {
           navigate('/student/dashboard', { replace: true });
         }
       } else {
-        // Ipakita ang error message mula sa backend
         setErrorMessage(data.message?.toUpperCase() || "INVALID EMAIL OR PASSWORD!");
         setShowErrorModal(true);
       }
@@ -152,7 +164,6 @@ const Login = () => {
               placeholder="PASSWORD"
               style={autofillFix}
               className="flex-1 bg-[#7a9e50] px-2 py-2 text-white placeholder-white/70 font-bold text-[11px] tracking-widest outline-none"
-
               required
             />
             <button
@@ -209,7 +220,7 @@ const Login = () => {
             </button>
           </div>
 
-          {/* Registration Redirect - IN-UPDATE ANG PATH AT CLASS */}
+          {/* Registration Redirect */}
           <div className="text-center mt-1">
             <p className="text-[9px] text-[#3B82F6] font-medium">
               Don't have an Account?{' '}
