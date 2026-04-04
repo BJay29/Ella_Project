@@ -50,7 +50,7 @@ const Register = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
-  const [modalTitle, setModalTitle] = useState(''); // Dynamic title state
+  const [modalTitle, setModalTitle] = useState(''); // Added dynamic title state
 
   const [formData, setFormData] = useState({
     firstName: googleData?.firstName || "",
@@ -165,7 +165,7 @@ const Register = () => {
     <div className="h-screen w-screen bg-[#D1EED1] flex flex-col items-center justify-center font-sans overflow-hidden p-2 relative text-gray-800">
       
       <div className="static lg:absolute lg:left-[12%] lg:top-1/2 lg:-translate-y-1/2 mb-4 lg:mb-0">
-        <h1 className="text-3xl md:text-5xl font-normal tracking-[0.1em] uppercase">Ella Quest</h1>
+        <h1 className="text-3xl md:text-5xl font-normal tracking-[0.1em] uppercase text-gray-700">Ella Quest</h1>
       </div>
 
       <div className="w-full max-w-[400px] lg:absolute lg:right-[10%] lg:top-1/2 lg:-translate-y-1/2 bg-[#B8DBB8] border-[0.5px] border-black/30 rounded-xl p-6 shadow-md">

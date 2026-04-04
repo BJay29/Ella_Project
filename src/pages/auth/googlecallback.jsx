@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import ErrorModal from "../../components/modals/errormodal"; // Import the modal
 
 /**
  * GoogleCallback Component
@@ -7,12 +8,16 @@ import { useNavigate, useLocation } from 'react-router-dom';
  * 1. Gmail Verified via SSO (Auth Server)
  * 2. If New User -> Save Token -> Go to Register Form (to set password)
  * 3. If Existing User -> 
- * - If intent was 'register': Redirect to Login with "Account Exists" Modal signal
+ * - If intent was 'register': Show Modal -> On Close -> Redirect to Login
  * - If intent was 'login': Direct to Dashboard
  */
 const GoogleCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // State para sa modal control sa loob ng callback page
+  const [showError, setShowError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     console.log("--- GOOGLE CALLBACK INITIATED ---");
@@ -54,25 +59,26 @@ const GoogleCallback = () => {
           replace: true 
         });
       } else {
-        // --- CASE B: EXISTING ACCOUNT (FIXED LOGIC) ---
+        // --- CASE B: EXISTING ACCOUNT ---
         
         if (intent === 'register') {
           /**
-           * SCENARIO: Nag-click ng "Continue with Google" sa Signup/Register page pero may account na.
-           * ACTION: Ibalik sa Login Page at magpasa ng 'info=account_exists' para lumabas ang Modal.
+           * SCENARIO: Nag-register pero may account na.
+           * ACTION: Ipakita ang modal dito mismo sa screen na ito.
            */
-          console.log("Action: EXISTING USER during registration. Redirecting to Login with Modal Signal.");
+          console.log("Action: EXISTING USER during registration. Showing Modal.");
           
+          setErrorMsg("THIS ACCOUNT IS ALREADY EXIST TO YOUR DEVICE PLEASE LOGIN");
+          setShowError(true);
+          
+          // Linisin ang data pero wag muna mag-navigate
           localStorage.clear();
           sessionStorage.clear();
-
-          // Ang URL parameter na ito ang babasahin ng Login.jsx para ipakita ang ErrorModal
-          navigate('/login?info=account_exists', { replace: true });
         } 
         else {
           /**
-           * SCENARIO: Normal Login gamit ang Google mula sa Login page.
-           * ACTION: Direct to Dashboard agad (No modal stops).
+           * SCENARIO: Normal Login.
+           * ACTION: Dashboard agad.
            */
           console.log("Action: EXISTING USER login. Directing to Dashboard.");
           
@@ -94,18 +100,33 @@ const GoogleCallback = () => {
     }
   }, [location, navigate]);
 
+  // Handler para sa pag-close ng modal
+  const handleModalClose = () => {
+    setShowError(false);
+    navigate('/login', { replace: true });
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#C8E6C0]">
-      <div className="flex flex-col items-center gap-4">
-        {/* Loading Spinner */}
-        <div className="w-12 h-12 border-4 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
-        <div className="text-center">
-          <h2 className="text-[11px] font-black tracking-widest text-gray-700 uppercase animate-pulse">
-            Verifying Gmail...
-          </h2>
-          <p className="text-[10px] text-gray-500 italic mt-1">Checking records, please wait.</p>
+      {/* Loading Spinner - mawawala ito kapag lumabas ang modal */}
+      {!showError && (
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-center">
+            <h2 className="text-[11px] font-black tracking-widest text-gray-700 uppercase animate-pulse">
+              Verifying Gmail...
+            </h2>
+            <p className="text-[10px] text-gray-500 italic mt-1">Checking records, please wait.</p>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Error Modal na lalabas muna bago mag-redirect */}
+      <ErrorModal 
+        isOpen={showError} 
+        message={errorMsg} 
+        onClose={handleModalClose} 
+      />
     </div>
   );
 };
