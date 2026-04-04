@@ -50,7 +50,7 @@ const Register = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
-  const [modalTitle, setModalTitle] = useState(''); // Added dynamic title state
+  const [modalTitle, setModalTitle] = useState(''); // Dynamic title state
 
   const [formData, setFormData] = useState({
     firstName: googleData?.firstName || "",

@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
  * 1. Gmail Verified via SSO (Auth Server)
  * 2. If New User -> Save Token -> Go to Register Form (to set password)
  * 3. If Existing User -> 
- * - If intent was 'register': Redirect to Login with "Account Exists" Modal
+ * - If intent was 'register': Redirect to Login with "Account Exists" Modal signal
  * - If intent was 'login': Direct to Dashboard
  */
 const GoogleCallback = () => {
@@ -57,17 +57,23 @@ const GoogleCallback = () => {
         // --- CASE B: EXISTING ACCOUNT (FIXED LOGIC) ---
         
         if (intent === 'register') {
-          // SCENARIO: Sinubukan mag-register pero may account na.
-          console.log("Action: EXISTING USER during registration. Redirecting to Login with Modal.");
+          /**
+           * SCENARIO: Nag-click ng "Continue with Google" sa Signup/Register page pero may account na.
+           * ACTION: Ibalik sa Login Page at magpasa ng 'info=account_exists' para lumabas ang Modal.
+           */
+          console.log("Action: EXISTING USER during registration. Redirecting to Login with Modal Signal.");
           
           localStorage.clear();
           sessionStorage.clear();
 
-          // I-redirect sa login na may URL parameter para sa Modal
+          // Ang URL parameter na ito ang babasahin ng Login.jsx para ipakita ang ErrorModal
           navigate('/login?info=account_exists', { replace: true });
         } 
         else {
-          // SCENARIO: Normal Login gamit ang Google.
+          /**
+           * SCENARIO: Normal Login gamit ang Google mula sa Login page.
+           * ACTION: Direct to Dashboard agad (No modal stops).
+           */
           console.log("Action: EXISTING USER login. Directing to Dashboard.");
           
           localStorage.setItem('token', token);

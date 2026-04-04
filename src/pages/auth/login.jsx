@@ -26,12 +26,13 @@ const Login = () => {
 
   // --- EFFECT PARA SA SSO ERROR MESSAGES ---
   useEffect(() => {
+    // Kinukuha ang parameter galing sa URL (e.g. ?info=account_exists)
     const params = new URLSearchParams(location.search);
     const infoType = params.get('info');
 
     if (infoType === 'account_exists') {
-      // Mas user-friendly na message (hindi aggressive)
-      setErrorMessage("It looks like you're already registered! Please log in to your account to continue.");
+      // Updated with a more user-friendly message as per recent flow requirements
+      setErrorMessage("THIS ACCOUNT ALREADY EXISTS ON YOUR DEVICE! PLEASE LOGIN.");
       setShowErrorModal(true);
 
       // Linisin ang URL para hindi mag-pop up ulit ang modal pag nag-refresh ang user
