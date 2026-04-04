@@ -155,6 +155,15 @@ const Register = () => {
     }
   };
 
+  /**
+   * IMPORTANT: Helper function to switch intent to login
+   * before navigating to the login page.
+   */
+  const handleSwitchToLogin = () => {
+    sessionStorage.setItem('sso_intent', 'login');
+    navigate('/login');
+  };
+
   const inputStyle = {
     WebkitBoxShadow: "0 0 0px 1000px #A5C9A5 inset",
     WebkitTextFillColor: "#1f2937",
@@ -259,7 +268,14 @@ const Register = () => {
               {isLoading ? "Signing Up..." : "Sign Up"}
             </button>
             <p className="text-[10px] text-blue-600 mt-4 font-bold uppercase">
-              Already have an Account? <Link to="/login" className="hover:underline ml-1">Log in</Link>
+              Already have an Account? 
+              <button 
+                type="button" 
+                onClick={handleSwitchToLogin} 
+                className="hover:underline ml-1 cursor-pointer font-black"
+              >
+                Log in
+              </button>
             </p>
           </div>
         </form>
