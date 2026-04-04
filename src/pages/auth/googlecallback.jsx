@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ErrorModal from "../../components/modals/errormodal"; // Import the modal
 
@@ -14,12 +14,19 @@ import ErrorModal from "../../components/modals/errormodal"; // Import the modal
 const GoogleCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Ref to prevent double execution in React Strict Mode
+  const initialized = useRef(false);
 
   // State para sa modal control sa loob ng callback page
   const [showError, setShowError] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
+    // Prevent double execution
+    if (initialized.current) return;
+    initialized.current = true;
+
     console.log("--- GOOGLE CALLBACK INITIATED ---");
     
     // 1. Extract parameters mula sa URL
@@ -29,32 +36,34 @@ const GoogleCallback = () => {
     const isNewUser = params.get('isNewUser'); 
     
     // Fallback para sa mga parameter names galing backend
-    const firstName = params.get('firstName') || params.get('firstname');
-    const lastName = params.get('lastName') || params.get('lastname');
+    const firstName = params.get('firstName') || params.get('firstname') || '';
+    const lastName = params.get('lastName') || params.get('lastname') || '';
     
-    const rawRole = params.get('role') || 'student';
-    const role = rawRole.toLowerCase().trim();
+    // Kunin ang role, kung wala, default muna sa null para ma-handle ng logic sa baba
+    const rawRole = params.get('role');
+    const role = rawRole ? rawRole.toLowerCase().trim() : null;
 
-    // Kunin ang intent (login or register) na sinet natin sa Login.jsx o Signup.jsx
+    // Kunin ang intent (login or register) na sinet natin sa Login.jsx o Register.jsx
     const intent = sessionStorage.getItem('sso_intent') || 'login';
 
     console.log("Parsed SSO Data:", { hasToken: !!token, role, isNewUser, email, intent });
 
     if (token) {
-      // Mas safe na conversion ng string to boolean
       const isNew = String(isNewUser).toLowerCase() === 'true';
 
       if (isNew) {
-        // --- CASE A: NEW USER (Mula sa Signup Page) ---
+        // --- CASE A: NEW USER (Mula sa Signup/Register Page) ---
         console.log("Action: NEW USER. Proceeding to Register Form.");
         
         localStorage.setItem('token', token);
         localStorage.removeItem('userRole'); 
-        sessionStorage.removeItem('sso_intent'); // Clean up
+        // Note: Huwag muna i-clear ang sso_intent dito hangga't hindi tapos ang registration process
+        // para sa tracing, pero sa flow mo, okay lang i-clear na.
+        sessionStorage.removeItem('sso_intent'); 
 
         navigate('/register', { 
           state: { 
-            googleUser: { email, firstName, lastName, role },
+            googleUser: { email, firstName, lastName, role: role || 'student' },
             isFromSSO: true 
           },
           replace: true 
@@ -64,34 +73,44 @@ const GoogleCallback = () => {
         
         if (intent === 'register') {
           /**
-           * SCENARIO: Nag-register pero may account na.
-           * ACTION: Ipakita ang modal dito mismo sa screen na ito.
+           * SCENARIO: Sinubukang mag-register pero may account na.
+           * ACTION: Ipakita ang modal.
            */
           console.log("Action: EXISTING USER during registration. Showing Modal.");
           
-          setErrorMsg("THIS ACCOUNT IS ALREADY EXIST TO YOUR DEVICE PLEASE LOGIN");
+          setErrorMsg("THIS ACCOUNT ALREADY EXISTS ON YOUR DEVICE! PLEASE LOGIN.");
           setShowError(true);
           
-          // Linisin ang data para hindi siya "authenticated" habang nakatitig sa modal
+          // Importante: Linisin ang storage para hindi ma-bypass ang login
           localStorage.clear();
           sessionStorage.clear();
         } 
         else {
           /**
            * SCENARIO: Normal Login.
-           * ACTION: Dashboard agad.
+           * ACTION: Dashboard agad base sa role.
            */
           console.log("Action: EXISTING USER login. Directing to Dashboard.");
           
-          localStorage.setItem('token', token);
-          localStorage.setItem('userRole', role);
-          sessionStorage.removeItem('sso_intent'); // Clean up
+          // Kung walang role na dumating mula sa URL, default to student
+          const finalRole = role || 'student';
 
-          // Determine Dashboard Path
-          let dashboardPath = `/${role}/dashboard`;
-          if (role === 'curriculum_manager' || role === 'cm') {
+          localStorage.setItem('token', token);
+          localStorage.setItem('userRole', finalRole);
+          sessionStorage.removeItem('sso_intent');
+
+          // Determine Dashboard Path accurately
+          let dashboardPath = `/${finalRole}/dashboard`;
+          
+          // Handle specific role paths
+          if (finalRole === 'curriculum_manager' || finalRole === 'cm') {
             dashboardPath = '/cm/dashboard';
+          } else if (finalRole === 'instructor') {
+            dashboardPath = '/instructor/dashboard';
+          } else if (finalRole === 'admin') {
+            dashboardPath = '/admin/dashboard';
           }
+          // Default fallback is already student
             
           navigate(dashboardPath, { replace: true });
         }
@@ -102,7 +121,7 @@ const GoogleCallback = () => {
       console.error("AUTH ERROR: No token received from Google SSO.");
       navigate('/login', { replace: true });
     }
-  }, [location, navigate]); // Tanging location at navigate ang dependency
+  }, [location, navigate]);
 
   // Handler para sa pag-close ng modal
   const handleModalClose = () => {
@@ -126,10 +145,8 @@ const GoogleCallback = () => {
           </div>
         </div>
       ) : (
-        /* Kapag showError is true, wala tayong ipapakita sa main div 
-           dahil ang ErrorModal ay fixed/absolute overlay naman. 
-        */
-        null
+        /* Empty state while modal is open to keep focus on the error */
+        <div className="text-transparent">Redirecting...</div>
       )}
 
       {/* Error Modal na lalabas muna bago mag-redirect */}
