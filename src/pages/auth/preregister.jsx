@@ -25,15 +25,17 @@ const SignupMethod = () => {
     setIsLoading(true);
     
     try {
-      // NUCLEAR CLEANUP: Siguraduhin na walang lumang tokens na nakaimbak
-      // para malinis ang pagpasok sa GoogleCallback at Register page.
+      // 1. NUCLEAR CLEANUP: Linisin ang lumang basura sa storage
       localStorage.clear();
       sessionStorage.clear();
 
-      console.log("Redirecting to Google SSO...");
+      // 2. IMPORTANT FIX: I-set ang intent PAGKATAPOS ng clear.
+      // Ito ang magsasabi sa GoogleCallback na "REGISTER" ang mode natin.
+      sessionStorage.setItem('sso_intent', 'register');
+
+      console.log("Redirecting to Google SSO with intent: register...");
       
-      // Tinatawag ang function sa APIService.js na nag-reredirect sa:
-      // https://ellaquest-backend.onrender.com/api/user/google
+      // 3. Initiate Google Login
       authAPI.initiateGoogleLogin();
     } catch (error) {
       console.error("Google Auth Error:", error);
