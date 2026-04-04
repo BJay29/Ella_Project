@@ -29,16 +29,16 @@ const GoogleCallback = () => {
     console.log("Parsed Data:", { hasToken: !!token, role, isNewUser });
 
     if (token) {
-      // I-save na agad ang session parameters
-      localStorage.setItem('token', token);
-      localStorage.setItem('userRole', role);
-
       // --- REDIRECT LOGIC ---
 
       // CASE A: NEW USER (True)
-      // Pupunta muna sa /register para sa extra details
+      // Gmail is verified via SSO but needs to set a password in Register Form
       if (String(isNewUser).toLowerCase() === 'true') {
         console.log("Action: NEW USER. Redirecting to Register Page.");
+        
+        localStorage.setItem('token', token);
+        localStorage.setItem('userRole', role);
+
         navigate('/register', { 
           state: { 
             googleUser: { email, firstName, lastName } 
@@ -48,34 +48,44 @@ const GoogleCallback = () => {
       } 
       
       // CASE B: EXISTING ACCOUNT (isNewUser === false)
-      // Dito mo ipapalit yung bagong code: Direkta na sa Dashboard
+      // Sabi mo dapat babalik sa login page para doon mag-login manually
       else {
-        console.log("Action: EXISTING USER. Redirecting directly to Dashboard.");
+        console.log("Action: EXISTING USER. Redirecting back to Login as requested.");
         
-        // I-determine ang tamang path base sa role
+        // Ito yung navigation logic na hinahanap mo, 
+        // pero dahil gusto mo silang pabalikin sa Login, i-clear muna natin ang storage.
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // Determine dashboard path (para sa reference or future use)
         const dashboardPath = role === 'curriculum_manager'
           ? '/cm/dashboard'
           : `/${role}/dashboard`;
 
-        navigate(dashboardPath, { replace: true });
+        console.log(`User should belong to ${dashboardPath}, but forcing redirect to Login.`);
+
+        // Hard redirect sa login page para siguradong hihinto ang loading
+        window.location.replace('/login?status=existing&stop=true');
       }
 
     } else {
       // Kung walang token na natanggap, error ito
       console.error("AUTH ERROR: No token received from server.");
-      navigate('/login', { replace: true });
+      window.location.replace('/login');
     }
   }, [location, navigate]);
 
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#C8E6C0]">
       <div className="flex flex-col items-center gap-4">
-        {/* Mas mabilis na Spinner para hindi mukhang stuck */}
+        {/* Spinner UI */}
         <div className="w-12 h-12 border-4 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
-        <h2 className="text-[11px] font-black tracking-widest text-gray-700 uppercase animate-pulse">
-          Syncing Account...
-        </h2>
-        <p className="text-[10px] text-gray-500 italic">Verifying credentials, please wait.</p>
+        <div className="text-center">
+          <h2 className="text-[11px] font-black tracking-widest text-gray-700 uppercase animate-pulse">
+            Syncing Account...
+          </h2>
+          <p className="text-[10px] text-gray-500 italic mt-1">Verifying credentials, please wait.</p>
+        </div>
       </div>
     </div>
   );
