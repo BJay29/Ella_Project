@@ -27,39 +27,40 @@ const GoogleCallback = () => {
     const isNewUser = params.get('isNewUser'); 
 
     if (token) {
-      // 2. I-save ang session details sa LocalStorage para sa ProtectedRoutes
-      localStorage.setItem('token', token);
-      localStorage.setItem('userRole', role);
-
-      // 3. REDIRECT LOGIC
-      // Kung bagong user, ipasa ang details sa Register page para sa auto-fill
+      // 2. REDIRECT LOGIC
+      
+      // CASE A: BAGO ANG USER
+      // I-save ang session at ipasa ang details sa Register page para sa auto-fill
       if (String(isNewUser).toLowerCase() === 'true') {
+        localStorage.setItem('token', token);
+        localStorage.setItem('userRole', role);
+        
         navigate('/register', { 
           state: { 
             googleUser: { email, firstName, lastName } 
           },
           replace: true 
         });
-      } else {
-        // Kung existing user, idiretso sa tamang dashboard
-        let dashboardPath = '/login';
+      } 
+      
+      // CASE B: EXISTING NA ANG ACCOUNT
+      // FIX: Huwag i-save ang token sa localStorage para hindi siya mag-auto login.
+      // Idiretso siya sa Login page at magpasa ng state para alam ng Login page na existing na siya.
+      else {
+        console.log("Existing account detected. Redirecting to login page...");
+        
+        // Siguraduhing malinis ang storage para hindi makalusot sa ProtectedRoutes
+        localStorage.removeItem('token');
+        localStorage.removeItem('userRole');
+        sessionStorage.clear();
 
-        // Role-based Path Mapping
-        if (role === 'curriculum_manager' || role === 'cm') {
-          dashboardPath = '/cm/dashboard';
-        } else if (role === 'admin') {
-          dashboardPath = '/admin/dashboard';
-        } else if (role === 'instructor') {
-          dashboardPath = '/instructor/dashboard';
-        } else if (role === 'student') {
-          dashboardPath = '/student/dashboard';
-        } else {
-          // Kung hindi kilala ang role, balik sa login
-          console.warn("Unknown role received:", role);
-          dashboardPath = '/login';
-        }
-
-        navigate(dashboardPath, { replace: true });
+        navigate('/login', { 
+          state: { 
+            existingUser: true,
+            message: "Account already exists. Please login to continue."
+          }, 
+          replace: true 
+        });
       }
     } else {
       // Kung walang token na natanggap, error ito (balik sa login)

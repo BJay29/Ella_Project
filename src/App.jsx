@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// Auth Pages - Siniguro na tugma sa small letters na filenames
+// Auth Pages 
 import Login from './pages/auth/login';
 import Register from './pages/auth/register';
 import SignupMethod from './pages/auth/preregister'; 
@@ -22,8 +22,8 @@ import GameEngine from './pages/student/GameEngine';
  * o maling role para sa page na sinusubukang puntahan.
  */
 const ProtectedRoute = ({ children, allowedRole }) => {
-  const token = localStorage.getItem('token');
-  const userRole = localStorage.getItem('userRole');
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const userRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
   
   const normalizedRole = userRole ? userRole.toLowerCase().trim() : '';
 
@@ -40,6 +40,7 @@ const ProtectedRoute = ({ children, allowedRole }) => {
     if (normalizedRole === 'curriculum_manager') return <Navigate to="/cm/dashboard" replace />; 
     
     localStorage.clear(); 
+    sessionStorage.clear();
     return <Navigate to="/login" replace />;
   }
 
@@ -51,8 +52,8 @@ const ProtectedRoute = ({ children, allowedRole }) => {
  * sila makabalik sa Login/Register pages hangga't hindi nag-log out.
  */
 const PublicRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  const userRole = localStorage.getItem('userRole')?.toLowerCase().trim();
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const userRole = (localStorage.getItem('userRole') || sessionStorage.getItem('userRole'))?.toLowerCase().trim();
 
   // Kung may token (naka-login na), i-redirect sa kani-kanilang dashboard
   if (token && token !== '') {
@@ -93,8 +94,10 @@ function App() {
             </PublicRoute>
         } />
 
-        {/* GOOGLE AUTH CALLBACK ROUTES */}
-        {/* Ang /sso-callback ay kailangan para sa auto-fill feature pagka-verify ni Google */}
+        {/* GOOGLE AUTH CALLBACK ROUTES 
+            Dito sa component na ito (GoogleCallback) dapat ilagay ang logic:
+            if (isExistingUser) navigate('/login') else navigate('/dashboard')
+        */}
         <Route path="/callback" element={<GoogleCallback />} />
         <Route path="/sso-callback" element={<GoogleCallback />} />
 
