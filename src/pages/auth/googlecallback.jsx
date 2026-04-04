@@ -6,7 +6,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
  * Flow: 
  * 1. Gmail Verified via SSO (Auth Server)
  * 2. If New User -> Save Token -> Go to Register Form (to set password)
- * 3. If Existing User -> Redirect to Login with "Account Exists" Info Modal signal
+ * 3. If Existing User -> 
+ * - If intent was 'register': Redirect to Login with "Account Exists" Modal
+ * - If intent was 'login': Direct to Dashboard
  */
 const GoogleCallback = () => {
   const navigate = useNavigate();
@@ -28,7 +30,10 @@ const GoogleCallback = () => {
     const rawRole = params.get('role') || 'student';
     const role = rawRole.toLowerCase().trim();
 
-    console.log("Parsed SSO Data:", { hasToken: !!token, role, isNewUser, email });
+    // Kunin ang intent (login or register) na sinet natin sa Login.jsx o Signup.jsx
+    const intent = sessionStorage.getItem('sso_intent') || 'login';
+
+    console.log("Parsed SSO Data:", { hasToken: !!token, role, isNewUser, email, intent });
 
     if (token) {
       const isNew = String(isNewUser).toLowerCase() === 'true';
@@ -37,10 +42,9 @@ const GoogleCallback = () => {
         // --- CASE A: NEW USER (Mula sa Signup Page) ---
         console.log("Action: NEW USER. Proceeding to Register Form.");
         
-        // I-save ang token para sa registration step
         localStorage.setItem('token', token);
-        // Tanggalin ang role muna para iwas auto-redirect ng PublicRoute sa App.js
         localStorage.removeItem('userRole'); 
+        sessionStorage.removeItem('sso_intent'); // Clean up
 
         navigate('/register', { 
           state: { 
@@ -50,20 +54,32 @@ const GoogleCallback = () => {
           replace: true 
         });
       } else {
-        // --- CASE B: EXISTING ACCOUNT (FIXED FOR MODAL) ---
-        // Ibig sabihin nag-Google Register siya pero may account na pala siya sa DB.
-        console.log("Action: EXISTING USER detected. Redirecting to Login with Modal Signal.");
+        // --- CASE B: EXISTING ACCOUNT (FIXED LOGIC) ---
         
-        // Siguraduhing malinis ang storage para hindi mag-auto login
-        localStorage.clear();
-        sessionStorage.clear();
+        if (intent === 'register') {
+          // SCENARIO: Sinubukan mag-register pero may account na.
+          console.log("Action: EXISTING USER during registration. Redirecting to Login with Modal.");
+          
+          localStorage.clear();
+          sessionStorage.clear();
 
-        /**
-         * DITO ANG SETTING NG MODAL:
-         * I-redirect ang user pabalik sa login page na may URL parameter.
-         * Ang parameter na '?info=account_exists' ay babasahin ng Login.jsx para i-trigger ang modal.
-         */
-        navigate('/login?info=account_exists', { replace: true });
+          // I-redirect sa login na may URL parameter para sa Modal
+          navigate('/login?info=account_exists', { replace: true });
+        } 
+        else {
+          // SCENARIO: Normal Login gamit ang Google.
+          console.log("Action: EXISTING USER login. Directing to Dashboard.");
+          
+          localStorage.setItem('token', token);
+          localStorage.setItem('userRole', role);
+          sessionStorage.removeItem('sso_intent'); // Clean up
+
+          const dashboardPath = role === 'curriculum_manager' 
+            ? '/cm/dashboard' 
+            : `/${role}/dashboard`;
+            
+          navigate(dashboardPath, { replace: true });
+        }
       }
 
     } else {

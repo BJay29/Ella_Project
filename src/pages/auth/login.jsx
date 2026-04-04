@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom'; // Idinagdag ang useLocation
+import { Link, useNavigate, useLocation } from 'react-router-dom'; 
 import ellaLogo from '../../assets/image.png';
 import ErrorModal from "../../components/modals/errormodal";
 import { authAPI } from '../../services/APIservice';
@@ -10,7 +10,7 @@ import { FcGoogle } from 'react-icons/fc';
 
 const Login = () => {
   const navigate = useNavigate();
-  const location = useLocation(); // Hook para makuha ang URL parameters
+  const location = useLocation(); 
 
   // State for form inputs
   const [loginData, setLoginData] = useState({
@@ -26,12 +26,12 @@ const Login = () => {
 
   // --- EFFECT PARA SA SSO ERROR MESSAGES ---
   useEffect(() => {
-    // Kinukuha ang parameter galing sa URL (e.g. ?info=account_exists)
     const params = new URLSearchParams(location.search);
     const infoType = params.get('info');
 
     if (infoType === 'account_exists') {
-      setErrorMessage("This account already exists in your device!");
+      // Mas user-friendly na message (hindi aggressive)
+      setErrorMessage("It looks like you're already registered! Please log in to your account to continue.");
       setShowErrorModal(true);
 
       // Linisin ang URL para hindi mag-pop up ulit ang modal pag nag-refresh ang user
@@ -102,6 +102,8 @@ const Login = () => {
   // --- GOOGLE LOGIN LOGIC ---
   const handleGoogleLogin = () => {
     try {
+      // TANDAAN: I-set ang intent bilang 'login' para dumeretso sa dashboard ang existing users
+      sessionStorage.setItem('sso_intent', 'login');
       authAPI.initiateGoogleLogin();
     } catch (error) {
       console.error("Google Redirect Error:", error);

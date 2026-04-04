@@ -8,7 +8,7 @@ import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 const SuccessModal = ({ isOpen, message, onClose }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 font-sans">
       <div className="bg-[#D1EED1] border-2 border-[#8da84a] rounded-3xl p-8 max-w-[340px] w-full flex flex-col items-center shadow-2xl animate-in fade-in zoom-in duration-300">
         <div className="w-16 h-16 bg-[#A2BC56] rounded-full flex items-center justify-center mb-4 shadow-md">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="white" className="w-10 h-10">
@@ -50,6 +50,7 @@ const Register = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
+  const [modalTitle, setModalTitle] = useState(''); // Added dynamic title state
 
   const [formData, setFormData] = useState({
     firstName: googleData?.firstName || "",
@@ -61,7 +62,6 @@ const Register = () => {
 
   // Pre-fill logic and security check
   useEffect(() => {
-    // A. Check if we have an SSO Token in the URL
     if (ssoToken) {
       try {
         const base64Payload = ssoToken.split('.')[1];
@@ -76,12 +76,9 @@ const Register = () => {
         console.error('Failed to decode SSO token:', err);
       }
     } 
-    // B. Check if we are coming from GoogleCallback (which sets storedToken and isFromSSO)
     else if (isFromSSO && storedToken) {
         console.log("Verified SSO session detected. Staying on Register page.");
-        // No need to redirect, we have the session
     }
-    // C. Safety Redirect: If no verified data or token is present at all
     else if (!googleData && !location.state?.verifiedEmail && !storedToken) {
       console.warn("No verified data or session found. Redirecting to signup.");
       navigate('/signup', { replace: true });
@@ -97,12 +94,14 @@ const Register = () => {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
+      setModalTitle("Input Error");
       setModalMessage("PASSWORDS DO NOT MATCH!");
       setShowErrorModal(true);
       return;
     }
 
     if (formData.password.length < 6) {
+      setModalTitle("Security Notice");
       setModalMessage("PASSWORD MUST BE AT LEAST 6 CHARACTERS!");
       setShowErrorModal(true);
       return;
@@ -114,7 +113,6 @@ const Register = () => {
       let response, data;
       const activeToken = ssoToken || storedToken;
 
-      // Check if we are using an SSO flow (Google)
       if (activeToken && (googleData || ssoToken || isFromSSO)) {
         console.log("Registering via SSO flow using token...");
         response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/register-sso`, {
@@ -127,13 +125,11 @@ const Register = () => {
         });
         data = await response.json();
       } else {
-        // Manual registration flow
         response = await authAPI.register(formData);
         data = await response.json();
       }
 
       if (response.ok) {
-        // Clear temp token after successful registration so user must login manually
         localStorage.clear();
         sessionStorage.clear();
         setModalMessage("ACCOUNT CREATED SUCCESSFULLY! YOU CAN NOW LOG IN.");
@@ -141,14 +137,17 @@ const Register = () => {
       } else {
         const serverMsg = data.message?.toUpperCase() || "";
         if (response.status === 409 || serverMsg.includes("EXISTS") || serverMsg.includes("ALREADY")) {
-          setModalMessage("EMAIL ALREADY REGISTERED. PLEASE LOG IN INSTEAD.");
+          setModalTitle("Account Exists");
+          setModalMessage("This email is already registered. Please log in to your existing account.");
         } else {
-          setModalMessage(serverMsg || "REGISTRATION FAILED. PLEASE TRY AGAIN.");
+          setModalTitle("Registration Failed");
+          setModalMessage(serverMsg || "COULD NOT COMPLETE REGISTRATION.");
         }
         setShowErrorModal(true);
       }
     } catch (error) {
       console.error("Registration Error:", error);
+      setModalTitle("Server Connection");
       setModalMessage("COULD NOT CONNECT TO SERVER. PLEASE TRY AGAIN LATER.");
       setShowErrorModal(true);
     } finally {
@@ -215,7 +214,6 @@ const Register = () => {
             />
           </div>
 
-          {/* Password */}
           <div className="flex flex-col relative">
             <label className="text-[10px] font-bold ml-1 uppercase">Password</label>
             <div className="relative">
@@ -234,7 +232,6 @@ const Register = () => {
             </div>
           </div>
 
-          {/* Confirm Password */}
           <div className="flex flex-col relative">
             <label className="text-[10px] font-bold ml-1 uppercase">Confirm Password</label>
             <div className="relative">
@@ -275,7 +272,12 @@ const Register = () => {
       </div>
 
       <SuccessModal isOpen={showSuccessModal} message={modalMessage} onClose={() => navigate('/login')} />
-      <ErrorModal isOpen={showErrorModal} message={modalMessage} onClose={() => setShowErrorModal(false)} />
+      <ErrorModal 
+        isOpen={showErrorModal} 
+        title={modalTitle} 
+        message={modalMessage} 
+        onClose={() => setShowErrorModal(false)} 
+      />
     </div>
   );
 };
