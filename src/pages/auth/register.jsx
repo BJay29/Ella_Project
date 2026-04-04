@@ -33,6 +33,10 @@ const Register = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Read sso_token from URL params
+  const params = new URLSearchParams(location.search);
+  const ssoToken = params.get('sso_token');
+
   // Data from previous pages (Manual Verify Email or Google Redirect)
   const googleData = location.state?.googleUser;
   const verifiedEmail = location.state?.verifiedEmail || googleData?.email || "";
@@ -54,13 +58,26 @@ const Register = () => {
     confirmPassword: ''
   });
 
-  // Proteksyon: Kung walang email na bitbit, ibalik sa simula
+  // Decode sso_token and pre-fill form if coming from Google SSO
   useEffect(() => {
-    if (!verifiedEmail) {
-      // Kung walang email, ibalik sa signup method selection
+    if (ssoToken) {
+      try {
+        const base64Payload = ssoToken.split('.')[1];
+        const decoded = JSON.parse(atob(base64Payload));
+        setFormData(prev => ({
+          ...prev,
+          firstName: decoded.first_name || '',
+          lastName: decoded.last_name || '',
+          email: decoded.email || ''
+        }));
+      } catch (err) {
+        console.error('Failed to decode SSO token:', err);
+        navigate('/signup', { replace: true });
+      }
+    } else if (!verifiedEmail) {
       navigate('/signup', { replace: true });
     }
-  }, [verifiedEmail, navigate]);
+  }, [ssoToken, verifiedEmail, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -85,9 +102,21 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      // Tinatawag ang register function sa APIService.js (wala nang 'code' field)
-      const response = await authAPI.register(formData);
-      const data = await response.json();
+      let response, data;
+
+      if (ssoToken) {
+        // SSO registration — only needs sso_token + password
+        response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/register-sso`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sso_token: ssoToken, password: formData.password })
+        });
+        data = await response.json();
+      } else {
+        // Manual registration
+        response = await authAPI.register(formData);
+        data = await response.json();
+      }
 
       if (response.ok) {
         setModalMessage("ACCOUNT CREATED SUCCESSFULLY! YOU CAN NOW LOG IN.");
@@ -130,11 +159,29 @@ const Register = () => {
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col">
               <label className="text-[10px] font-bold ml-1 italic uppercase">First Name</label>
-              <input name="firstName" value={formData.firstName} onChange={handleChange} type="text" style={inputStyle} className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px]" required />
+              <input 
+                name="firstName" 
+                value={formData.firstName} 
+                onChange={handleChange} 
+                type="text" 
+                style={inputStyle} 
+                className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px]" 
+                readOnly={!!ssoToken}
+                required 
+              />
             </div>
             <div className="flex flex-col">
               <label className="text-[10px] font-bold ml-1 italic uppercase">Last Name</label>
-              <input name="lastName" value={formData.lastName} onChange={handleChange} type="text" style={inputStyle} className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px]" required />
+              <input 
+                name="lastName" 
+                value={formData.lastName} 
+                onChange={handleChange} 
+                type="text" 
+                style={inputStyle} 
+                className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px]" 
+                readOnly={!!ssoToken}
+                required 
+              />
             </div>
           </div>
 
@@ -155,7 +202,15 @@ const Register = () => {
           <div className="flex flex-col relative">
             <label className="text-[10px] font-bold ml-1 uppercase">Password</label>
             <div className="relative">
-              <input name="password" value={formData.password} onChange={handleChange} type={showPassword ? "text" : "password"} style={inputStyle} className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px] pr-8" required />
+              <input 
+                name="password" 
+                value={formData.password} 
+                onChange={handleChange} 
+                type={showPassword ? "text" : "password"} 
+                style={inputStyle} 
+                className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px] pr-8" 
+                required 
+              />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black">
                 {showPassword ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
               </button>
@@ -166,7 +221,15 @@ const Register = () => {
           <div className="flex flex-col relative">
             <label className="text-[10px] font-bold ml-1 uppercase">Confirm Password</label>
             <div className="relative">
-              <input name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} type={showConfirmPassword ? "text" : "password"} style={inputStyle} className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px] pr-8" required />
+              <input 
+                name="confirmPassword" 
+                value={formData.confirmPassword} 
+                onChange={handleChange} 
+                type={showConfirmPassword ? "text" : "password"} 
+                style={inputStyle} 
+                className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px] pr-8" 
+                required 
+              />
               <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black">
                 {showConfirmPassword ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
               </button>
