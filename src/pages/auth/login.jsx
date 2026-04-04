@@ -31,7 +31,7 @@ const Login = () => {
     const infoType = params.get('info');
 
     if (infoType === 'account_exists') {
-      setErrorMessage("THIS EMAIL ACCOUNT IS ALREADY REGISTERED. PLEASE LOG IN MANUALLY OR USE GOOGLE LOGIN TO ACCESS YOUR DASHBOARD.");
+      setErrorMessage("This account already exists in your device!");
       setShowErrorModal(true);
 
       // Linisin ang URL para hindi mag-pop up ulit ang modal pag nag-refresh ang user
