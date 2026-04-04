@@ -39,6 +39,7 @@ const Register = () => {
 
   // 2. Get data from location.state (from GoogleCallback redirect)
   const googleData = location.state?.googleUser;
+  const isFromSSO = location.state?.isFromSSO;
   
   // 3. Get token from localStorage (as saved by GoogleCallback)
   const storedToken = localStorage.getItem('token');
@@ -60,7 +61,7 @@ const Register = () => {
 
   // Pre-fill logic and security check
   useEffect(() => {
-    // If coming via sso_token in URL (Manual or legacy flow)
+    // A. Check if we have an SSO Token in the URL
     if (ssoToken) {
       try {
         const base64Payload = ssoToken.split('.')[1];
@@ -75,12 +76,17 @@ const Register = () => {
         console.error('Failed to decode SSO token:', err);
       }
     } 
-    // If no data is present at all, send them back to signup to start over
-    else if (!googleData && !location.state?.verifiedEmail) {
-      console.warn("No verified data found. Redirecting to signup.");
+    // B. Check if we are coming from GoogleCallback (which sets storedToken and isFromSSO)
+    else if (isFromSSO && storedToken) {
+        console.log("Verified SSO session detected. Staying on Register page.");
+        // No need to redirect, we have the session
+    }
+    // C. Safety Redirect: If no verified data or token is present at all
+    else if (!googleData && !location.state?.verifiedEmail && !storedToken) {
+      console.warn("No verified data or session found. Redirecting to signup.");
       navigate('/signup', { replace: true });
     }
-  }, [ssoToken, googleData, location.state, navigate]);
+  }, [ssoToken, googleData, isFromSSO, storedToken, location.state, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -109,8 +115,8 @@ const Register = () => {
       const activeToken = ssoToken || storedToken;
 
       // Check if we are using an SSO flow (Google)
-      if (activeToken && (googleData || ssoToken)) {
-        console.log("Registering via SSO flow...");
+      if (activeToken && (googleData || ssoToken || isFromSSO)) {
+        console.log("Registering via SSO flow using token...");
         response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/register-sso`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -127,8 +133,9 @@ const Register = () => {
       }
 
       if (response.ok) {
-        // Clear temp token after successful registration
-        localStorage.removeItem('token');
+        // Clear temp token after successful registration so user must login manually
+        localStorage.clear();
+        sessionStorage.clear();
         setModalMessage("ACCOUNT CREATED SUCCESSFULLY! YOU CAN NOW LOG IN.");
         setShowSuccessModal(true);
       } else {
@@ -176,7 +183,7 @@ const Register = () => {
                 type="text" 
                 style={inputStyle} 
                 className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px]" 
-                readOnly={!!googleData || !!ssoToken}
+                readOnly={!!googleData || !!ssoToken || isFromSSO}
                 required 
               />
             </div>
@@ -189,7 +196,7 @@ const Register = () => {
                 type="text" 
                 style={inputStyle} 
                 className="w-full border-[0.5px] border-black rounded-xl h-8 px-3 outline-none text-[11px]" 
-                readOnly={!!googleData || !!ssoToken}
+                readOnly={!!googleData || !!ssoToken || isFromSSO}
                 required 
               />
             </div>

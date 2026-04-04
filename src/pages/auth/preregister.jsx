@@ -16,11 +16,22 @@ const SignupMethod = () => {
   const [showError, setShowError] = useState(false);
   const [msg, setMsg] = useState('');
 
-  // --- HANDLE GOOGLE REGISTRATION ---
+  /**
+   * HANDLE GOOGLE REGISTRATION
+   * Nililinis muna ang storage bago mag-redirect sa Google
+   * para iwas "loop" or auto-redirect errors.
+   */
   const handleGoogleRegister = () => {
     setIsLoading(true);
     
     try {
+      // NUCLEAR CLEANUP: Siguraduhin na walang lumang tokens na nakaimbak
+      // para malinis ang pagpasok sa GoogleCallback at Register page.
+      localStorage.clear();
+      sessionStorage.clear();
+
+      console.log("Redirecting to Google SSO...");
+      
       // Tinatawag ang function sa APIService.js na nag-reredirect sa:
       // https://ellaquest-backend.onrender.com/api/user/google
       authAPI.initiateGoogleLogin();
@@ -64,7 +75,7 @@ const SignupMethod = () => {
             className={`flex items-center justify-center gap-3 w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-full py-3 shadow-md transition-all active:scale-95 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {isLoading ? (
-              <span className="text-[11px] font-bold animate-pulse">CONNECTING...</span>
+              <span className="text-[11px] font-bold animate-pulse italic">CONNECTING...</span>
             ) : (
               <>
                 <FcGoogle className="w-5 h-5" /> 
