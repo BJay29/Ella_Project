@@ -32,10 +32,11 @@ const GoogleCallback = () => {
       // --- REDIRECT LOGIC ---
 
       // CASE A: NEW USER (True)
-      // Gmail is verified via SSO but needs to set a password in Register Form
+      // Gmail is verified via SSO pero wala pang account sa DB, kaya ididiretso sa Register Form para sa password.
       if (String(isNewUser).toLowerCase() === 'true') {
-        console.log("Action: NEW USER. Redirecting to Register Page.");
+        console.log("Action: NEW USER. Gmail Verified. Redirecting to Register Page for password setup.");
         
+        // I-save ang token at role para sa registration session
         localStorage.setItem('token', token);
         localStorage.setItem('userRole', role);
 
@@ -48,28 +49,27 @@ const GoogleCallback = () => {
       } 
       
       // CASE B: EXISTING ACCOUNT (isNewUser === false)
-      // Sabi mo dapat babalik sa login page para doon mag-login manually
+      // Gmail is verified pero may account na, kaya babalik sa login para sa manual password entry.
       else {
         console.log("Action: EXISTING USER. Redirecting back to Login as requested.");
         
-        // Ito yung navigation logic na hinahanap mo, 
-        // pero dahil gusto mo silang pabalikin sa Login, i-clear muna natin ang storage.
+        // 1. Siguraduhing malinis ang storage para hindi mag-auto-login sa dashboard
         localStorage.clear();
         sessionStorage.clear();
 
-        // Determine dashboard path (para sa reference or future use)
+        // 2. Navigation logic reference (pinanatili gaya ng hiling mo)
         const dashboardPath = role === 'curriculum_manager'
           ? '/cm/dashboard'
           : `/${role}/dashboard`;
 
-        console.log(`User should belong to ${dashboardPath}, but forcing redirect to Login.`);
+        console.log(`User belongs to ${dashboardPath}, but forcing logout/redirect to Login.`);
 
-        // Hard redirect sa login page para siguradong hihinto ang loading
+        // 3. Hard redirect sa login page para putulin ang auto-redirect flow
         window.location.replace('/login?status=existing&stop=true');
       }
 
     } else {
-      // Kung walang token na natanggap, error ito
+      // Kung walang token na natanggap, balik sa login
       console.error("AUTH ERROR: No token received from server.");
       window.location.replace('/login');
     }
@@ -78,13 +78,13 @@ const GoogleCallback = () => {
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#C8E6C0]">
       <div className="flex flex-col items-center gap-4">
-        {/* Spinner UI */}
+        {/* Loading Spinner */}
         <div className="w-12 h-12 border-4 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
         <div className="text-center">
           <h2 className="text-[11px] font-black tracking-widest text-gray-700 uppercase animate-pulse">
-            Syncing Account...
+            Verifying Gmail...
           </h2>
-          <p className="text-[10px] text-gray-500 italic mt-1">Verifying credentials, please wait.</p>
+          <p className="text-[10px] text-gray-500 italic mt-1">Checking account status, please wait.</p>
         </div>
       </div>
     </div>
