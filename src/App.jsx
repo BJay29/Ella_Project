@@ -49,19 +49,20 @@ const ProtectedRoute = ({ children, allowedRole }) => {
 
 /**
  * PublicRoute: Humaharang sa mga user na NAKA-LOGIN na.
- * FIX: Dinagdagan ng check para sa 'existing' status para hindi mag-auto-redirect
- * ang system kapag ang user ay galing sa SSO existing account check.
+ * FIX: Dinagdagan ng 'shouldForceStop' check para putulin ang auto-redirect 
+ * loop kapag ang user ay dumaan sa existing account check ng Google SSO.
  */
 const PublicRoute = ({ children }) => {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   const userRole = (localStorage.getItem('userRole') || sessionStorage.getItem('userRole'))?.toLowerCase().trim();
   
-  // I-check kung ang current URL ay may signal na existing user (mula sa redirect)
-  const isExistingUserRedirect = window.location.search.includes('status=existing') || 
-                                 window.location.search.includes('isNewUser=false');
+  // I-check kung ang URL ay may signal na dapat huminto (mula sa GoogleCallback Nuclear Fix)
+  const shouldForceStop = window.location.search.includes('status=existing') || 
+                          window.location.search.includes('isNewUser=false') ||
+                          window.location.search.includes('stop=true');
 
-  // Kung may token at HINDI ito existing user redirect, papasukin sa dashboard
-  if (token && token !== '' && !isExistingUserRedirect) {
+  // Kung may token at HINDI ito pinatitigil (force stop), saka lang mag-dashboard redirect
+  if (token && token !== '' && !shouldForceStop) {
     if (userRole === 'student')            return <Navigate to="/student/dashboard" replace />;
     if (userRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
     if (userRole === 'instructor')         return <Navigate to="/instructor/dashboard" replace />;
