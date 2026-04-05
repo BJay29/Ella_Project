@@ -26,6 +26,7 @@ const Login = () => {
 
   // --- SPEECH BUBBLE MESSAGES LOGIC ---
   const [messageIndex, setMessageIndex] = useState(0);
+  const [displayedMessage, setDisplayedMessage] = useState("");
   const messages = [
     "HELLO!", 
     "WELCOME TO ELLA QUEST!", 
@@ -33,11 +34,30 @@ const Login = () => {
     "HAVE A GREAT DAY!"
   ];
 
+  // Logic for Letter-by-Letter (Typewriter) Effect
   useEffect(() => {
-    const interval = setInterval(() => {
+    let currentText = messages[messageIndex];
+    let charIndex = 0;
+    setDisplayedMessage(""); // Reset text on message change
+
+    const typingInterval = setInterval(() => {
+      if (charIndex < currentText.length) {
+        setDisplayedMessage((prev) => prev + currentText.charAt(charIndex));
+        charIndex++;
+      } else {
+        clearInterval(typingInterval);
+      }
+    }, 50); // Bilis ng pag-type (sakto lang)
+
+    return () => clearInterval(typingInterval);
+  }, [messageIndex]);
+
+  // Interval to switch to next message
+  useEffect(() => {
+    const nextMessageInterval = setInterval(() => {
       setMessageIndex((prev) => (prev + 1) % messages.length);
-    }, 4000); 
-    return () => clearInterval(interval);
+    }, 4500); // 4.5 seconds bago lumipat ng message
+    return () => clearInterval(nextMessageInterval);
   }, []);
 
   useEffect(() => {
@@ -130,17 +150,18 @@ const Login = () => {
       {/* --- LOGO AND SPEECH BUBBLE SECTION --- */}
       <div className="relative mb-6 flex flex-col items-center z-10">
         
-        {/* SPEECH BUBBLE */}
-        <div className="absolute top-0 -right-24 bg-white px-4 py-1.5 rounded-2xl shadow-xl border-2 border-[#7a9e50] animate-bounce-subtle z-20">
-          <p className="text-[9px] font-black text-[#7a9e50] tracking-widest whitespace-nowrap uppercase italic">
-            {messages[messageIndex]}
+        {/* SPEECH BUBBLE: Fixed position on top of head */}
+        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white px-4 py-1.5 rounded-2xl shadow-xl border-2 border-[#7a9e50] animate-bounce-subtle z-20 min-w-[100px] flex justify-center items-center">
+          <p className="text-[9px] font-black text-[#7a9e50] tracking-widest whitespace-nowrap uppercase italic min-h-[12px]">
+            {displayedMessage}
           </p>
-          <div className="absolute -bottom-2 left-3 w-3 h-3 bg-white border-r-2 border-b-2 border-[#7a9e50] rotate-45"></div>
+          {/* Bubble Tail centered to avatar head */}
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r-2 border-b-2 border-[#7a9e50] rotate-45"></div>
         </div>
 
-        {/* Ella Face in Circle */}
+        {/* Ella Face in Circle: Fixed Size */}
         <div className="relative">
-          <div className="absolute inset-0 bg-white/60 blur-xl rounded-full scale-110 group-hover:scale-125 transition-transform"></div>
+          <div className="absolute inset-0 bg-white/60 blur-xl rounded-full scale-110"></div>
           <div className="w-32 h-32 md:w-36 md:h-36 bg-white rounded-full border-4 border-[#7a9e50] shadow-2xl overflow-hidden flex items-center justify-center relative z-10 animate-float">
             <img
               src={ellaLogo}
@@ -226,7 +247,7 @@ const Login = () => {
             {isLoading ? '...' : 'LOGIN'}
           </button>
 
-          {/* Separator: Smaller Gap */}
+          {/* Separator */}
           <div className="flex items-center my-1 w-full px-4">
             <div className="flex-grow border-t border-black/10"></div>
             <span className="px-3 text-[8px] text-gray-500 font-black opacity-60 uppercase tracking-widest">OR</span>
@@ -273,7 +294,12 @@ const Login = () => {
         }
         .animate-float { animation: float 4s ease-in-out infinite; }
         .animate-bounce-subtle { animation: bounce-subtle 3s ease-in-out infinite; }
-        html, body { overflow: hidden; height: 100%; }
+        html, body { 
+          overflow: hidden; 
+          height: 100%; 
+          margin: 0;
+          padding: 0;
+        }
       `}</style>
     </div>
   );
