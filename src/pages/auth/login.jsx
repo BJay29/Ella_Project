@@ -30,8 +30,7 @@ const Login = () => {
   const messages = [
     "HELLO!", 
     "WELCOME TO ELLA QUEST!", 
-    "READY TO LEARN?", 
-    "HAVE A GREAT DAY!"
+    
   ];
 
   // Logic for Letter-by-Letter (Typewriter) Effect
