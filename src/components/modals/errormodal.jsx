@@ -16,28 +16,32 @@ const ErrorModal = ({ isOpen, onClose, message, title }) => {
   const buttonText = isInfo ? "LOG IN NOW" : "TRY AGAIN";
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
-      <div className="relative w-full max-w-[400px]">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 font-sans">
+      
+      {/* MAIN CONTAINER FOR MODAL AND CHARACTER */}
+      <div className="relative animate-in fade-in zoom-in duration-300">
         
-        {/* CHARACTER CONTAINER - CENTERED & OVERLAPPING */}
-        <div className="absolute left-1/2 -translate-x-1/2 -top-20 w-32 md:w-36 z-[1001] pointer-events-none drop-shadow-xl animate-bounce-slow">
+        {/* CHARACTER IMAGE - PEEKING FROM BEHIND, TOP-RIGHT */}
+        <div className="absolute -right-8 -top-20 z-0 pointer-events-none">
           <img 
             src={ellaThinking} 
-            alt="Ella Thinking" 
-            className="w-full h-auto object-contain"
+            alt="Ella Peeking" 
+  
+            className="w-28 h-28 object-contain drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]" 
           />
         </div>
 
-        {/* MODAL BOX */}
-        <div className="bg-white rounded-[40px] p-8 pt-16 shadow-2xl flex flex-col items-center relative border border-gray-100 animate-in fade-in zoom-in duration-300">
-          <div className="text-center mb-8">
+        {/* MODAL BOX - SMALLER & MORE RELATIVE Z-INDEX */}
+        <div className="bg-white rounded-[40px] p-10 pt-12 shadow-2xl flex flex-col items-center relative z-10 border border-gray-100 max-w-[340px] w-full mx-auto">
+          
+          <div className="text-center mb-8 w-full">
             {/* Dynamic Title Color */}
-            <h2 className={`${isInfo ? 'text-blue-600' : 'text-[#D22B2B]'} text-lg font-black tracking-[0.2em] uppercase mb-3`}>
+            <h2 className={`${isInfo ? 'text-blue-600' : 'text-[#D22B2B]'} text-lg font-black tracking-[0.2em] uppercase mb-3 px-2`}>
               {displayTitle}
             </h2>
             
-            {/* Main Message - Mas malinis na spacing */}
-            <p className="text-[#1A2E35] text-sm md:text-base font-bold leading-tight uppercase px-4 italic">
+            {/* Main Message - Liitan kunti ang text */}
+            <p className="text-[#1A2E35] text-[11px] font-bold leading-tight uppercase px-1 italic">
               {displayMessage}
             </p>
           </div>
@@ -45,22 +49,12 @@ const ErrorModal = ({ isOpen, onClose, message, title }) => {
           {/* Dynamic Button Color */}
           <button
             onClick={onClose}
-            className={`${isInfo ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#D22B2B] hover:bg-[#b02424]'} text-white font-black py-3 px-10 rounded-2xl text-xs transition-all active:scale-95 shadow-lg uppercase tracking-widest`}
+            className={`${isInfo ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#D22B2B] hover:bg-[#b02424]'} text-white font-black py-2.5 px-10 rounded-full text-[11px] transition-all active:scale-95 shadow-md uppercase tracking-widest w-full`}
           >
             {buttonText}
           </button>
         </div>
       </div>
-
-      <style>{`
-        @keyframes bounce-slow {
-          0%, 100% { transform: translate(-50%, 0); }
-          50% { transform: translate(-50%, -10px); }
-        }
-        .animate-bounce-slow {
-          animation: bounce-slow 3s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 };
