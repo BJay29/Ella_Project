@@ -10,7 +10,7 @@ const ErrorModal = ({ isOpen, onClose, message, title }) => {
   // SUGGESTED MESSAGES & TITLES
   const displayTitle = title || (isInfo ? "WELCOME BACK!" : "LOGIN ERROR");
   const displayMessage = isInfo 
-    ? "THIS EMAIL IS ALREADY LINKED TO AN ACCOUNT. PLEASE LOG IN TO CONTINUE YOUR JOURNEY!" 
+    ? "This email is already linked to an account. Please log in to continue." 
     : (message || "SOMETHING WENT WRONG");
     
   const buttonText = isInfo ? "LOG IN NOW" : "TRY AGAIN";
