@@ -255,13 +255,18 @@ const Login = () => {
             <div className="flex-grow border-t border-black/10"></div>
           </div>
 
+          {/* Fixed Google SSO Button */}
           <button
             type="button"
             onClick={handleGoogleLogin}
-            className="flex items-center justify-center gap-2 w-full bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-100 rounded-full py-2 shadow-md transition-all active:scale-95"
+            className="flex items-center w-full bg-white hover:bg-gray-50 text-gray-600 border-2 border-gray-100 rounded-full p-0.5 shadow-md transition-all active:scale-95 overflow-hidden"
           >
-            <FcGoogle className="w-4 h-4" /> 
-            <span className="text-[10px] font-black tracking-widest">Continue with Google</span>
+            <div className="bg-white p-2 rounded-full">
+              <FcGoogle className="w-4 h-4" /> 
+            </div>
+            <span className="flex-1 pr-8 text-[11px] font-medium font-sans text-gray-700 tracking-normal">
+              Continue with Google
+            </span>
           </button>
 
           <div className="text-center mt-2">
