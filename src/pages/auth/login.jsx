@@ -122,156 +122,160 @@ const Login = () => {
   };
 
   return (
-    <div className="h-screen w-screen bg-[#C8E6C0] flex flex-col items-center justify-center font-sans relative overflow-hidden p-4">
+    <div className="min-h-screen w-full bg-[#C8E6C0] flex flex-col items-center justify-start font-sans relative overflow-x-hidden p-6">
       
-      {/* Background Decorative Circles */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/20 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#7a9e50]/10 rounded-full blur-3xl"></div>
+      {/* Background Decorative Circles - Fixed positioning */}
+      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#7a9e50]/10 rounded-full blur-3xl pointer-events-none"></div>
 
-      {/* --- LOGO AND SPEECH BUBBLE SECTION --- */}
-      <div className="relative mb-10 flex flex-col items-center z-10">
+      {/* Main Wrapper to ensure scrolling works on small screens */}
+      <div className="w-full max-w-[340px] flex flex-col items-center z-10 my-auto">
         
-        {/* SPEECH BUBBLE (The Cloud) */}
-        <div className="absolute -top-12 -right-20 md:-right-24 bg-white px-5 py-2 rounded-2xl shadow-xl border-2 border-[#7a9e50] animate-bounce-subtle z-20">
-          <p className="text-[10px] font-black text-[#7a9e50] tracking-widest whitespace-nowrap uppercase italic">
-            {messages[messageIndex]}
-          </p>
-          {/* Bubble Tail */}
-          <div className="absolute -bottom-2 left-3 w-4 h-4 bg-white border-r-2 border-b-2 border-[#7a9e50] rotate-45"></div>
-        </div>
-
-        {/* Character Logo - Pinalaki kunti */}
-        <div className="relative group">
-          <div className="absolute inset-0 bg-white/40 blur-3xl rounded-full scale-110"></div>
-          <img
-            src={ellaLogo}
-            alt="Ella Character"
-            className="w-36 h-36 md:w-40 md:h-40 object-contain drop-shadow-2xl relative z-10 animate-float"
-          />
-        </div>
-
-        {/* TEXT LOGO: ELLA QUEST */}
-        <h1 className="mt-3 text-2xl md:text-3xl font-black tracking-[0.3em] text-[#5a7a35] drop-shadow-sm uppercase italic">
-          ELLA QUEST
-        </h1>
-      </div>
-
-      {/* --- FORM SECTION --- */}
-      <div className="w-full max-w-[340px] flex flex-col relative z-10">
-        
-        {/* LOGIN TEXT - Inilipat sa Left at nasa itaas ng Fields */}
-        <div className="w-full text-left mb-2 pl-2">
-          <h2 className="text-[13px] font-black tracking-[0.4em] text-gray-700 uppercase inline-block relative">
-            Login
-            <span className="absolute -bottom-1 left-0 w-8 h-[3px] bg-[#7a9e50] rounded-full"></span>
-          </h2>
-        </div>
-
-        <form onSubmit={handleLogin} className="w-full flex flex-col gap-3">
+        {/* --- LOGO AND SPEECH BUBBLE SECTION --- */}
+        <div className="relative mb-8 flex flex-col items-center w-full">
           
-          {/* Email Input */}
-          <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-md group transition-all focus-within:ring-2 focus-within:ring-white/50">
-            <div className="pl-4 pr-2 py-3 flex items-center justify-center">
-              <HiOutlineMail className="w-5 h-5 text-white opacity-90" />
-            </div>
-            <input
-              name="email"
-              type="email"
-              value={loginData.email}
-              onChange={handleChange}
-              placeholder="EMAIL"
-              style={autofillFix}
-              className="flex-1 bg-[#7a9e50] px-2 py-3 text-white placeholder-white/60 font-bold text-[12px] tracking-widest outline-none"
-              required
-            />
-          </div>
-
-          {/* Password Input */}
-          <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-md group transition-all focus-within:ring-2 focus-within:ring-white/50 relative">
-            <div className="pl-4 pr-2 py-3 flex items-center justify-center">
-              <HiOutlineLockClosed className="w-5 h-5 text-white opacity-90" />
-            </div>
-            <input
-              name="password"
-              type={showPassword ? "text" : "password"}
-              value={loginData.password}
-              onChange={handleChange}
-              placeholder="PASSWORD"
-              style={autofillFix}
-              className="flex-1 bg-[#7a9e50] px-2 py-3 text-white placeholder-white/60 font-bold text-[12px] tracking-widest outline-none"
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="pr-4 text-white/70 hover:text-white transition-all flex items-center justify-center outline-none"
-              tabIndex="-1"
-            >
-              {showPassword ? (
-                <HiOutlineEyeOff className="w-5 h-5" />
-              ) : (
-                <HiOutlineEye className="w-5 h-5" />
-              )}
-            </button>
-          </div>
-
-          {/* Forgot Password Link */}
-          <div className="flex justify-end -mt-1 mr-2">
-            <Link to="/forgot-password" text-size="small" className="text-[10px] italic text-[#3B82F6] font-bold hover:text-blue-500 transition-colors">
-              Forgot Password?
-            </Link>
-          </div>
-
-          {/* Login Button */}
-          <div className="flex justify-center mt-2">
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={`w-full bg-[#8aab45] hover:bg-[#9abb55] text-white border border-[#6a8a30] rounded-full py-3 font-black text-[12px] tracking-[0.3em] uppercase shadow-lg transition-all active:scale-95
-                ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[#7a9e50]/40'}`} 
-            >
-              {isLoading ? '...' : 'LOGIN'}
-            </button>
-          </div>
-
-          {/* Separator */}
-          <div className="flex items-center my-2 w-full px-4">
-            <div className="flex-grow border-t border-black/10"></div>
-            <span className="px-3 text-[9px] text-gray-500 font-black whitespace-nowrap uppercase tracking-widest opacity-60">
-              OR CONTINUE WITH
-            </span>
-            <div className="flex-grow border-t border-black/10"></div>
-          </div>
-
-          {/* Google SSO Button */}
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              className="flex items-center justify-center gap-3 w-full bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-100 rounded-full py-2.5 shadow-md transition-all active:scale-95"
-            >
-              <FcGoogle className="w-5 h-5" /> 
-              <span className="text-[11px] font-black tracking-widest">GOOGLE</span>
-            </button>
-          </div>
-
-          {/* Registration Redirect */}
-          <div className="text-center mt-3">
-            <p className="text-[10px] text-gray-600 font-bold tracking-tight">
-              Don't have an Account?{' '}
-              <Link 
-                to="/signup" 
-                className="text-[#3B82F6] font-black hover:underline cursor-pointer decoration-2"
-              >
-                Register Here
-              </Link>
+          {/* SPEECH BUBBLE */}
+          <div className="absolute -top-8 left-1/2 translate-x-4 bg-white px-4 py-2 rounded-2xl shadow-xl border-2 border-[#7a9e50] animate-bounce-subtle z-20 min-w-[120px]">
+            <p className="text-[9px] font-black text-[#7a9e50] tracking-widest text-center uppercase italic">
+              {messages[messageIndex]}
             </p>
+            {/* Bubble Tail */}
+            <div className="absolute -bottom-2 left-4 w-3 h-3 bg-white border-r-2 border-b-2 border-[#7a9e50] rotate-45"></div>
           </div>
-        </form>
+
+          {/* Character Logo */}
+          <div className="relative group">
+            <div className="absolute inset-0 bg-white/40 blur-2xl rounded-full scale-110"></div>
+            <img
+              src={ellaLogo}
+              alt="Ella Character"
+              className="w-28 h-28 md:w-32 md:h-32 object-contain drop-shadow-2xl relative z-10 animate-float"
+            />
+          </div>
+
+          {/* TEXT LOGO */}
+          <h1 className="mt-4 text-xl md:text-2xl font-black tracking-[0.3em] text-[#5a7a35] drop-shadow-sm uppercase italic">
+            ELLA QUEST
+          </h1>
+        </div>
+
+        {/* --- FORM SECTION --- */}
+        <div className="w-full flex flex-col">
+          
+          {/* LOGIN HEADER */}
+          <div className="w-full text-left mb-4 pl-1">
+            <h2 className="text-[12px] font-black tracking-[0.4em] text-gray-700 uppercase inline-block relative">
+              Login
+              <span className="absolute -bottom-1 left-0 w-8 h-[3px] bg-[#7a9e50] rounded-full"></span>
+            </h2>
+          </div>
+
+          <form onSubmit={handleLogin} className="w-full flex flex-col gap-3">
+            
+            {/* Email Input */}
+            <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-md transition-all focus-within:ring-2 focus-within:ring-white/50">
+              <div className="pl-4 pr-2 py-3 flex items-center justify-center">
+                <HiOutlineMail className="w-5 h-5 text-white opacity-90" />
+              </div>
+              <input
+                name="email"
+                type="email"
+                value={loginData.email}
+                onChange={handleChange}
+                placeholder="EMAIL"
+                style={autofillFix}
+                className="flex-1 bg-[#7a9e50] px-2 py-3 text-white placeholder-white/60 font-bold text-[11px] tracking-widest outline-none"
+                required
+              />
+            </div>
+
+            {/* Password Input */}
+            <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-md transition-all focus-within:ring-2 focus-within:ring-white/50 relative">
+              <div className="pl-4 pr-2 py-3 flex items-center justify-center">
+                <HiOutlineLockClosed className="w-5 h-5 text-white opacity-90" />
+              </div>
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={loginData.password}
+                onChange={handleChange}
+                placeholder="PASSWORD"
+                style={autofillFix}
+                className="flex-1 bg-[#7a9e50] px-2 py-3 text-white placeholder-white/60 font-bold text-[11px] tracking-widest outline-none"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="pr-4 text-white/70 hover:text-white transition-all flex items-center justify-center outline-none"
+                tabIndex="-1"
+              >
+                {showPassword ? (
+                  <HiOutlineEyeOff className="w-5 h-5" />
+                ) : (
+                  <HiOutlineEye className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+
+            {/* Forgot Password Link */}
+            <div className="flex justify-end -mt-1 mr-2">
+              <Link to="/forgot-password" size="small" className="text-[10px] italic text-[#3B82F6] font-bold hover:text-blue-600 transition-colors">
+                Forgot Password?
+              </Link>
+            </div>
+
+            {/* Login Button */}
+            <div className="flex justify-center mt-2">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className={`w-full bg-[#8aab45] hover:bg-[#9abb55] text-white border border-[#6a8a30] rounded-full py-3 font-black text-[12px] tracking-[0.2em] uppercase shadow-lg transition-all active:scale-95
+                  ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[#7a9e50]/40'}`} 
+              >
+                {isLoading ? '...' : 'LOGIN'}
+              </button>
+            </div>
+
+            {/* Separator */}
+            <div className="flex items-center my-3 w-full px-4">
+              <div className="flex-grow border-t border-black/10"></div>
+              <span className="px-3 text-[9px] text-gray-500 font-black whitespace-nowrap uppercase tracking-widest opacity-60">
+                OR CONTINUE WITH
+              </span>
+              <div className="flex-grow border-t border-black/10"></div>
+            </div>
+
+            {/* Google SSO Button */}
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="flex items-center justify-center gap-3 w-full bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-100 rounded-full py-2.5 shadow-md transition-all active:scale-95"
+              >
+                <FcGoogle className="w-5 h-5" /> 
+                <span className="text-[11px] font-black tracking-widest">GOOGLE</span>
+              </button>
+            </div>
+
+            {/* Registration Redirect */}
+            <div className="text-center mt-4">
+              <p className="text-[10px] text-gray-600 font-bold tracking-tight">
+                Don't have an Account?{' '}
+                <Link 
+                  to="/signup" 
+                  className="text-[#3B82F6] font-black hover:underline cursor-pointer"
+                >
+                  Register Here
+                </Link>
+              </p>
+            </div>
+          </form>
+        </div>
       </div>
 
-      {/* Footer text */}
-      <p className="absolute bottom-6 text-center text-[9px] text-gray-500 px-10 max-w-lg leading-relaxed font-bold opacity-60 uppercase tracking-tighter">
+      {/* Footer text - Adjusted for stability */}
+      <p className="w-full max-w-lg mt-12 mb-6 text-center text-[9px] text-gray-500 px-6 leading-relaxed font-bold opacity-60 uppercase tracking-tighter">
         An interactive language center engaging students through active learning tools and encouraging consistent language practice.
       </p>
 
@@ -286,11 +290,11 @@ const Login = () => {
       <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-12px) rotate(1deg); }
+          50% { transform: translateY(-10px) rotate(1deg); }
         }
         @keyframes bounce-subtle {
           0%, 100% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-5px) scale(1.03); }
+          50% { transform: translateY(-4px) scale(1.02); }
         }
         .animate-float {
           animation: float 5s ease-in-out infinite;
