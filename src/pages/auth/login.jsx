@@ -38,16 +38,21 @@ const Login = () => {
   useEffect(() => {
     let currentText = messages[messageIndex];
     let charIndex = 0;
-    setDisplayedMessage(""); // Reset text on message change
+    setDisplayedMessage(""); // Clear text immediately when index changes
 
     const typingInterval = setInterval(() => {
-      if (charIndex < currentText.length) {
-        setDisplayedMessage((prev) => prev + currentText.charAt(charIndex));
-        charIndex++;
-      } else {
-        clearInterval(typingInterval);
-      }
-    }, 50); // Bilis ng pag-type (sakto lang)
+      // Gumamit ng functional update para hindi mawala ang previous characters
+      setDisplayedMessage((prev) => {
+        if (charIndex < currentText.length) {
+          const nextChar = currentText.charAt(charIndex);
+          charIndex++;
+          return prev + nextChar;
+        } else {
+          clearInterval(typingInterval);
+          return prev;
+        }
+      });
+    }, 60); // Swabeng bilis para mabasa nang maayos
 
     return () => clearInterval(typingInterval);
   }, [messageIndex]);
@@ -56,7 +61,7 @@ const Login = () => {
   useEffect(() => {
     const nextMessageInterval = setInterval(() => {
       setMessageIndex((prev) => (prev + 1) % messages.length);
-    }, 4500); // 4.5 seconds bago lumipat ng message
+    }, 5000); // 5 seconds interval para may sapat na oras matapos ang pag-type
     return () => clearInterval(nextMessageInterval);
   }, []);
 
@@ -151,9 +156,10 @@ const Login = () => {
       <div className="relative mb-6 flex flex-col items-center z-10">
         
         {/* SPEECH BUBBLE: Fixed position on top of head */}
-        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white px-4 py-1.5 rounded-2xl shadow-xl border-2 border-[#7a9e50] animate-bounce-subtle z-20 min-w-[100px] flex justify-center items-center">
-          <p className="text-[9px] font-black text-[#7a9e50] tracking-widest whitespace-nowrap uppercase italic min-h-[12px]">
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white px-5 py-2 rounded-2xl shadow-xl border-2 border-[#7a9e50] animate-bounce-subtle z-20 min-w-[120px] flex justify-center items-center transition-all duration-300">
+          <p className="text-[10px] font-black text-[#7a9e50] tracking-widest whitespace-nowrap uppercase italic min-h-[14px]">
             {displayedMessage}
+            <span className="animate-pulse ml-0.5">|</span>
           </p>
           {/* Bubble Tail centered to avatar head */}
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r-2 border-b-2 border-[#7a9e50] rotate-45"></div>
@@ -171,7 +177,7 @@ const Login = () => {
           </div>
         </div>
 
-        {/* TEXT LOGO: Small and Compact */}
+        {/* TEXT LOGO */}
         <h1 className="mt-3 text-lg md:text-xl font-black tracking-[0.2em] text-[#5a7a35] drop-shadow-sm uppercase italic">
           ELLA QUEST
         </h1>
@@ -189,7 +195,6 @@ const Login = () => {
 
         <form onSubmit={handleLogin} className="w-full flex flex-col gap-2.5">
           
-          {/* Email Input */}
           <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-md focus-within:ring-2 focus-within:ring-white/50">
             <div className="pl-4 pr-2 py-2.5 flex items-center justify-center">
               <HiOutlineMail className="w-4 h-4 text-white opacity-90" />
@@ -206,7 +211,6 @@ const Login = () => {
             />
           </div>
 
-          {/* Password Input */}
           <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-md focus-within:ring-2 focus-within:ring-white/50 relative">
             <div className="pl-4 pr-2 py-2.5 flex items-center justify-center">
               <HiOutlineLockClosed className="w-4 h-4 text-white opacity-90" />
@@ -231,14 +235,12 @@ const Login = () => {
             </button>
           </div>
 
-          {/* Forgot Password */}
           <div className="flex justify-end mr-2">
             <Link to="/forgot-password" className="text-[9px] italic text-[#3B82F6] font-bold hover:underline">
               Forgot Password?
             </Link>
           </div>
 
-          {/* Login Button */}
           <button
             type="submit"
             disabled={isLoading}
@@ -247,14 +249,12 @@ const Login = () => {
             {isLoading ? '...' : 'LOGIN'}
           </button>
 
-          {/* Separator */}
           <div className="flex items-center my-1 w-full px-4">
             <div className="flex-grow border-t border-black/10"></div>
             <span className="px-3 text-[8px] text-gray-500 font-black opacity-60 uppercase tracking-widest">OR</span>
             <div className="flex-grow border-t border-black/10"></div>
           </div>
 
-          {/* Google SSO Button */}
           <button
             type="button"
             onClick={handleGoogleLogin}
@@ -264,7 +264,6 @@ const Login = () => {
             <span className="text-[10px] font-black tracking-widest">GOOGLE</span>
           </button>
 
-          {/* Registration Redirect */}
           <div className="text-center mt-2">
             <p className="text-[9px] text-gray-600 font-bold">
               Don't have an Account?{' '}
@@ -276,7 +275,6 @@ const Login = () => {
         </form>
       </div>
 
-      {/* Footer text */}
       <p className="absolute bottom-4 text-center text-[8px] text-gray-500 px-10 max-w-sm leading-tight font-bold opacity-50 uppercase tracking-tighter">
         An interactive language center engaging students through active learning tools and encouraging consistent practice.
       </p>
