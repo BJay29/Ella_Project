@@ -26,21 +26,16 @@ const Login = () => {
 
   // --- EFFECT PARA SA SSO ERROR MESSAGES ---
   useEffect(() => {
-    // Kinukuha ang parameter galing sa URL (e.g. ?info=account_exists)
     const params = new URLSearchParams(location.search);
     const infoType = params.get('info');
 
     if (infoType === 'account_exists') {
-      // Updated with a more user-friendly message as per recent flow requirements
       setErrorMessage("THIS ACCOUNT ALREADY EXISTS ON YOUR DEVICE! PLEASE LOGIN.");
       setShowErrorModal(true);
-
-      // Linisin ang URL para hindi mag-pop up ulit ang modal pag nag-refresh ang user
       navigate('/login', { replace: true });
     }
   }, [location, navigate]);
 
-  // Ping server on mount para magising ang Render (optional)
   useEffect(() => {
     authAPI.ping();
   }, []);
@@ -50,7 +45,6 @@ const Login = () => {
     setLoginData({ ...loginData, [name]: value });
   };
 
-  // --- STANDARD EMAIL/PASSWORD LOGIN ---
   const handleLogin = async (e) => {
     e.preventDefault();
     const { email, password } = loginData;
@@ -75,9 +69,6 @@ const Login = () => {
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', normalizedRole);
         
-        console.log("LOGIN SUCCESSFUL!");
-
-        // REDIRECT LOGIC
         if (normalizedRole === 'instructor') {
           navigate('/instructor/dashboard', { replace: true });
         } else if (normalizedRole === 'admin') {
@@ -92,7 +83,6 @@ const Login = () => {
         setShowErrorModal(true);
       }
     } catch (error) {
-      console.error("Login Error:", error);
       setErrorMessage("SERVER ERROR: CANNOT CONNECT TO BACKEND");
       setShowErrorModal(true);
     } finally {
@@ -100,14 +90,11 @@ const Login = () => {
     }
   };
 
-  // --- GOOGLE LOGIN LOGIC ---
   const handleGoogleLogin = () => {
     try {
-      // TANDAAN: I-set ang intent bilang 'login' para dumeretso sa dashboard ang existing users
       sessionStorage.setItem('sso_intent', 'login');
       authAPI.initiateGoogleLogin();
     } catch (error) {
-      console.error("Google Redirect Error:", error);
       setErrorMessage("FAILED TO INITIATE GOOGLE LOGIN");
       setShowErrorModal(true);
     }
@@ -120,27 +107,37 @@ const Login = () => {
 
   return (
     <div className="h-screen w-screen bg-[#C8E6C0] flex flex-col items-center justify-center font-sans relative overflow-hidden">
-      <div className="w-full max-w-[350px] flex flex-col items-center px-4">
+      
+      {/* Background Decorative Circles */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/20 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#7a9e50]/10 rounded-full blur-3xl"></div>
+
+      <div className="w-full max-w-[350px] flex flex-col items-center px-4 relative z-10">
         
-        {/* Logo Section */}
-        <div className="mb-2">
+        {/* Logo Section with Glow and Float Effect */}
+        <div className="relative mb-4 group">
+          <div className="absolute inset-0 bg-white/50 blur-2xl rounded-full scale-75 group-hover:bg-white/80 transition-all duration-700"></div>
           <img
             src={ellaLogo}
             alt="Ella Character"
-            className="w-32 h-32 object-contain drop-shadow-md"
+            className="w-32 h-32 object-contain drop-shadow-xl relative z-10 animate-float"
           />
         </div>
 
-        <h2 className="text-[10px] font-bold tracking-[0.3em] text-gray-700 uppercase mb-4">
-          User Login
-        </h2>
+        {/* Styled Title */}
+        <div className="text-center mb-6">
+          <h2 className="text-[11px] font-black tracking-[0.4em] text-gray-700 uppercase relative inline-block">
+            User Login
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-[2px] bg-[#7a9e50] rounded-full"></span>
+          </h2>
+        </div>
 
-        <form onSubmit={handleLogin} className="w-full flex flex-col gap-2.5">
+        <form onSubmit={handleLogin} className="w-full flex flex-col gap-3">
           
           {/* Email Input */}
-          <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-inner">
-            <div className="pl-4 pr-2 py-2 flex items-center justify-center">
-              <HiOutlineMail className="w-4 h-4 text-white" />
+          <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-md group transition-all focus-within:ring-2 focus-within:ring-white/50">
+            <div className="pl-4 pr-2 py-2.5 flex items-center justify-center">
+              <HiOutlineMail className="w-4 h-4 text-white opacity-80 group-focus-within:opacity-100" />
             </div>
             <input
               name="email"
@@ -149,15 +146,15 @@ const Login = () => {
               onChange={handleChange}
               placeholder="EMAIL"
               style={autofillFix}
-              className="flex-1 bg-[#7a9e50] px-2 py-2 text-white placeholder-white/70 font-bold text-[11px] tracking-widest outline-none"
+              className="flex-1 bg-[#7a9e50] px-2 py-2.5 text-white placeholder-white/60 font-bold text-[11px] tracking-widest outline-none"
               required
             />
           </div>
 
           {/* Password Input */}
-          <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-inner relative">
-            <div className="pl-4 pr-2 py-2 flex items-center justify-center">
-              <HiOutlineLockClosed className="w-4 h-4 text-white" />
+          <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-md group transition-all focus-within:ring-2 focus-within:ring-white/50 relative">
+            <div className="pl-4 pr-2 py-2.5 flex items-center justify-center">
+              <HiOutlineLockClosed className="w-4 h-4 text-white opacity-80 group-focus-within:opacity-100" />
             </div>
             <input
               name="password"
@@ -166,13 +163,13 @@ const Login = () => {
               onChange={handleChange}
               placeholder="PASSWORD"
               style={autofillFix}
-              className="flex-1 bg-[#7a9e50] px-2 py-2 text-white placeholder-white/70 font-bold text-[11px] tracking-widest outline-none"
+              className="flex-1 bg-[#7a9e50] px-2 py-2.5 text-white placeholder-white/60 font-bold text-[11px] tracking-widest outline-none"
               required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="pr-4 text-white/80 hover:text-white transition-all flex items-center justify-center"
+              className="pr-4 text-white/70 hover:text-white transition-all flex items-center justify-center outline-none"
               tabIndex="-1"
             >
               {showPassword ? (
@@ -185,30 +182,30 @@ const Login = () => {
 
           {/* Forgot Password Link */}
           <div className="flex justify-end -mt-1 mr-2">
-            <Link to="/forgot-password" size="small" className="text-[9px] italic text-[#3B82F6] font-semibold hover:underline">
+            <Link to="/forgot-password" size="small" className="text-[9px] italic text-[#3B82F6] font-bold hover:text-blue-500 transition-colors">
               Forgot Password?
             </Link>
           </div>
 
           {/* Login Button */}
-          <div className="flex justify-center mt-1">
+          <div className="flex justify-center mt-2">
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-40 bg-[#8aab45] hover:bg-[#9abb55] text-white border border-[#6a8a30] rounded-full py-2 font-black text-[11px] tracking-[0.2em] uppercase shadow-sm transition-all active:scale-95
-                ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`} 
+              className={`w-44 bg-[#8aab45] hover:bg-[#9abb55] text-white border border-[#6a8a30] rounded-full py-2.5 font-black text-[11px] tracking-[0.2em] uppercase shadow-lg transition-all active:scale-95
+                ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[#7a9e50]/40'}`} 
             >
               {isLoading ? '...' : 'LOGIN'}
             </button>
           </div>
 
           {/* Separator */}
-          <div className="flex items-center my-1 w-full px-4">
-            <div className="flex-grow border-t border-black/10"></div>
-            <span className="px-2 text-[8px] text-gray-500 font-bold whitespace-nowrap uppercase tracking-tighter">
-              Or continue with
+          <div className="flex items-center my-2 w-full px-4">
+            <div className="flex-grow border-t border-black/5"></div>
+            <span className="px-3 text-[8px] text-gray-500 font-bold whitespace-nowrap uppercase tracking-widest opacity-60">
+              OR CONTINUE WITH
             </span>
-            <div className="flex-grow border-t border-black/10"></div>
+            <div className="flex-grow border-t border-black/5"></div>
           </div>
 
           {/* Google SSO Button */}
@@ -216,20 +213,20 @@ const Login = () => {
             <button
               type="button"
               onClick={handleGoogleLogin}
-              className="flex items-center justify-center gap-2 w-36 bg-white hover:bg-gray-50 text-gray-600 border border-gray-200 rounded-full py-1.5 shadow-sm transition-all active:scale-95"
+              className="flex items-center justify-center gap-2 w-40 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-full py-2 shadow-md transition-all active:scale-95"
             >
               <FcGoogle className="w-4 h-4" /> 
-              <span className="text-[11px] font-bold">Google</span>
+              <span className="text-[11px] font-black tracking-tighter">GOOGLE</span>
             </button>
           </div>
 
           {/* Registration Redirect */}
-          <div className="text-center mt-1">
-            <p className="text-[9px] text-[#3B82F6] font-medium">
+          <div className="text-center mt-2">
+            <p className="text-[9px] text-gray-600 font-medium tracking-tight">
               Don't have an Account?{' '}
               <Link 
                 to="/signup" 
-                className="relative z-50 font-bold hover:underline cursor-pointer"
+                className="text-[#3B82F6] font-black hover:underline cursor-pointer"
               >
                 Register Here
               </Link>
@@ -239,8 +236,8 @@ const Login = () => {
       </div>
 
       {/* Footer text */}
-      <p className="absolute bottom-4 text-center text-[9px] text-gray-600 px-8 max-w-lg leading-tight font-medium opacity-80">
-        An interactive language center is a system that engages students through active learning tools and encourages consistent language practice.
+      <p className="absolute bottom-6 text-center text-[9px] text-gray-500 px-10 max-w-lg leading-relaxed font-bold opacity-60 uppercase tracking-tighter">
+        An interactive language center engaging students through active learning tools and encouraging consistent language practice.
       </p>
 
       {/* Error Modal */}
@@ -249,6 +246,17 @@ const Login = () => {
         message={errorMessage}
         onClose={() => setShowErrorModal(false)}
       />
+
+      {/* Required CSS for Floating Animation */}
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        .animate-float {
+          animation: float 4s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };
