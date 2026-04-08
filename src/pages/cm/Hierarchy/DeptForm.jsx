@@ -10,7 +10,7 @@ const DeptForm = ({ courseId, onNext }) => {
     const [editingId, setEditingId] = useState(null);
     const [error, setError] = useState('');
     
-    // Updated State to match backend keys
+    // State matches exact backend keys
     const [newDept, setNewDept] = useState({
         department_name: '',
         department_code: '',
@@ -19,6 +19,11 @@ const DeptForm = ({ courseId, onNext }) => {
 
     // 1. FETCH DEPARTMENTS FROM BACKEND
     const fetchDepts = async () => {
+        if (!courseId) {
+            console.error("Missing courseId in fetchDepts");
+            return;
+        }
+        
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -26,6 +31,9 @@ const DeptForm = ({ courseId, onNext }) => {
             if (response.ok) {
                 const data = await response.json();
                 setDepartments(data);
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                console.error("Fetch failed:", errorData.message);
             }
         } catch (err) {
             console.error("Failed to fetch departments:", err);
@@ -35,37 +43,64 @@ const DeptForm = ({ courseId, onNext }) => {
     };
 
     useEffect(() => {
-        if (courseId) fetchDepts();
+        if (courseId) {
+            fetchDepts();
+        }
     }, [courseId]);
 
     // 2. CREATE OR UPDATE LOGIC
     const handleAddDept = async (e) => {
         e.preventDefault();
-        if(!newDept.department_name || !newDept.department_code) return;
+        
+        // Validation bago tumawag sa API
+        if (!courseId) {
+            setError("Error: Course ID is missing. Please go back and re-select a course.");
+            return;
+        }
+
+        if(!newDept.department_name.trim() || !newDept.department_code.trim()) {
+            setError("Please fill in all required fields.");
+            return;
+        }
 
         setLoading(true);
         setError('');
+
+        // Tinitiyak na ang payload ay sumusunod sa database structure
+        const payload = {
+            department_name: newDept.department_name.trim(),
+            department_code: newDept.department_code.trim().toUpperCase(),
+            description: newDept.description?.trim() || ""
+        };
+
+        // DEBUG LOGGING
+        console.log("Submitting to Course ID:", courseId);
+        console.log("Payload:", payload);
+
         try {
             const token = localStorage.getItem('token');
             let response;
 
             if (editingId) {
                 // UPDATE API CALL
-                response = await authAPI.updateDepartment(editingId, newDept, token);
+                response = await authAPI.updateDepartment(courseId, editingId, payload, token);
             } else {
                 // CREATE API CALL
-                response = await authAPI.createDepartment(courseId, newDept, token);
+                response = await authAPI.createDepartment(courseId, payload, token);
             }
 
             if (response.ok) {
-                fetchDepts(); // Refresh list
+                await fetchDepts(); // Refresh listahan
                 closeModal();
             } else {
-                const data = await response.json();
-                setError(data.message || "Operation failed");
+                const data = await response.json().catch(() => ({}));
+                console.error("SERVER ERROR RESPONSE:", data);
+                // Ipakita ang specific error kung meron mula sa server
+                setError(data.message || data.error || `Server Error (${response.status}): Check abbreviation uniqueness.`);
             }
         } catch (err) {
-            setError("Connection error");
+            setError("Connection error: " + err.message);
+            console.error("Request Exception:", err);
         } finally {
             setLoading(false);
         }
@@ -77,8 +112,13 @@ const DeptForm = ({ courseId, onNext }) => {
         if(window.confirm("Are you sure you want to delete this department?")) {
             try {
                 const token = localStorage.getItem('token');
-                const response = await authAPI.deleteDepartment(id, token);
-                if (response.ok) fetchDepts();
+                const response = await authAPI.deleteDepartment(courseId, id, token);
+                if (response.ok) {
+                    fetchDepts();
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    alert(data.message || "Delete failed");
+                }
             } catch (err) {
                 console.error("Delete failed:", err);
             }
@@ -130,7 +170,7 @@ const DeptForm = ({ courseId, onNext }) => {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
-                        <span className="absolute left-3 top-3 opacity-30 text-xs">🔍</span>
+                        <span className="absolute left-3 top-3 opacity-30 text-xs text-black">🔍</span>
                     </div>
                     <button 
                         onClick={() => setIsModalOpen(true)}
@@ -158,7 +198,7 @@ const DeptForm = ({ courseId, onNext }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {filteredDepts.map((dept) => (
                         <div 
-                            key={dept.id}
+                            key={dept.id || dept.department_code}
                             onClick={() => onNext(dept.id, dept.department_name)}
                             className="group relative bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 cursor-pointer overflow-hidden"
                         >
@@ -221,7 +261,11 @@ const DeptForm = ({ courseId, onNext }) => {
                         </div>
                         
                         <form onSubmit={handleAddDept} className="p-8 space-y-5">
-                            {error && <p className="text-red-500 text-[10px] font-bold uppercase text-center">{error}</p>}
+                            {error && (
+                                <div className="bg-red-50 border border-red-100 p-3 rounded-xl">
+                                    <p className="text-red-500 text-[10px] font-bold uppercase text-center">{error}</p>
+                                </div>
+                            )}
                             
                             <div>
                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Abbreviation (e.g. CICS)</label>

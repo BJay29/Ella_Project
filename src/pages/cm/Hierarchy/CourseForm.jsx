@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// Inayos ang path at case sensitivity (S must be uppercase)
+// Inayos ang path at case sensitivity
 import { authAPI } from '../../../services/APIservice';
 
 const CourseForm = ({ onNext }) => {
@@ -23,7 +23,7 @@ const CourseForm = ({ onNext }) => {
     // --- API ACTIONS ---
 
     const fetchCourses = async () => {
-        // Safety check para sa import error - Pinalitan ng getMyCourses
+        // Safety check para sa import error
         if (!authAPI || typeof authAPI.getMyCourses !== 'function') {
             console.error("authAPI.getMyCourses is not defined. Check your APIService.js exports.");
             setError("Internal Error: API Service mismatch (getMyCourses not found)");
@@ -34,14 +34,26 @@ const CourseForm = ({ onNext }) => {
         setError(''); // I-clear ang error bago mag-fetch
         try {
             const token = localStorage.getItem('token');
-            // Gagamitin ang getMyCourses base sa iyong APIService
             const response = await authAPI.getMyCourses(token);
             
             if (response.ok) {
                 const data = await response.json();
-                // Siguraduhin na array ang ise-set, i-check kung ang data ay nasa loob ng 'courses' property o direktang array
-                const coursesData = Array.isArray(data) ? data : (data.courses || []);
-                setCourses(coursesData);
+                console.log("Raw API Data Received:", data); // Debugging: Para makita ang ID key
+
+                /**
+                 * FIX: Ang API mo ay nagbabalik ng { courses: [...] } base sa console log.
+                 * Sinisiguro natin dito na ang array ang mailalagay sa state.
+                 */
+                let coursesArray = [];
+                if (Array.isArray(data)) {
+                    coursesArray = data;
+                } else if (data && data.courses && Array.isArray(data.courses)) {
+                    coursesArray = data.courses;
+                } else {
+                    coursesArray = [];
+                }
+                
+                setCourses(coursesArray);
             } else {
                 const errData = await response.json().catch(() => ({}));
                 setError(errData.message || "Failed to load subjects");
@@ -87,11 +99,11 @@ const CourseForm = ({ onNext }) => {
                 : await authAPI.createCourse(payload, token);
 
             if (response.ok) {
+                // I-refresh ang listahan
                 await fetchCourses(); 
                 closeModal();
             } else {
                 const data = await response.json().catch(() => ({}));
-                // Detalyadong error handling para sa debug
                 if (response.status === 500) {
                     setError("Server Error (500): Check if DB columns match your payload.");
                 } else {
@@ -108,12 +120,19 @@ const CourseForm = ({ onNext }) => {
 
     const handleDelete = async (e, id) => {
         e.stopPropagation(); 
+        if(!id) {
+            alert("Cannot delete: Missing ID");
+            return;
+        }
+
         if(window.confirm("Are you sure you want to delete this subject?")) {
             try {
                 const token = localStorage.getItem('token');
                 const response = await authAPI.deleteCourse(id, token);
                 if (response.ok) {
                     fetchCourses();
+                } else {
+                    alert("Failed to delete from server.");
                 }
             } catch (err) {
                 console.error("Delete error:", err);
@@ -125,7 +144,19 @@ const CourseForm = ({ onNext }) => {
 
     const openEditModal = (e, course) => {
         e.stopPropagation(); 
-        setEditingId(course.id);
+        /**
+         * DETECTION FIX: Kinukuha ang tamang ID sa database record.
+         * Base sa console image mo, 'id' o 'course_id' ang field name.
+         */
+        const cId = course.id || course.course_id || course._id;
+        
+        if (!cId) {
+            console.error("Missing ID in object:", course);
+            alert("Warning: Cannot edit. Course ID missing from data.");
+            return;
+        }
+
+        setEditingId(cId);
         setNewCourse({ 
             course_name: course.course_name,
             school_year: course.school_year || '2025-2026',
@@ -204,56 +235,72 @@ const CourseForm = ({ onNext }) => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {filteredCourses.map((course) => (
-                        <div 
-                            key={course.id}
-                            onClick={() => onNext(course.id, course.course_name)}
-                            className="group relative bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 cursor-pointer overflow-hidden"
-                        >
-                            <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600" />
-                            
-                            <div className="absolute top-6 right-8 flex gap-4 z-20">
-                                <button 
-                                    onClick={(e) => openEditModal(e, course)}
-                                    className="text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-amber-500 transition-colors"
-                                >
-                                    Edit
-                                </button>
-                                <button 
-                                    onClick={(e) => handleDelete(e, course.id)}
-                                    className="text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-red-500 transition-colors"
-                                >
-                                    Delete
-                                </button>
-                            </div>
-
-                            <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-2xl shadow-sm mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
-                                📖
-                            </div>
-
-                            <div className="space-y-2 text-left">
-                                <h3 className="text-3xl font-black text-gray-800 tracking-tighter uppercase italic group-hover:text-indigo-600 transition-colors">
-                                    {course.course_code}
-                                </h3>
-                                <p className="text-[11px] text-indigo-500 font-black uppercase tracking-widest">
-                                    {course.course_name}
-                                </p>
-                                <p className="text-[10px] text-gray-400 font-medium italic line-clamp-2 mt-2">
-                                    {course.description || "No description provided."}
-                                </p>
-                            </div>
-
-                            <div className="mt-10 pt-6 border-t border-gray-50 flex justify-between items-center">
-                                <div className="flex flex-col text-left">
-                                    <span className="text-gray-300 text-[9px] font-black uppercase tracking-widest">Active Sections</span>
-                                    <span className="text-lg font-black text-gray-700">{course.sectionCount || 0}</span>
+                    {filteredCourses.map((course) => {
+                        /**
+                         * FIX: Sinisiguro nito na makuha ang tamang ID key mula sa database record.
+                         * Importante ito para sa onNext at para sa backend calls.
+                         */
+                        const currentCourseId = course.id || course.course_id || course._id;
+                        
+                        return (
+                            <div 
+                                key={currentCourseId || Math.random()}
+                                onClick={() => {
+                                    if (currentCourseId) {
+                                        console.log("Navigating to course with ID:", currentCourseId);
+                                        onNext(currentCourseId, course.course_name);
+                                    } else {
+                                        console.error("Course object without ID:", course);
+                                        alert("Error: Course ID not found in database record. Check console.");
+                                    }
+                                }}
+                                className="group relative bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 cursor-pointer overflow-hidden"
+                            >
+                                <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600" />
+                                
+                                <div className="absolute top-6 right-8 flex gap-4 z-20">
+                                    <button 
+                                        onClick={(e) => openEditModal(e, course)}
+                                        className="text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-amber-500 transition-colors"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button 
+                                        onClick={(e) => handleDelete(e, currentCourseId)}
+                                        className="text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-red-500 transition-colors"
+                                    >
+                                        Delete
+                                    </button>
                                 </div>
-                                <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                                    <span className="font-bold">→</span>
+
+                                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-2xl shadow-sm mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
+                                    📖
+                                </div>
+
+                                <div className="space-y-2 text-left">
+                                    <h3 className="text-3xl font-black text-gray-800 tracking-tighter uppercase italic group-hover:text-indigo-600 transition-colors">
+                                        {course.course_code}
+                                    </h3>
+                                    <p className="text-[11px] text-indigo-500 font-black uppercase tracking-widest">
+                                        {course.course_name}
+                                    </p>
+                                    <p className="text-[10px] text-gray-400 font-medium italic line-clamp-2 mt-2">
+                                        {course.description || "No description provided."}
+                                    </p>
+                                </div>
+
+                                <div className="mt-10 pt-6 border-t border-gray-50 flex justify-between items-center">
+                                    <div className="flex flex-col text-left">
+                                        <span className="text-gray-300 text-[9px] font-black uppercase tracking-widest">Active Sections</span>
+                                        <span className="text-lg font-black text-gray-700">{course.sectionCount || 0}</span>
+                                    </div>
+                                    <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                        <span className="font-bold">→</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
@@ -273,7 +320,6 @@ const CourseForm = ({ onNext }) => {
                         </div>
                         
                         <form onSubmit={handleAddCourse} className="p-8 space-y-6">
-                            {/* Course Title */}
                             <div>
                                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Course Title *</label>
                                 <input 
@@ -286,7 +332,6 @@ const CourseForm = ({ onNext }) => {
                                 />
                             </div>
 
-                            {/* Row for SY and Semester */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">School Year</label>
@@ -311,7 +356,6 @@ const CourseForm = ({ onNext }) => {
                                 </div>
                             </div>
 
-                            {/* Course Code */}
                             <div>
                                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Course Code</label>
                                 <input 
@@ -324,7 +368,6 @@ const CourseForm = ({ onNext }) => {
                                 />
                             </div>
 
-                            {/* Description */}
                             <div>
                                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Description</label>
                                 <textarea 
@@ -336,7 +379,6 @@ const CourseForm = ({ onNext }) => {
                                 />
                             </div>
 
-                            {/* Action Buttons */}
                             <div className="flex gap-4 pt-4">
                                 <button 
                                     type="button"

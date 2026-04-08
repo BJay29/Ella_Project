@@ -30,13 +30,32 @@ const HierarchyManager = () => {
      */
     const handleNext = (level, id, name = '') => {
         if (level === 'DEPT') {
-            setSelection(prev => ({ ...prev, courseId: id, courseName: name }));
+            setSelection(prev => ({ 
+                ...prev, 
+                courseId: id, 
+                courseName: name,
+                // Siguraduhing malinis ang mga susunod na level pag nag-select ng bago
+                deptId: null, deptName: '',
+                programId: null, programName: '',
+                sectionId: null, sectionName: ''
+            }));
             setStep('DEPT');
         } else if (level === 'PROGRAM') {
-            setSelection(prev => ({ ...prev, deptId: id, deptName: name }));
+            setSelection(prev => ({ 
+                ...prev, 
+                deptId: id, 
+                deptName: name,
+                programId: null, programName: '',
+                sectionId: null, sectionName: ''
+            }));
             setStep('PROGRAM');
         } else if (level === 'SECTION') {
-            setSelection(prev => ({ ...prev, programId: id, programName: name }));
+            setSelection(prev => ({ 
+                ...prev, 
+                programId: id, 
+                programName: name,
+                sectionId: null, sectionName: ''
+            }));
             setStep('SECTION');
         } else if (level === 'QUESTS') {
             setSelection(prev => ({ ...prev, sectionId: id, sectionName: name }));
@@ -46,20 +65,44 @@ const HierarchyManager = () => {
 
     /**
      * handleBack logic:
-     * Pinapayagan ang user na bumalik sa mga previous levels gamit ang breadcrumbs.
+     * Pinapayagan ang user na bumalik sa mga previous levels.
+     * In-update para linisin ang selection state depende sa kung gaano kalayo ang binalikan.
      */
     const handleBack = (targetStep) => {
         setStep(targetStep);
-        // Optional: Linisin ang selection data pababa kapag bumabalik?
-        // Halimbawa: kung babalik sa COURSE, i-reset lahat.
-        if (targetStep === 'COURSE') {
-            setSelection({
-                courseId: null, courseName: '',
-                deptId: null, deptName: '',
-                programId: null, programName: '',
-                sectionId: null, sectionName: ''
-            });
-        }
+        
+        setSelection(prev => {
+            if (targetStep === 'COURSE') {
+                return {
+                    courseId: null, courseName: '',
+                    deptId: null, deptName: '',
+                    programId: null, programName: '',
+                    sectionId: null, sectionName: ''
+                };
+            }
+            if (targetStep === 'DEPT') {
+                return {
+                    ...prev,
+                    deptId: null, deptName: '',
+                    programId: null, programName: '',
+                    sectionId: null, sectionName: ''
+                };
+            }
+            if (targetStep === 'PROGRAM') {
+                return {
+                    ...prev,
+                    programId: null, programName: '',
+                    sectionId: null, sectionName: ''
+                };
+            }
+            if (targetStep === 'SECTION') {
+                return {
+                    ...prev,
+                    sectionId: null, sectionName: ''
+                };
+            }
+            return prev;
+        });
     };
 
     // --- BREADCRUMBS NAVIGATION ---

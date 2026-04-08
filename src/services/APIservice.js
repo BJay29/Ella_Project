@@ -96,7 +96,6 @@ export const authAPI = {
     },
 
     // --- COURSE MANAGEMENT (CM) ---
-
     
     getMyCourses: async (token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/courses/my-courses`, {
@@ -141,6 +140,19 @@ export const authAPI = {
     },
 
     // --- DEPARTMENT & PROGRAM LOGIC ---
+
+    // NEW: Get departments linked to a course
+    getDepartments: async (courseId, token) => {
+        validateParams({ courseId });
+        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+        });
+    },
+
     createDepartment: async (courseId, deptData, token) => {
         validateParams({ courseId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments`, {
@@ -150,6 +162,31 @@ export const authAPI = {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(deptData),
+        });
+    },
+
+    // NEW: Update department details
+    updateDepartment: async (deptId, deptData, token) => {
+        validateParams({ deptId });
+        return await fetchWithTimeout(`${BASE_URL}/api/departments/${deptId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(deptData),
+        });
+    },
+
+    // NEW: Delete a department
+    deleteDepartment: async (deptId, token) => {
+        validateParams({ deptId });
+        return await fetchWithTimeout(`${BASE_URL}/api/departments/${deptId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
         });
     },
 
@@ -183,7 +220,6 @@ export const authAPI = {
         });
     },
 
-    // UPDATED: Ngayon ay kumukuha ng sections base sa Program ID
     getSections: async (programId, token) => {
         validateParams({ programId });
         return await fetchWithTimeout(`${BASE_URL}/api/programs/${programId}/sections`, {
@@ -195,7 +231,6 @@ export const authAPI = {
         });
     },
 
-    // UPDATED: Create Section under a specific Program
     createSection: async (programId, sectionData, token) => {
         validateParams({ programId });
         return await fetchWithTimeout(`${BASE_URL}/api/programs/${programId}/sections`, {
@@ -212,7 +247,6 @@ export const authAPI = {
         });
     },
 
-    // UPDATED: Update Section under a Program
     updateSection: async (programId, sectionId, sectionData, token) => {
         validateParams({ programId, sectionId });
         return await fetchWithTimeout(`${BASE_URL}/api/programs/${programId}/sections/${sectionId}`, {
@@ -225,7 +259,6 @@ export const authAPI = {
         });
     },
 
-    // UPDATED: Delete Section under a Program
     deleteSection: async (programId, sectionId, token) => {
         validateParams({ programId, sectionId });
         return await fetchWithTimeout(`${BASE_URL}/api/programs/${programId}/sections/${sectionId}`, {
