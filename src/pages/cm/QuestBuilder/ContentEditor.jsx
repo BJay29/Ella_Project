@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ActivityEditor = () => {
+const ContentEditor = () => {
   return (
     <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-300">
       <h2 className="text-gray-500 font-bold">Activity Editor Component</h2>
@@ -9,4 +9,4 @@ const ActivityEditor = () => {
   );
 };
 
-export default ActivityEditor; // <--- ITO ANG PINAKA-IMPORTANTE!
+export default ContentEditor; // <--- ITO ANG PINAKA-IMPORTANTE!

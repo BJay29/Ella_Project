@@ -1,4 +1,5 @@
 const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://ellaquest-backend.onrender.com';
+
 /**
  * Utility to handle fetch with a timeout to prevent infinite loading.
  */
@@ -22,21 +23,18 @@ const validateParams = (params) => {
 };
 
 export const authAPI = {
-    // --- SERVER STATUS ---D
-    // Used to "wake up" the Render server on app load
+    // --- SERVER STATUS ---
     ping: async () => {
         try {
             await fetchWithTimeout(`${BASE_URL}/`, { method: 'GET', mode: 'no-cors' }, 30000);
         } catch { /* Silently ignore errors for ping */ }
     },
 
-    
-    // Step 1: Initiate Google Login (Redirects the whole page to Google Auth)
+    // --- AUTHENTICATION ---
     initiateGoogleLogin: () => {
         window.location.href = `${BASE_URL}/api/user/google`;
     },
 
-    // Step 2: Callback Handler (Handles the backend response after Google Login)
     googleCallback: async () => {
         return await fetchWithTimeout(`${BASE_URL}/api/user/google/callback`, {
             method: 'GET',
@@ -97,7 +95,9 @@ export const authAPI = {
         });
     },
 
-    // --- COURSE LOGIC ---
+    // --- COURSE MANAGEMENT (CM) ---
+
+    
     getMyCourses: async (token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/courses/my-courses`, {
             method: 'GET',
@@ -140,7 +140,32 @@ export const authAPI = {
         });
     },
 
-    // --- SECTION LOGIC ---
+    // --- DEPARTMENT & PROGRAM LOGIC ---
+    createDepartment: async (courseId, deptData, token) => {
+        validateParams({ courseId });
+        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(deptData),
+        });
+    },
+
+    createProgram: async (deptId, programData, token) => {
+        validateParams({ deptId });
+        return await fetchWithTimeout(`${BASE_URL}/api/departments/${deptId}/programs`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(programData),
+        });
+    },
+
+    // --- SECTION LOGIC (UPDATED) ---
     getInstructorSections: async (token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections`, {
             method: 'GET',
@@ -158,9 +183,10 @@ export const authAPI = {
         });
     },
 
-    getSections: async (courseId, token) => {
-        if (!courseId) throw new Error("Course ID is required to fetch sections");
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/sections`, {
+    // UPDATED: Ngayon ay kumukuha ng sections base sa Program ID
+    getSections: async (programId, token) => {
+        validateParams({ programId });
+        return await fetchWithTimeout(`${BASE_URL}/api/programs/${programId}/sections`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -169,8 +195,10 @@ export const authAPI = {
         });
     },
 
-    createSection: async (courseId, sectionData, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/sections`, {
+    // UPDATED: Create Section under a specific Program
+    createSection: async (programId, sectionData, token) => {
+        validateParams({ programId });
+        return await fetchWithTimeout(`${BASE_URL}/api/programs/${programId}/sections`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -184,23 +212,23 @@ export const authAPI = {
         });
     },
 
-    updateSection: async (courseId, sectionId, sectionData, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/sections/${sectionId}`, {
+    // UPDATED: Update Section under a Program
+    updateSection: async (programId, sectionId, sectionData, token) => {
+        validateParams({ programId, sectionId });
+        return await fetchWithTimeout(`${BASE_URL}/api/programs/${programId}/sections/${sectionId}`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                section_name: sectionData.section_name,
-                school_year: sectionData.school_year,
-                semester: sectionData.semester
-            }),
+            body: JSON.stringify(sectionData),
         });
     },
 
-    deleteSection: async (courseId, sectionId, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/sections/${sectionId}`, {
+    // UPDATED: Delete Section under a Program
+    deleteSection: async (programId, sectionId, token) => {
+        validateParams({ programId, sectionId });
+        return await fetchWithTimeout(`${BASE_URL}/api/programs/${programId}/sections/${sectionId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,

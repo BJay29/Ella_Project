@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import QuestBuilder from './QuestBuilder';
-import LevelManager from './LevelManager';
-import ActivityEditor from './ActivityEditor';
+
+// --- FIXED IMPORTS BASED ON YOUR FOLDER STRUCTURE ---
+// Gagamitin natin ang HierarchyManager bilang main entry point para sa Hub
+import HierarchyManager from './Hierarchy/HierarchyManager'; 
+import QuestBuilder from './QuestBuilder/QuestBuilder'; 
+import LevelManager from './QuestBuilder/LevelManager'; 
 
 const CMDashboard = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('materials');
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     
-    // Naka-empty array na ito para sa simula
+    // Materials state - dito papasok ang data mula sa API mo soon
     const [materials, setMaterials] = useState([]);
 
-    // DYNAMIC LOGIC: Binibilang nito ang status mula sa materials array
+    // DYNAMIC LOGIC: Stats counter base sa status
     const stats = {
         total: materials.length,
         approved: materials.filter(m => m.status === 'approved').length,
@@ -31,14 +34,13 @@ const CMDashboard = () => {
     // Logout Function
     const handleConfirmLogout = () => {
         localStorage.clear();
-
         navigate('/login', { replace: true });
     };
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans relative">
             
-            {/* --- TOP NAVBAR (Added based on image_ea38b6.png) --- */}
+            {/* --- TOP NAVBAR --- */}
             <nav className="bg-white border-b border-gray-200 px-8 py-3 flex justify-between items-center sticky top-0 z-50">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
@@ -61,7 +63,6 @@ const CMDashboard = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                     </div>
-                    {/* PROFILE SECTION - Tig click dito para mag-logout */}
                     <div 
                         onClick={() => setShowLogoutModal(true)}
                         className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-1 rounded-full transition-all pl-3"
@@ -80,12 +81,16 @@ const CMDashboard = () => {
             {/* --- MAIN CONTENT CONTAINER --- */}
             <div className="p-8">
                 {/* --- HEADER SECTION --- */}
-                <div className="max-w-5xl mx-auto bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 text-white shadow-lg mb-8 relative overflow-hidden">
+                <div className="max-w-5xl mx-auto bg-gradient-to-r from-[#4F46E5] to-[#6366F1] rounded-2xl p-8 text-white shadow-lg mb-8 relative overflow-hidden">
                     <div className="relative z-10">
-                        <h1 className="text-3xl font-bold flex items-center gap-2">
-                            📘 Curriculum Manager
+                        <h1 className="text-3xl font-bold flex items-center gap-2 uppercase tracking-tighter italic">
+                            📘 {activeTab === 'builder' ? 'Class & Quest Hub' : 'Curriculum Manager'}
                         </h1>
-                        <p className="opacity-90 mt-2">Manage content, quests, activities, and quizzes</p>
+                        <p className="opacity-90 mt-2 font-medium">
+                            {activeTab === 'builder' 
+                                ? 'Organize Departments, Courses, Sections, and Quests' 
+                                : 'Manage content, materials, activities, and quizzes'}
+                        </p>
                     </div>
                     <div className="absolute right-[-20px] top-[-20px] w-40 h-40 bg-white opacity-10 rounded-full"></div>
                 </div>
@@ -107,58 +112,59 @@ const CMDashboard = () => {
                 </div>
 
                 {/* --- MAIN CONTENT AREA --- */}
-                <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[500px]">
-                    {/* TABS NAVIGATION */}
+                <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[600px]">
                     <div className="flex border-b border-gray-100 bg-gray-50/50 px-8 pt-4 gap-8">
                         {['materials', 'builder', 'settings'].map((tab) => (
                             <button 
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`pb-4 text-sm font-bold capitalize transition-all ${
+                                className={`pb-4 text-sm font-bold capitalize transition-all relative ${
                                     activeTab === tab 
-                                    ? 'text-blue-600 border-b-2 border-blue-600' 
+                                    ? 'text-indigo-600' 
                                     : 'text-gray-400 hover:text-gray-600'
                                 }`}
                             >
-                                {tab === 'materials' ? 'My Materials' : tab === 'builder' ? 'Quest Builder' : 'Quest Settings'}
+                                {tab === 'materials' ? 'My Materials' : tab === 'builder' ? 'Curriculum Hub' : 'Quest Settings'}
+                                {activeTab === tab && (
+                                    <div className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 rounded-t-full animate-in slide-in-from-bottom-1" />
+                                )}
                             </button>
                         ))}
                     </div>
 
                     <div className="p-8">
+                        {/* TAB 1: MATERIALS */}
                         {activeTab === 'materials' && (
-                            <div>
+                            <div className="animate-in fade-in duration-300">
                                 <div className="flex justify-between items-center mb-8">
                                     <div>
                                         <h3 className="text-xl font-bold text-gray-800">My Uploaded Materials</h3>
                                         <p className="text-sm text-gray-400">See all of your macro skills content</p>
                                     </div>
-                                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center gap-2">
+                                    <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center gap-2 active:scale-95">
                                         <span>Upload Material</span>
                                     </button>
                                 </div>
 
-                                {/* Alert Banner */}
-                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-blue-700 text-sm mb-8 flex items-start gap-3">
+                                <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-indigo-700 text-sm mb-8 flex items-start gap-3">
                                     <span className="text-lg">📌</span>
                                     <p className="leading-relaxed">
-                                        Uploaded materials are sent to **Admin** for content validation and approval before being available in quests.
+                                        Uploaded materials are sent to **Admin** for content validation and approval before paggamit sa quest creation.
                                     </p>
                                 </div>
 
-                                {/* LIST LOGIC */}
                                 {materials.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-gray-100 rounded-3xl">
-                                        <div className="text-6xl mb-4 opacity-20">📁</div>
+                                        <div className="text-6xl mb-4 opacity-10 text-indigo-900">📁</div>
                                         <p className="text-gray-400 font-medium">No materials uploaded yet.</p>
-                                        <p className="text-gray-300 text-xs">Your uploaded files will appear here.</p>
+                                        <p className="text-gray-300 text-xs mt-1 uppercase font-bold tracking-widest">Your uploaded files will appear here</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
                                         {materials.map((item) => (
-                                            <div key={item.id} className="flex items-center justify-between p-5 bg-white border border-gray-100 rounded-2xl hover:shadow-sm transition-all">
+                                            <div key={item.id} className="flex items-center justify-between p-5 bg-white border border-gray-100 rounded-2xl hover:shadow-sm transition-all group">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-2xl">
+                                                    <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-50 transition-colors">
                                                         {item.type === 'PDF' ? '📄' : '🎵'}
                                                     </div>
                                                     <div>
@@ -185,37 +191,48 @@ const CMDashboard = () => {
                             </div>
                         )}
 
-                        {activeTab === 'builder' && <QuestBuilder />}
-                        {activeTab === 'settings' && <LevelManager />}
+                        {/* TAB 2: CURRICULUM HUB (The new hierarchical manager) */}
+                        {activeTab === 'builder' && (
+                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <HierarchyManager />
+                            </div>
+                        )}
+
+                        {/* TAB 3: SETTINGS / LEVEL MANAGER */}
+                        {activeTab === 'settings' && (
+                            <div className="animate-in fade-in duration-300">
+                                <LevelManager />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* --- INTERNAL LOGOUT MODAL --- */}
+            {/* --- LOGOUT MODAL --- */}
             {showLogoutModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-[2rem] p-10 max-w-sm w-full shadow-2xl flex flex-col items-center animate-in zoom-in duration-300">
-                        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl flex flex-col items-center animate-in zoom-in duration-200">
+                        <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mb-6">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
                         </div>
-                        <h2 className="text-2xl font-black text-gray-800 mb-2 uppercase tracking-tighter">Logging Out?</h2>
+                        <h2 className="text-2xl font-black text-gray-800 mb-2 uppercase tracking-tighter italic">Logging Out?</h2>
                         <p className="text-gray-500 text-center font-medium mb-8 leading-relaxed text-sm px-4">
-                            Are you sure you want to exit the Curriculum Manager dashboard?
+                            Are you sure you want to exit the Curriculum Manager dashboard? Siguraduhin na nai-save ang changes.
                         </p>
                         <div className="flex flex-col gap-3 w-full">
                             <button 
                                 onClick={handleConfirmLogout}
-                                className="w-full py-4 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl shadow-lg shadow-red-100 transition-all active:scale-95 uppercase tracking-widest text-[10px]"
+                                className="w-full py-4 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-[10px]"
                             >
-                             Logout
+                               Logout Now
                             </button>
                             <button 
                                 onClick={() => setShowLogoutModal(false)}
                                 className="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold rounded-2xl transition-all active:scale-95 uppercase tracking-widest text-[10px]"
                             >
-                                Cancel
+                                Stay on Dashboard
                             </button>
                         </div>
                     </div>

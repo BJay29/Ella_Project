@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; 
-import { authAPI } from '../../services/APIservice'; 
-import ActivityCreator from './QuestBuilder/ActivityCreator'; 
-import QuizCreator from './QuestBuilder/QuizCreator'; 
+// Fixed path: Assuming services is 2 levels up from src/pages/cm/QuestBuilder/
+import { authAPI } from '../../../services/APIservice'; 
+import ActivityCreator from './ActivityCreator'; 
+import QuizCreator from './QuizCreator'; 
 
 const QuestBuilder = () => {
   const navigate = useNavigate(); 
@@ -267,7 +268,6 @@ const QuestBuilder = () => {
     } catch (error) { console.error(error); }
   };
 
-  // SUCCESS CALLBACK PARA SA ACTIVITY O QUIZ
   const handleSuccessCallback = (newId) => {
     console.log("Content successfully created with ID:", newId);
     fetchLevels(currentQuestId); 
@@ -283,7 +283,7 @@ const QuestBuilder = () => {
           onClick={goBackToLevels} 
           className="absolute top-10 left-10 flex items-center gap-2 text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:gap-4 transition-all"
         >
-          ← Back to Levels
+          &larr; Back to Levels
         </button>
         
         <div className="text-center mb-12">
@@ -301,7 +301,7 @@ const QuestBuilder = () => {
                 <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 group-hover:scale-110 transition-transform">📝</div>
                 <h3 className="text-xl font-black text-slate-800 uppercase mb-2">Activity</h3>
                 <p className="text-gray-400 text-sm mb-6 uppercase font-bold tracking-tight">Create lessons and interactive tasks</p>
-                <span className="text-indigo-600 font-black text-[10px] uppercase tracking-widest bg-indigo-50 px-4 py-2 rounded-full group-hover:bg-indigo-600 group-hover:text-white transition-colors">Manage Activities →</span>
+                <span className="text-indigo-600 font-black text-[10px] uppercase tracking-widest bg-indigo-50 px-4 py-2 rounded-full group-hover:bg-indigo-600 group-hover:text-white transition-colors">Manage Activities &rarr;</span>
             </div>
 
             {/* QUIZ CARD */}
@@ -309,7 +309,7 @@ const QuestBuilder = () => {
                 <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 group-hover:scale-110 transition-transform">🏆</div>
                 <h3 className="text-xl font-black text-slate-800 uppercase mb-2">Quiz</h3>
                 <p className="text-gray-400 text-sm mb-6 uppercase font-bold tracking-tight">Set up questions and assessments</p>
-                <span className="text-indigo-600 font-black text-[10px] uppercase tracking-widest bg-indigo-50 px-4 py-2 rounded-full group-hover:bg-indigo-600 group-hover:text-white transition-colors">Manage Quizzes →</span>
+                <span className="text-indigo-600 font-black text-[10px] uppercase tracking-widest bg-indigo-50 px-4 py-2 rounded-full group-hover:bg-indigo-600 group-hover:text-white transition-colors">Manage Quizzes &rarr;</span>
             </div>
         </div>
 
@@ -421,7 +421,7 @@ const QuestBuilder = () => {
     <div className="w-full font-sans p-6 bg-gray-50 min-h-screen">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-            <button onClick={goBackToList} className="flex items-center gap-2 text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:gap-4 transition-all">← Back to Quests</button>
+            <button onClick={goBackToList} className="flex items-center gap-2 text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:gap-4 transition-all">&larr; Back to Quests</button>
             <div className="text-right">
                 <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">{selectedQuest?.quest_type} - Quest #{selectedQuest?.quest_number}</h2>
                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Select a level to manage content</p>
