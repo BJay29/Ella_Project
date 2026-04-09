@@ -7,11 +7,9 @@ import QuestBuilder from '../QuestBuilder/QuestBuilder';
 
 const HierarchyManager = () => {
     // --- STEP MANAGEMENT ---
-    // Nagsasabi kung anong level ng hierarchy ang kasalukuyang ipinapakita
     const [step, setStep] = useState('COURSE');
     
     // --- SELECTION STATE ---
-    // Dito sine-save ang mga IDs at Names para sa API calls at Breadcrumbs UI
     const [selection, setSelection] = useState({
         courseId: null,
         courseName: '',
@@ -25,8 +23,8 @@ const HierarchyManager = () => {
 
     /**
      * handleNext logic:
-     * Tumatanggap ng target level (susunod na screen), ID ng piniling item,
-     * at pangalan para sa UI breadcrumbs display.
+     * Tumatanggap ng target level, ID, at name.
+     * Dito natin sinisiguro na naitatabi ang IDs mula sa previous steps.
      */
     const handleNext = (level, id, name = '') => {
         if (level === 'DEPT') {
@@ -34,7 +32,7 @@ const HierarchyManager = () => {
                 ...prev, 
                 courseId: id, 
                 courseName: name,
-                // Siguraduhing malinis ang mga susunod na level pag nag-select ng bago
+                // Reset lower levels
                 deptId: null, deptName: '',
                 programId: null, programName: '',
                 sectionId: null, sectionName: ''
@@ -45,6 +43,7 @@ const HierarchyManager = () => {
                 ...prev, 
                 deptId: id, 
                 deptName: name,
+                // Reset lower levels
                 programId: null, programName: '',
                 sectionId: null, sectionName: ''
             }));
@@ -54,19 +53,22 @@ const HierarchyManager = () => {
                 ...prev, 
                 programId: id, 
                 programName: name,
+                // Reset lower levels
                 sectionId: null, sectionName: ''
             }));
             setStep('SECTION');
         } else if (level === 'QUESTS') {
-            setSelection(prev => ({ ...prev, sectionId: id, sectionName: name }));
+            setSelection(prev => ({ 
+                ...prev, 
+                sectionId: id, 
+                sectionName: name 
+            }));
             setStep('QUESTS');
         }
     };
 
     /**
      * handleBack logic:
-     * Pinapayagan ang user na bumalik sa mga previous levels.
-     * In-update para linisin ang selection state depende sa kung gaano kalayo ang binalikan.
      */
     const handleBack = (targetStep) => {
         setStep(targetStep);
@@ -162,10 +164,8 @@ const HierarchyManager = () => {
 
     return (
         <div className="w-full min-h-screen">
-            {/* Breadcrumbs UI */}
             {renderBreadcrumbs()}
 
-            {/* Dynamic Rendering Area */}
             <div className="transition-all duration-300">
                 
                 {/* STEP 1: SUBJECT SELECTION */}
@@ -173,12 +173,12 @@ const HierarchyManager = () => {
                     <CourseForm onNext={(id, name) => handleNext('DEPT', id, name)} />
                 )}
 
-                {/* STEP 2: DEPARTMENT SELECTION (Requires courseId) */}
+                {/* STEP 2: DEPARTMENT SELECTION */}
                 {step === 'DEPT' && (
                     <div className="space-y-4">
-                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-3 mb-4 animate-in fade-in slide-in-from-left-2">
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-3 mb-4 animate-in fade-in slide-in-from-left-2 text-left">
                             <span className="text-lg">📖</span>
-                            <div className="text-left">
+                            <div>
                                 <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Active Course</p>
                                 <p className="text-sm font-black text-indigo-900 uppercase italic leading-tight">{selection.courseName}</p>
                             </div>
@@ -190,47 +190,52 @@ const HierarchyManager = () => {
                     </div>
                 )}
 
-                {/* STEP 3: PROGRAM SELECTION (Requires deptId) */}
+                {/* STEP 3: PROGRAM SELECTION */}
                 {step === 'PROGRAM' && (
                     <div className="space-y-4">
-                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-3 mb-4 animate-in fade-in slide-in-from-left-2">
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-3 mb-4 animate-in fade-in slide-in-from-left-2 text-left">
                             <span className="text-lg">🏢</span>
-                            <div className="text-left">
+                            <div>
                                 <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Selected Department</p>
                                 <p className="text-sm font-black text-indigo-900 uppercase italic leading-tight">{selection.deptName}</p>
                             </div>
                         </div>
                         <ProgramForm 
+                            courseId={selection.courseId}
                             deptId={selection.deptId} 
                             onNext={(id, name) => handleNext('SECTION', id, name)} 
                         />
                     </div>
                 )}
 
-                {/* STEP 4: SECTION SELECTION (Requires programId) */}
+                {/* STEP 4: SECTION SELECTION */}
                 {step === 'SECTION' && (
                     <div className="space-y-4">
-                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-3 mb-4 animate-in fade-in slide-in-from-left-2">
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-3 mb-4 animate-in fade-in slide-in-from-left-2 text-left">
                             <span className="text-lg">🎓</span>
-                            <div className="text-left">
+                            <div>
                                 <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Target Program</p>
                                 <p className="text-sm font-black text-indigo-900 uppercase italic leading-tight">{selection.programName}</p>
                             </div>
                         </div>
                         <SectionForm 
+                            courseId={selection.courseId}   
+                            deptId={selection.deptId}       
                             programId={selection.programId} 
                             onNext={(id, name) => handleNext('QUESTS', id, name)} 
                         />
                     </div>
                 )}
 
-                {/* FINAL STEP: QUEST BUILDER (Requires sectionId) */}
+                {/* FINAL STEP: QUEST BUILDER */}
                 {step === 'QUESTS' && (
                     <div className="animate-in fade-in zoom-in-95 duration-500">
-                        <div className="bg-slate-900 text-white rounded-[2rem] p-6 mb-6 flex justify-between items-center">
-                            <div className="text-left">
+                        <div className="bg-slate-900 text-white rounded-[2rem] p-6 mb-6 flex justify-between items-center text-left">
+                            <div>
                                 <h2 className="text-xl font-black italic uppercase tracking-tighter">Quest Workshop</h2>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Building for: {selection.courseName} — {selection.sectionName}</p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                                    Building for: {selection.courseName} — {selection.sectionName}
+                                </p>
                             </div>
                             <button 
                                 onClick={() => handleBack('SECTION')}

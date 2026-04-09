@@ -8,6 +8,8 @@ const CourseForm = ({ onNext }) => {
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [courseToDelete, setCourseToDelete] = useState(null);
     const [editingId, setEditingId] = useState(null);
     const [error, setError] = useState('');
 
@@ -23,7 +25,6 @@ const CourseForm = ({ onNext }) => {
     // --- API ACTIONS ---
 
     const fetchCourses = async () => {
-        // Safety check para sa import error
         if (!authAPI || typeof authAPI.getMyCourses !== 'function') {
             console.error("authAPI.getMyCourses is not defined. Check your APIService.js exports.");
             setError("Internal Error: API Service mismatch (getMyCourses not found)");
@@ -31,19 +32,15 @@ const CourseForm = ({ onNext }) => {
         }
 
         setLoading(true);
-        setError(''); // I-clear ang error bago mag-fetch
+        setError('');
         try {
             const token = localStorage.getItem('token');
             const response = await authAPI.getMyCourses(token);
             
             if (response.ok) {
                 const data = await response.json();
-                console.log("Raw API Data Received:", data); // Debugging: Para makita ang ID key
+                console.log("Raw API Data Received:", data);
 
-                /**
-                 * FIX: Ang API mo ay nagbabalik ng { courses: [...] } base sa console log.
-                 * Sinisiguro natin dito na ang array ang mailalagay sa state.
-                 */
                 let coursesArray = [];
                 if (Array.isArray(data)) {
                     coursesArray = data;
@@ -73,7 +70,6 @@ const CourseForm = ({ onNext }) => {
     const handleAddCourse = async (e) => {
         e.preventDefault();
         
-        // Validation bago mag-API call
         if(!newCourse.course_code || !newCourse.course_name) {
             setError("Course Title and Code are required");
             return;
@@ -85,7 +81,6 @@ const CourseForm = ({ onNext }) => {
         try {
             const token = localStorage.getItem('token');
             
-            // Payload structure
             const payload = {
                 course_name: newCourse.course_name,
                 description: newCourse.description,
@@ -99,7 +94,6 @@ const CourseForm = ({ onNext }) => {
                 : await authAPI.createCourse(payload, token);
 
             if (response.ok) {
-                // I-refresh ang listahan
                 await fetchCourses(); 
                 closeModal();
             } else {
@@ -118,25 +112,32 @@ const CourseForm = ({ onNext }) => {
         }
     };
 
-    const handleDelete = async (e, id) => {
-        e.stopPropagation(); 
-        if(!id) {
-            alert("Cannot delete: Missing ID");
-            return;
-        }
+    // Open Delete Confirmation
+    const openDeleteModal = (e, course) => {
+        e.stopPropagation();
+        const id = course.id || course.course_id || course._id;
+        setCourseToDelete({ ...course, id });
+        setIsDeleteModalOpen(true);
+    };
 
-        if(window.confirm("Are you sure you want to delete this subject?")) {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await authAPI.deleteCourse(id, token);
-                if (response.ok) {
-                    fetchCourses();
-                } else {
-                    alert("Failed to delete from server.");
-                }
-            } catch (err) {
-                console.error("Delete error:", err);
+    const confirmDelete = async () => {
+        if(!courseToDelete?.id) return;
+
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await authAPI.deleteCourse(courseToDelete.id, token);
+            if (response.ok) {
+                fetchCourses();
+                setIsDeleteModalOpen(false);
+                setCourseToDelete(null);
+            } else {
+                alert("Failed to delete from server.");
             }
+        } catch (err) {
+            console.error("Delete error:", err);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -144,10 +145,6 @@ const CourseForm = ({ onNext }) => {
 
     const openEditModal = (e, course) => {
         e.stopPropagation(); 
-        /**
-         * DETECTION FIX: Kinukuha ang tamang ID sa database record.
-         * Base sa console image mo, 'id' o 'course_id' ang field name.
-         */
         const cId = course.id || course.course_id || course._id;
         
         if (!cId) {
@@ -191,7 +188,7 @@ const CourseForm = ({ onNext }) => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 text-left">
                 <div>
                     <h2 className="text-2xl font-black text-gray-800 tracking-tight uppercase italic">
-                        Select Subject
+                        Select Courses
                     </h2>
                     <p className="text-sm text-gray-400 font-medium tracking-tight">
                         Choose a course/subject to begin building activities
@@ -213,7 +210,7 @@ const CourseForm = ({ onNext }) => {
                         onClick={() => setIsModalOpen(true)}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-indigo-100"
                     >
-                        + Add Subject
+                        + Add Courses
                     </button>
                 </div>
             </div>
@@ -221,25 +218,18 @@ const CourseForm = ({ onNext }) => {
             {/* --- CONTENT AREA --- */}
             {loading && courses.length === 0 ? (
                 <div className="py-24 text-center font-black uppercase text-gray-300 animate-pulse italic">
-                    Loading Subjects...
+                    Loading Courses...
                 </div>
             ) : filteredCourses.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 bg-white border-2 border-dashed border-gray-100 rounded-[3rem]">
                     <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center text-3xl mb-4">
                         📚
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800">No Subjects Found</h3>
-                    <p className="text-gray-400 text-sm mt-1 max-w-[250px] text-center">
-                        Wala pang nakalistang subject. Gamitin ang button sa taas para mag-add.
-                    </p>
+                    <h3 className="text-xl font-bold text-gray-800">No Courses Found</h3>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {filteredCourses.map((course) => {
-                        /**
-                         * FIX: Sinisiguro nito na makuha ang tamang ID key mula sa database record.
-                         * Importante ito para sa onNext at para sa backend calls.
-                         */
                         const currentCourseId = course.id || course.course_id || course._id;
                         
                         return (
@@ -247,11 +237,9 @@ const CourseForm = ({ onNext }) => {
                                 key={currentCourseId || Math.random()}
                                 onClick={() => {
                                     if (currentCourseId) {
-                                        console.log("Navigating to course with ID:", currentCourseId);
                                         onNext(currentCourseId, course.course_name);
                                     } else {
-                                        console.error("Course object without ID:", course);
-                                        alert("Error: Course ID not found in database record. Check console.");
+                                        alert("Error: Course ID not found.");
                                     }
                                 }}
                                 className="group relative bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 cursor-pointer overflow-hidden"
@@ -266,7 +254,7 @@ const CourseForm = ({ onNext }) => {
                                         Edit
                                     </button>
                                     <button 
-                                        onClick={(e) => handleDelete(e, currentCourseId)}
+                                        onClick={(e) => openDeleteModal(e, course)}
                                         className="text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-red-500 transition-colors"
                                     >
                                         Delete
@@ -396,6 +384,39 @@ const CourseForm = ({ onNext }) => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- DELETE CONFIRMATION MODAL --- */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-center">
+                    <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden animate-in zoom-in duration-200 shadow-2xl p-8">
+                        <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
+                            ⚠️
+                        </div>
+                        <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight italic">
+                            Delete Subject?
+                        </h3>
+                        <p className="text-slate-400 text-sm font-medium mt-2">
+                            Are you sure you want to delete <span className="text-slate-800 font-bold">{courseToDelete?.course_code}</span>? This action cannot be undone.
+                        </p>
+
+                        <div className="flex gap-4 mt-8">
+                            <button 
+                                onClick={() => setIsDeleteModalOpen(false)}
+                                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-500 font-black rounded-2xl text-xs uppercase tracking-widest transition-all"
+                            >
+                                No, Keep it
+                            </button>
+                            <button 
+                                onClick={confirmDelete}
+                                disabled={loading}
+                                className="flex-1 py-4 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-lg shadow-red-100 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                {loading ? 'Deleting...' : 'Yes, Delete'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

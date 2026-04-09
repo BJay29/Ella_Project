@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// --- FIXED IMPORTS BASED ON YOUR FOLDER STRUCTURE ---
-// Gagamitin natin ang HierarchyManager bilang main entry point para sa Hub
 import HierarchyManager from './Hierarchy/HierarchyManager'; 
 import QuestBuilder from './QuestBuilder/QuestBuilder'; 
 import LevelManager from './QuestBuilder/LevelManager'; 
 
+// Siguraduhin na tama ang path ng iyong image asset
+import EllaAvatar from '../../assets/image.png'; 
+
 const CMDashboard = () => {
     const navigate = useNavigate();
+    // Default tab is materials as per your original code
     const [activeTab, setActiveTab] = useState('materials');
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     
-    // Materials state - dito papasok ang data mula sa API mo soon
     const [materials, setMaterials] = useState([]);
 
-    // DYNAMIC LOGIC: Stats counter base sa status
     const stats = {
         total: materials.length,
         approved: materials.filter(m => m.status === 'approved').length,
@@ -31,23 +31,26 @@ const CMDashboard = () => {
         }
     };
 
-    // Logout Function
     const handleConfirmLogout = () => {
         localStorage.clear();
         navigate('/login', { replace: true });
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans relative">
+        /* In-add ang overflow-y-auto at hidden scrollbar logic dito sa main wrapper */
+        <div className="h-screen bg-gray-50 font-sans relative overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             
             {/* --- TOP NAVBAR --- */}
             <nav className="bg-white border-b border-gray-200 px-8 py-3 flex justify-between items-center sticky top-0 z-50">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <div className="bg-green-600 p-1.5 rounded-lg">
-                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                            </svg>
+                        {/* PINALITANG LOGO: Mula SVG patungong Ella Avatar Image */}
+                        <div className="bg-indigo-100 p-1 rounded-lg flex items-center justify-center overflow-hidden border border-indigo-200 shadow-sm">
+                            <img 
+                                src={EllaAvatar} 
+                                alt="Ella Quest Logo" 
+                                className="w-7 h-7 object-cover rounded-md" 
+                            />
                         </div>
                         <span className="font-black text-gray-800 tracking-tight text-lg">Ella Quest</span>
                     </div>
@@ -84,11 +87,13 @@ const CMDashboard = () => {
                 <div className="max-w-5xl mx-auto bg-gradient-to-r from-[#4F46E5] to-[#6366F1] rounded-2xl p-8 text-white shadow-lg mb-8 relative overflow-hidden">
                     <div className="relative z-10">
                         <h1 className="text-3xl font-bold flex items-center gap-2 uppercase tracking-tighter italic">
-                            📘 {activeTab === 'builder' ? 'Class & Quest Hub' : 'Curriculum Manager'}
+                            📘 {activeTab === 'builder' ? 'Curriculum Hub' : activeTab === 'quests' ? 'Quest Workshop' : 'Curriculum Manager'}
                         </h1>
                         <p className="opacity-90 mt-2 font-medium">
                             {activeTab === 'builder' 
-                                ? 'Organize Departments, Courses, Sections, and Quests' 
+                                ? 'Organize Departments, Courses, and Sections' 
+                                : activeTab === 'quests'
+                                ? 'Create and assign Quests to your class sections'
                                 : 'Manage content, materials, activities, and quizzes'}
                         </p>
                     </div>
@@ -112,20 +117,25 @@ const CMDashboard = () => {
                 </div>
 
                 {/* --- MAIN CONTENT AREA --- */}
-                <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[600px]">
-                    <div className="flex border-b border-gray-100 bg-gray-50/50 px-8 pt-4 gap-8">
-                        {['materials', 'builder', 'settings'].map((tab) => (
+                <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[600px] mb-8">
+                    <div className="flex border-b border-gray-100 bg-gray-50/50 px-8 pt-4 gap-8 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                        {[
+                            { id: 'materials', label: 'My Materials' },
+                            { id: 'builder', label: 'Academic Structure' },
+                            { id: 'quests', label: 'Quest Workshop' }, 
+                            { id: 'settings', label: 'Quest Settings' }
+                        ].map((tab) => (
                             <button 
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`pb-4 text-sm font-bold capitalize transition-all relative ${
-                                    activeTab === tab 
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`pb-4 text-sm font-bold capitalize transition-all whitespace-nowrap relative ${
+                                    activeTab === tab.id 
                                     ? 'text-indigo-600' 
                                     : 'text-gray-400 hover:text-gray-600'
                                 }`}
                             >
-                                {tab === 'materials' ? 'My Materials' : tab === 'builder' ? 'Curriculum Hub' : 'Quest Settings'}
-                                {activeTab === tab && (
+                                {tab.label}
+                                {activeTab === tab.id && (
                                     <div className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 rounded-t-full animate-in slide-in-from-bottom-1" />
                                 )}
                             </button>
@@ -191,14 +201,21 @@ const CMDashboard = () => {
                             </div>
                         )}
 
-                        {/* TAB 2: CURRICULUM HUB (The new hierarchical manager) */}
+                        {/* TAB 2: CURRICULUM HUB (Step 1-4 Management) */}
                         {activeTab === 'builder' && (
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <HierarchyManager />
                             </div>
                         )}
 
-                        {/* TAB 3: SETTINGS / LEVEL MANAGER */}
+                        {/* TAB 3: QUEST WORKSHOP (New Standalone Flow) */}
+                        {activeTab === 'quests' && (
+                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <QuestBuilder />
+                            </div>
+                        )}
+
+                        {/* TAB 4: SETTINGS / LEVEL MANAGER */}
                         {activeTab === 'settings' && (
                             <div className="animate-in fade-in duration-300">
                                 <LevelManager />
