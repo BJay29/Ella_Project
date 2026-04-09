@@ -54,11 +54,11 @@ const AssignQuestModal = ({ isOpen, onClose, quest }) => {
         setLoadingDepartments(true);
         try {
             const token = localStorage.getItem('token');
-            // Gagamitin ang bagong specific endpoint para sa assignment flow
             const res = await authAPI.getDepartmentsForAssign(token); 
             if (res.ok) {
                 const rawData = await res.json();
-                const dataArray = Array.isArray(rawData) ? rawData : (rawData.data || []);
+                // Handled different possible response structures
+                const dataArray = Array.isArray(rawData) ? rawData : (rawData.data || rawData.departments || []);
                 setDepartments(dataArray.map(d => ({
                     id: d.dept_id || d.id,
                     name: d.dept_name || d.name
@@ -66,6 +66,7 @@ const AssignQuestModal = ({ isOpen, onClose, quest }) => {
             }
         } catch (err) {
             console.error("Failed to fetch departments:", err);
+            setDepartments([]);
         } finally {
             setLoadingDepartments(false);
         }
@@ -75,12 +76,11 @@ const AssignQuestModal = ({ isOpen, onClose, quest }) => {
         setLoadingPrograms(true);
         try {
             const token = localStorage.getItem('token');
-            // Gagamitin ang bagong filtered endpoint: /api/quests/assign/departments/:deptId/programs
             const res = await authAPI.getProgramsByDept(deptId, token); 
             
             if (res.ok) {
                 const rawData = await res.json();
-                const dataArray = Array.isArray(rawData) ? rawData : (rawData.data || []);
+                const dataArray = Array.isArray(rawData) ? rawData : (rawData.data || rawData.programs || []);
                 
                 setPrograms(dataArray.map(p => ({
                     id: p.program_id || p.id,
@@ -89,6 +89,7 @@ const AssignQuestModal = ({ isOpen, onClose, quest }) => {
             }
         } catch (err) {
             console.error("Failed to fetch programs:", err);
+            setPrograms([]);
         } finally {
             setLoadingPrograms(false);
         }
@@ -98,7 +99,6 @@ const AssignQuestModal = ({ isOpen, onClose, quest }) => {
         setLoadingSections(true);
         try {
             const token = localStorage.getItem('token');
-            // Gagamitin ang bagong filtered endpoint: /api/quests/assign/programs/:programId/sections
             const res = await authAPI.getSectionsByProgramId(programId, token);
             
             if (res.ok) {
@@ -123,7 +123,7 @@ const AssignQuestModal = ({ isOpen, onClose, quest }) => {
     };
 
     const selectAll = () => {
-        if (selectedSectionIds.length === sections.length) {
+        if (selectedSectionIds.length === sections.length && sections.length > 0) {
             setSelectedSectionIds([]);
         } else {
             setSelectedSectionIds(sections.map(s => s.section_id || s.id));
@@ -141,19 +141,20 @@ const AssignQuestModal = ({ isOpen, onClose, quest }) => {
             const token = localStorage.getItem('token');
             const questId = quest?.quest_id || quest?.id;
             
-            // Ang selectedSectionIds ay array na ng IDs, sakto sa kailangan ng backend
+            if (!questId) throw new Error("Quest ID is missing.");
+
             const res = await authAPI.assignQuestToSections(questId, selectedSectionIds, token);
+            const data = await res.json().catch(() => ({}));
             
-            if (res.ok || res.status === 200 || res.status === 201) {
-                alert(`Quest successfully assigned to ${selectedSectionIds.length} section(s)!`);
+            if (res.ok) {
+                alert(data.message || `Quest successfully assigned to ${selectedSectionIds.length} section(s)!`);
                 onClose();
             } else {
-                const data = await res.json().catch(() => ({}));
                 alert(data.message || "Failed to assign quest.");
             }
         } catch (err) {
             console.error(err);
-            alert("Connection error while assigning quest.");
+            alert("An error occurred while assigning the quest.");
         } finally {
             setIsSubmitting(false);
         }

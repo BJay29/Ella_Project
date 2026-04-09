@@ -139,9 +139,9 @@ export const authAPI = {
     },
 
     // --- DEPARTMENT LOGIC ---
-    // Updated for Quest Assignment flow
+    // Updated to use Curriculum Manager route
     getDepartmentsForAssign: async (token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/assign/departments`, {
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -197,10 +197,10 @@ export const authAPI = {
     },
 
     // --- PROGRAM LOGIC ---
-    // Updated for Quest Assignment flow (Filter by Dept)
+    // Updated: Fetch programs using the department ID via Curriculum Manager
     getProgramsByDept: async (deptId, token) => {
         validateParams({ deptId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/assign/departments/${deptId}/programs`, {
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -256,10 +256,10 @@ export const authAPI = {
     },
 
     // --- SECTION LOGIC ---
-    // Updated for Quest Assignment flow (Filter by Program)
+    // Updated: Fetch sections using the program ID via Curriculum Manager
     getSectionsByProgramId: async (programId, token) => {
         validateParams({ programId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/assign/programs/${programId}/sections`, {
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/programs/${programId}/sections`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -409,9 +409,10 @@ export const authAPI = {
     },
 
     // --- ASSIGNMENT LOGIC ---
+    // Updated: Matches POST /api/quests/:quest_id/assign
     assignQuestToSections: async (questId, sectionIds, token) => {
         validateParams({ questId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/sections`, {
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/assign`, {
             method: 'POST',
             headers: { 
                 'Authorization': `Bearer ${token}`, 
