@@ -139,7 +139,7 @@ export const authAPI = {
     },
 
     // --- DEPARTMENT LOGIC ---
-    // Updated to use Curriculum Manager route
+    // GET /api/curriculum-manager/departments
     getDepartmentsForAssign: async (token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments`, {
             method: 'GET',
@@ -197,7 +197,7 @@ export const authAPI = {
     },
 
     // --- PROGRAM LOGIC ---
-    // Updated: Fetch programs using the department ID via Curriculum Manager
+    // GET /api/curriculum-manager/departments/:dept_id/programs
     getProgramsByDept: async (deptId, token) => {
         validateParams({ deptId });
         return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs`, {
@@ -256,7 +256,7 @@ export const authAPI = {
     },
 
     // --- SECTION LOGIC ---
-    // Updated: Fetch sections using the program ID via Curriculum Manager
+    // GET /api/curriculum-manager/programs/:program_id/sections
     getSectionsByProgramId: async (programId, token) => {
         validateParams({ programId });
         return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/programs/${programId}/sections`, {
@@ -409,7 +409,7 @@ export const authAPI = {
     },
 
     // --- ASSIGNMENT LOGIC ---
-    // Updated: Matches POST /api/quests/:quest_id/assign
+    // POST /api/quests/:quest_id/assign
     assignQuestToSections: async (questId, sectionIds, token) => {
         validateParams({ questId });
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/assign`, {
