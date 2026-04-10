@@ -1,8 +1,5 @@
 const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://ellaquest-backend.onrender.com';
 
-/**
- * Utility to handle fetch with a timeout to prevent infinite loading.
- */
 const fetchWithTimeout = (url, options = {}, timeout = 30000) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
@@ -10,9 +7,6 @@ const fetchWithTimeout = (url, options = {}, timeout = 30000) => {
         .finally(() => clearTimeout(timer));
 };
 
-/**
- * Utility to validate required parameters before making an API call.
- */
 const validateParams = (params) => {
     Object.entries(params).forEach(([key, value]) => {
         if (value === undefined || value === null || value === '') {
@@ -23,22 +17,18 @@ const validateParams = (params) => {
 };
 
 export const authAPI = {
-    // --- SERVER STATUS ---
     ping: async () => {
         try {
             await fetchWithTimeout(`${BASE_URL}/`, { method: 'GET', mode: 'no-cors' }, 30000);
-        } catch { /* Silently ignore errors for ping */ }
+        } catch { }
     },
 
-    // --- AUTHENTICATION ---
     initiateGoogleLogin: () => {
         window.location.href = `${BASE_URL}/api/user/google`;
     },
 
     googleCallback: async () => {
-        return await fetchWithTimeout(`${BASE_URL}/api/user/google/callback`, {
-            method: 'GET',
-        });
+        return await fetchWithTimeout(`${BASE_URL}/api/user/google/callback`, { method: 'GET' });
     },
 
     register: async (formData) => {
@@ -58,14 +48,10 @@ export const authAPI = {
         return await fetchWithTimeout(`${BASE_URL}/api/user/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email: email.trim().toLowerCase(),
-                password,
-            }),
+            body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
         });
     },
 
-    // --- INSTRUCTOR PROFILE & SECURITY ---
     getInstructorProfile: async (token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/profile`, {
             method: 'GET',
@@ -76,10 +62,7 @@ export const authAPI = {
     updateInstructorProfile: async (profileData, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/profile`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(profileData),
         });
     },
@@ -87,32 +70,22 @@ export const authAPI = {
     changePassword: async (passwordData, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/change-password`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(passwordData),
         });
     },
 
-    // --- COURSE MANAGEMENT (CM) ---
     getMyCourses: async (token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/courses/my-courses`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
     createCourse: async (payload, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/courses`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
     },
@@ -120,10 +93,7 @@ export const authAPI = {
     updateCourse: async (courseId, data, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
     },
@@ -131,22 +101,14 @@ export const authAPI = {
     deleteCourse: async (courseId, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
-    // --- DEPARTMENT LOGIC ---
-    // GET /api/curriculum-manager/departments
     getDepartmentsForAssign: async (token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
@@ -154,10 +116,7 @@ export const authAPI = {
         validateParams({ courseId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
@@ -165,10 +124,7 @@ export const authAPI = {
         validateParams({ courseId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(deptData),
         });
     },
@@ -177,10 +133,7 @@ export const authAPI = {
         validateParams({ courseId, deptId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments/${deptId}`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(deptData),
         });
     },
@@ -189,23 +142,15 @@ export const authAPI = {
         validateParams({ courseId, deptId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments/${deptId}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
-    // --- PROGRAM LOGIC ---
-    // GET /api/curriculum-manager/departments/:dept_id/programs
     getProgramsByDept: async (deptId, token) => {
         validateParams({ deptId });
         return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
@@ -213,10 +158,7 @@ export const authAPI = {
         validateParams({ deptId });
         return await fetchWithTimeout(`${BASE_URL}/api/departments/${deptId}/programs`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
@@ -224,10 +166,7 @@ export const authAPI = {
         validateParams({ deptId });
         return await fetchWithTimeout(`${BASE_URL}/api/departments/${deptId}/programs`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(programData),
         });
     },
@@ -236,10 +175,7 @@ export const authAPI = {
         validateParams({ deptId, programId });
         return await fetchWithTimeout(`${BASE_URL}/api/departments/${deptId}/programs/${programId}`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(programData),
         });
     },
@@ -248,23 +184,15 @@ export const authAPI = {
         validateParams({ deptId, programId });
         return await fetchWithTimeout(`${BASE_URL}/api/departments/${deptId}/programs/${programId}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
-    // --- SECTION LOGIC ---
-    // GET /api/curriculum-manager/programs/:program_id/sections
     getSectionsByProgramId: async (programId, token) => {
         validateParams({ programId });
         return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/programs/${programId}/sections`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
@@ -278,10 +206,7 @@ export const authAPI = {
     getStudentsBySection: async (sectionId, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections/${sectionId}`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
@@ -289,10 +214,7 @@ export const authAPI = {
         validateParams({ courseId, deptId, programId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
@@ -300,10 +222,7 @@ export const authAPI = {
         validateParams({ courseId, deptId, programId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
@@ -311,10 +230,7 @@ export const authAPI = {
         validateParams({ courseId, deptId, programId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 section_name: sectionData.section_name,
                 school_year: sectionData.school_year,
@@ -327,10 +243,7 @@ export const authAPI = {
         validateParams({ courseId, deptId, programId, sectionId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections/${sectionId}`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(sectionData),
         });
     },
@@ -339,43 +252,29 @@ export const authAPI = {
         validateParams({ courseId, deptId, programId, sectionId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections/${sectionId}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
-    // --- STUDENT MANAGEMENT ---
     approveRejectStudent: async (courseId, sectionId, ssId, status, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/sections/${sectionId}/students/${ssId}`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ status: status }),
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status }),
         });
     },
 
-    // --- QUEST LOGIC ---
     getQuests: async (token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/quests`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
         });
     },
 
     createQuest: async (questData, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/quests`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(questData)
         });
     },
@@ -383,10 +282,7 @@ export const authAPI = {
     updateQuest: async (questId, data, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(data)
         });
     },
@@ -401,45 +297,30 @@ export const authAPI = {
     toggleQuestPublish: async (questId, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/publish`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
         });
     },
 
-    // --- ASSIGNMENT LOGIC ---
-    // POST /api/quests/:quest_id/assign
     assignQuestToSections: async (questId, sectionIds, token) => {
         validateParams({ questId });
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/assign`, {
             method: 'POST',
-            headers: { 
-                'Authorization': `Bearer ${token}`, 
-                'Content-Type': 'application/json' 
-            },
-            body: JSON.stringify({ sectionIds }) 
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sectionIds })
         });
     },
 
-    // --- LEVEL LOGIC ---
     getLevelsByQuest: async (questId, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
         });
     },
 
     createLevel: async (questId, payload, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
     },
@@ -447,10 +328,7 @@ export const authAPI = {
     updateLevel: async (questId, levelId, payload, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
     },
@@ -462,92 +340,89 @@ export const authAPI = {
         });
     },
 
-    // --- ACTIVITY LOGIC ---
-    getActivities: async (questId, levelId, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/activities`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-        });
-    },
-
-    createActivity: async (questId, levelId, data, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/activities`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        });
-    },
-
-    updateActivity: async (questId, levelId, activityId, data, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/activities/${activityId}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        });
-    },
-
-    deleteActivity: async (questId, levelId, activityId, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/activities/${activityId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-    },
-
-    // --- QUIZ LOGIC ---
-    getQuizzes: async (questId, levelId, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/quizzes`, {
+    // ✅ FIXED: consistent param name quest_level_id
+    getActivities: async (questId, quest_level_id, token) => {
+        validateParams({ questId, quest_level_id });
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
 
-    createQuiz: async (questId, levelId, data, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/quizzes`, {
+    createActivity: async (questId, quest_level_id, payload, token) => {
+        validateParams({ questId, quest_level_id });
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities`, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(payload)
+        });
+    },
+
+    updateActivity: async (questId, quest_level_id, activityId, data, token) => {
+        validateParams({ questId, quest_level_id, activityId });
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}`, {
+            method: 'PUT',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
     },
 
-    updateQuiz: async (questId, levelId, quizId, data, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/quizzes/${quizId}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        });
-    },
-
-    deleteQuiz: async (questId, levelId, quizId, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/quizzes/${quizId}`, {
+    deleteActivity: async (questId, quest_level_id, activityId, token) => {
+        validateParams({ questId, quest_level_id, activityId });
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
     },
 
-    addActivityQuestion: async (questId, levelId, activityId, data, token) => {
-        validateParams({ questId, levelId, activityId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/activities/${activityId}/questions`, {
+    // ✅ FIXED: was using quest_level_id variable but param was named levelId
+    getQuizzes: async (questId, quest_level_id, token) => {
+        validateParams({ questId, quest_level_id });
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+    },
+
+    createQuiz: async (questId, quest_level_id, data, token) => {
+        validateParams({ questId, quest_level_id });
+        // ✅ FIXED: was using undefined `quest_level_id` var when param was `levelId`
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
     },
 
-    addQuizQuestion: async (questId, levelId, quizId, data, token) => {
-        validateParams({ questId, levelId, quizId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}/quizzes/${quizId}/questions`, {
+    updateQuiz: async (questId, quest_level_id, quizId, data, token) => {
+        validateParams({ questId, quest_level_id, quizId });
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+    },
+
+    deleteQuiz: async (questId, quest_level_id, quizId, token) => {
+        validateParams({ questId, quest_level_id, quizId });
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+    },
+
+    addActivityQuestion: async (questId, quest_level_id, activityId, data, token) => {
+        validateParams({ questId, quest_level_id, activityId });
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+    },
+
+    addQuizQuestion: async (questId, quest_level_id, quizId, data, token) => {
+        validateParams({ questId, quest_level_id, quizId });
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(data)

@@ -91,7 +91,7 @@ const CMDashboard = () => {
                         </h1>
                         <p className="opacity-90 mt-2 font-medium">
                             {activeTab === 'builder' 
-                                ? 'Organize Departments, Courses, and Sections' 
+                                ? 'Organize Departments, Courses, Programs and Sections' 
                                 : activeTab === 'quests'
                                 ? 'Create and assign Quests to your class sections'
                                 : 'Manage content, materials, activities, and quizzes'}
