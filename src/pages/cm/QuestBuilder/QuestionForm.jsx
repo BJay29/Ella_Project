@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, CheckCircle2, Lock } from 'lucide-react';
+import { ChevronLeft as ChevronLeftIcon, CheckCircle2 as CheckCircleIcon, Lock as LockIcon } from 'lucide-react';
 
 const buildBlankAnswers = (type) => {
   if (type === 'true_false') return [{ text: 'True', is_correct: false }, { text: 'False', is_correct: false }];
@@ -19,9 +19,9 @@ const QuestionForm = ({
   setQuestionType,   // optional – if provided, user can change type (only for new questions)
   answers,
   setAnswers,
-  onSaveNext,        // save & advance to next — hidden when at last step
-  onFinish,          // save & exit — always visible; promoted at last step
-  onBack,            // go to previous question — shown when currentStep > 1
+  onSaveNext,        // save & advance to next
+  onFinish,          // save & exit
+  onBack,            // go to previous question
   isSubmitting,
   currentStep,
   totalQuestions,
@@ -30,7 +30,11 @@ const QuestionForm = ({
   themeColor = 'indigo',
 }) => {
   const safeAnswers = answers || [];
-  const isLastStep  = currentStep >= totalQuestions;
+  
+  /**
+   * logic ng isLastStep.
+   */
+  const isLastStep = currentStep >= totalQuestions && totalQuestions > 0;
 
   // ── Theme helpers ────────────────────────────────────────────────────────
   const accentText =
@@ -124,7 +128,7 @@ const QuestionForm = ({
           </label>
           {isExistingQuestion && (
             <span className="flex items-center gap-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <Lock size={10} /> Locked
+              <LockIcon size={10} /> Locked
             </span>
           )}
         </div>
@@ -210,7 +214,7 @@ const QuestionForm = ({
                       : 'bg-slate-100 text-slate-400 hover:bg-indigo-50 hover:text-indigo-500'
                   }`}
                 >
-                  {answer.is_correct ? <CheckCircle2 size={18} /> : String.fromCharCode(65 + index)}
+                  {answer.is_correct ? <CheckCircleIcon size={18} /> : String.fromCharCode(65 + index)}
                 </button>
                 <input
                   type="text"
@@ -233,7 +237,7 @@ const QuestionForm = ({
       {/* ── Footer actions ── */}
       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-100">
 
-        {/* Prev — always shown when step > 1 */}
+        {/* Prev — shown when step > 1 */}
         {currentStep > 1 && (
           <button
             type="button"
@@ -241,11 +245,11 @@ const QuestionForm = ({
             disabled={isSubmitting}
             className="px-6 py-4 bg-slate-100 text-slate-500 font-black text-xs uppercase tracking-widest rounded-[20px] hover:bg-slate-200 active:scale-95 flex items-center justify-center gap-2 transition-all disabled:opacity-40"
           >
-            <span className="flex items-center gap-2"><ChevronLeft size={16} /> Prev</span>
+            <span className="flex items-center gap-2"><ChevronLeftIcon size={16} /> Prev</span>
           </button>
         )}
 
-        {/* Finish & Exit — becomes primary at last step */}
+        {/* Finish & Exit — Secondary choice if not last step, primary if last step */}
         <button
           type="button"
           onClick={onFinish}
@@ -259,27 +263,27 @@ const QuestionForm = ({
           {isSubmitting ? 'Saving...' : isLastStep ? '✓ Save & Finish' : 'Finish & Exit'}
         </button>
 
-        {/* Save & Add Next — hidden at last step */}
-        {!isLastStep && (
-          <button
-            type="button"
-            onClick={onSaveNext}
-            disabled={isSubmitting || isInvalid}
-            className={`flex-[2] py-4 font-black text-xs uppercase tracking-widest rounded-[20px] shadow-xl transition-all active:scale-95 ${
-              isSubmitting || isInvalid
-                ? 'bg-slate-200 text-slate-400 shadow-none cursor-not-allowed'
-                : `${btnPrimary} text-white`
-            }`}
-          >
-            {isSubmitting ? 'Saving...' :
-              isExistingQuestion ? 'Update & Next →' : 'Save & Add Next →'}
-          </button>
-        )}
+        {/* Dynamic Action Button: Save Changes (Edit) or Save & Add Next (Add) */}
+        <button
+          type="button"
+          onClick={onSaveNext}
+          // Disabled if: Submitting, Invalid, OR (Last Step AND not adding new)
+          disabled={isSubmitting || isInvalid || (isLastStep && !isExistingQuestion)}
+          className={`flex-[2] py-4 font-black text-xs uppercase tracking-widest rounded-[20px] shadow-xl transition-all active:scale-95 ${
+            isSubmitting || isInvalid || (isLastStep && !isExistingQuestion)
+              ? 'bg-slate-200 text-slate-400 shadow-none cursor-not-allowed'
+              : `${btnPrimary} text-white`
+          }`}
+        >
+          {isSubmitting ? 'Saving...' :
+            isExistingQuestion ? 'Update Changes' : 
+            'Save & Add Next →'}
+        </button>
 
-        {/* Lock badge at last step */}
+        {/* Final Item indicator */}
         {isLastStep && !isSubmitting && (
           <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-[20px] text-amber-600 shrink-0">
-            <Lock size={12} />
+            <LockIcon size={12} />
             <span className="text-[9px] font-black uppercase tracking-widest">Final Item</span>
           </div>
         )}

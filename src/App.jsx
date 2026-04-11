@@ -129,21 +129,36 @@ function App() {
 
 
         {/* --- PROTECTED CM ROUTES --- */}
+        {/* Main Dashboard Route */}
         <Route path="/cm/dashboard" element={
           <ProtectedRoute allowedRole="curriculum_manager">
             <CMDashboard />
           </ProtectedRoute>
         } />
 
+        {/* AYOS DITO: Idinagdag ang extra paths para sa CMDashboard 
+            para mahuli ang parameters pag-back galing AddQuestion.
+        */}
+        <Route path="/cm/dashboard/quest/:questId" element={
+          <ProtectedRoute allowedRole="curriculum_manager">
+            <CMDashboard />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/cm/dashboard/quest/:questId/level/:levelId" element={
+          <ProtectedRoute allowedRole="curriculum_manager">
+            <CMDashboard />
+          </ProtectedRoute>
+        } />
+
+
         {/* --- ADDED: ADD QUESTION ROUTES --- */}
-        {/* Route for Activity Question Designer */}
         <Route path="/cm/dashboard/quest/:questId/level/:levelId/activity/:activityId/add-question" element={
           <ProtectedRoute allowedRole="curriculum_manager">
             <AddQuestion />
           </ProtectedRoute>
         } />
 
-        {/* Route for Quiz Question Designer */}
         <Route path="/cm/dashboard/quest/:questId/level/:levelId/quiz/:quizId/add-question" element={
           <ProtectedRoute allowedRole="curriculum_manager">
             <AddQuestion />

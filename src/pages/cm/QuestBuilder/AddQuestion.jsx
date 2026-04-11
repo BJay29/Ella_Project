@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { authAPI } from '../../../services/APIservice';
 import {
   ChevronLeft, Plus, Trash2, ListChecks,
-  AlertTriangle, Layout, ChevronRight, CheckCircle2
+  AlertTriangle, Layout, ChevronRight, CheckCircle2, X
 } from 'lucide-react';
 import QuestionForm from './QuestionForm';
 
@@ -39,33 +39,23 @@ const buildBlankAnswers = (type) => {
 };
 
 const mapApiQuestion = (q) => ({
-  id:            q.id            || q.question_id  || null,
+  id:             q.id             || q.question_id  || null,
   question_text: q.question_text || '',
   question_type: q.question_type || 'multiple_choice',
   answers: (q.answers || []).map((a) => ({
-    id:         a.id         || a.answer_id  || null,
+    id:          a.id          || a.answer_id  || null,
     text:       a.answer_text || a.text      || '',
     is_correct: !!a.is_correct,
   })),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AddQuestion
-//
-// Supports TWO route patterns (both must be registered in App.js):
-//   Activity: /cm/dashboard/quest/:questId/level/:levelId/activity/:activityId/add-question
-//   Quiz:     /cm/dashboard/quest/:questId/level/:levelId/quiz/:quizId/add-question
-//
-// The component auto-detects which type it is based on which param is set.
-// ─────────────────────────────────────────────────────────────────────────────
 const AddQuestion = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Both route patterns populate questId and levelId.
-  // Only ONE of activityId or quizId will be populated.
   const { questId, levelId, activityId, quizId } = useParams();
 
-  // Auto-detect content type from populated param
   const contentType  = quizId ? 'quiz' : 'activity';
   const finalContentId = quizId || activityId;
 
@@ -76,11 +66,10 @@ const AddQuestion = () => {
   const [savedQuestions, setSavedQuestions] = useState([]);
   const [initialized,     setInitialized]     = useState(false);
 
-  // Guard: skip the step-change effect while a save is in flight
   const skipEffectRef = useRef(false);
 
   const [questionData, setQuestionData] = useState({
-    id:            null,
+    id:             null,
     question_text: '',
     question_type: 'multiple_choice',
     answers:       buildBlankAnswers('multiple_choice'),
@@ -89,12 +78,18 @@ const AddQuestion = () => {
   const showAlert = (message, title = 'Attention') =>
     setAlertConfig({ show: true, message, title });
 
-  // ── Fetch all saved questions ─────────────────────────────────────────────
-  const fetchQuestions = useCallback(async (isInitialLoad = false) => {
-    if (!questId || !levelId || !finalContentId) {
-      console.error('AddQuestion: missing route params', { questId, levelId, finalContentId, contentType });
-      return;
+  const handleBackToWorkshop = () => {
+    if (questId && levelId) {
+      navigate(`/cm/dashboard/quest/${questId}/level/${levelId}`);
+    } else if (questId) {
+      navigate(`/cm/dashboard/quest/${questId}`);
+    } else {
+      navigate('/cm/dashboard');
     }
+  };
+
+  const fetchQuestions = useCallback(async (isInitialLoad = false) => {
+    if (!questId || !levelId || !finalContentId) return;
     try {
       const token = localStorage.getItem('token');
       const res   = contentType === 'quiz'
@@ -106,47 +101,38 @@ const AddQuestion = () => {
         const arr = Array.isArray(raw) ? raw : (raw.questions || []);
         setSavedQuestions(arr);
 
-        // Update totalQuestions to at least the count of saved questions
-        setTotalQuestions((prev) => Math.max(prev, arr.length + (arr.length === prev ? 1 : 0)));
-
+        // Keep totalQuestions consistent with what the user set or the current length
         if (isInitialLoad) {
-          if (arr.length > 0) {
-            setCurrentStep(1); // start at Q1, let user navigate
-          }
-          setInitialized(true);
+           setTotalQuestions(Math.max(1, arr.length > 0 ? arr.length : 1));
+           setInitialized(true);
         }
-      } else {
-        setSavedQuestions([]);
-        if (isInitialLoad) setInitialized(true);
       }
     } catch (err) {
       console.error('fetchQuestions error:', err);
-      setSavedQuestions([]);
-      if (isInitialLoad) setInitialized(true);
     }
   }, [questId, levelId, finalContentId, contentType]);
 
   useEffect(() => { fetchQuestions(true); }, [fetchQuestions]);
 
-  // ── Load question data when step changes ──────────────────────────────────
+  // FIX: Reset form logic when moving to a new step that doesn't exist yet
   useEffect(() => {
-    if (!initialized)               return;
-    if (skipEffectRef.current)      return;
+    if (!initialized) return;
+    if (skipEffectRef.current) return;
 
     const existing = savedQuestions[currentStep - 1];
     if (existing) {
       setQuestionData(mapApiQuestion(existing));
     } else {
-      setQuestionData((prev) => ({
-        id:            null,
+      // CLEAR FORM for new question slots
+      setQuestionData({
+        id:             null,
         question_text: '',
-        question_type: prev.question_type,
-        answers:       buildBlankAnswers(prev.question_type),
-      }));
+        question_type: 'multiple_choice',
+        answers:       buildBlankAnswers('multiple_choice'),
+      });
     }
   }, [currentStep, savedQuestions, initialized]);
 
-  // ── Navigate to step ──────────────────────────────────────────────────────
   const goToStep = (step) => {
     if (step < 1) return;
     skipEffectRef.current = false;
@@ -154,32 +140,21 @@ const AddQuestion = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // ── Save question ─────────────────────────────────────────────────────────
   const handleSave = async (shouldExit = false) => {
     const { id, question_text, question_type, answers } = questionData;
 
-    // Validation
     if (!question_text.trim()) return showAlert('Please enter a question.', 'Missing Info');
-
-    const needsCorrect = ['multiple_choice', 'true_false'].includes(question_type);
-    if (needsCorrect && !answers.some((a) => a.is_correct && (a.text || '').trim())) {
-      return showAlert('Please mark at least one correct answer.', 'Validation Error');
-    }
-    const needsText = ['identification', 'fill_in_the_blanks'].includes(question_type);
-    if (needsText && !answers[0]?.text?.trim()) {
-      return showAlert('Please provide the correct answer.', 'Validation Error');
-    }
 
     skipEffectRef.current = true;
     setLoading(true);
 
     try {
-      const token        = localStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const finalAnswers = question_type === 'essay' ? [] : answers
         .filter((a) => (a.text || '').trim() !== '')
         .map((a, i) => ({
           answer_text: a.text.trim(),
-          is_correct:  needsText ? true : a.is_correct,
+          is_correct: a.is_correct,
           order_index: i + 1,
         }));
 
@@ -197,30 +172,32 @@ const AddQuestion = () => {
       }
 
       if (res.ok || res.status === 201) {
-        // Refresh sidebar list
+        const savedResult = await res.json();
         await fetchQuestions(false);
 
         if (shouldExit) {
-          navigate(-1);
+          handleBackToWorkshop(); 
           return;
         }
 
-        if (currentStep < totalQuestions) {
-          const nextStep = currentStep + 1;
-          setCurrentStep(nextStep);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (id) {
+          // EDIT MODE: Stay on the same question, just show alert
+          showAlert('Question updated successfully!', 'Saved');
         } else {
-          // If they saved the very last item, auto-increment totalQuestions to allow a "New Question"
-          setTotalQuestions(prev => prev + 1);
-          setCurrentStep(prev => prev + 1);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          // ADD MODE: Move to next if within limit
+          if (currentStep < totalQuestions) {
+            setCurrentStep(currentStep + 1);
+          } else {
+            showAlert('Item limit reached. You can click Finish to exit.', 'Limit Reached');
+          }
         }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
       } else {
         const errData = await res.json().catch(() => ({}));
         showAlert(errData.message || 'Failed to save question.', 'Error');
       }
     } catch (err) {
-      console.error('handleSave error:', err);
       showAlert('Network error. Please try again.', 'Error');
     } finally {
       setLoading(false);
@@ -228,55 +205,50 @@ const AddQuestion = () => {
     }
   };
 
-  // ── Delete question ────────────────────────────────────────────────────────
-  const handleDelete = async () => {
-    if (!questionData.id) return showAlert("This question hasn't been saved yet.", 'Nothing to Delete');
-    if (!window.confirm('Delete this question? This cannot be undone.')) return;
+  const handleDelete = async (targetId = null) => {
+    const idToDelete = targetId || questionData.id;
+    if (!idToDelete) return showAlert("This question hasn't been saved yet.", 'Nothing to Delete');
+    if (!window.confirm('Delete this question from database? This cannot be undone.')) return;
+    
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res   = contentType === 'quiz'
-        ? await authAPI.deleteQuizQuestion(questId, levelId, finalContentId, questionData.id, token)
-        : await authAPI.deleteActivityQuestion(questId, levelId, finalContentId, questionData.id, token);
+      const res = contentType === 'quiz'
+        ? await authAPI.deleteQuizQuestion(questId, levelId, finalContentId, idToDelete, token)
+        : await authAPI.deleteActivityQuestion(questId, levelId, finalContentId, idToDelete, token);
+      
       if (res.ok) {
         await fetchQuestions(false);
-        // Reduce total count if we deleted an item
-        setTotalQuestions(prev => Math.max(1, prev - 1));
-        goToStep(Math.max(1, currentStep - 1));
-      } else { showAlert('Failed to delete.', 'Error'); }
-    } catch { showAlert('Network error.', 'Error'); }
-    finally { setLoading(false); }
+        // Automatically reorder: go to previous question or stay at 1
+        const nextStep = Math.max(1, currentStep - 1);
+        goToStep(nextStep);
+      } else { 
+        showAlert('Failed to delete from database.', 'Error'); 
+      }
+    } catch { 
+      showAlert('Network error.', 'Error'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
-  // ── Theme ─────────────────────────────────────────────────────────────────
   const isQuiz      = contentType === 'quiz';
   const accentColor = isQuiz ? 'rose' : 'amber';
   const typeLabel   = isQuiz ? 'Quiz' : 'Activity';
   const headerEmoji = isQuiz ? '🏆' : '📝';
   const headerBg    = isQuiz ? 'bg-rose-50' : 'bg-amber-50';
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#f8fafc] p-4 md:p-10">
       <div className="max-w-6xl mx-auto">
-
-        {/* Top nav */}
         <div className="flex justify-between mb-6">
-          <button onClick={() => navigate(-1)}
+          <button onClick={handleBackToWorkshop}
             className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold text-xs uppercase tracking-widest transition-all">
             <ChevronLeft size={18} /> Back to Workshop
           </button>
-          {questionData.id && (
-            <button onClick={handleDelete} disabled={loading}
-              className="flex items-center gap-2 p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all font-black text-[10px] uppercase disabled:opacity-40">
-              <Trash2 size={16} /> Delete Question
-            </button>
-          )}
         </div>
 
         <div className="bg-white rounded-[40px] shadow-sm border border-slate-200 overflow-hidden">
-
-          {/* Header */}
           <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-4">
               <div className={`w-14 h-14 ${headerBg} rounded-[22px] flex items-center justify-center text-2xl`}>
@@ -289,28 +261,21 @@ const AddQuestion = () => {
                 <div className="flex items-center gap-2 mt-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                    {questionData.id ? 'Editing Saved Question' : 'New Question'}
+                    {questionData.id ? 'Editing Saved Question' : `Adding Question ${currentStep}`}
                   </p>
                 </div>
               </div>
             </div>
-            <div className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                {savedQuestions.length} question{savedQuestions.length !== 1 ? 's' : ''} saved
-              </p>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12">
-
-            {/* Main editor */}
             <div className="lg:col-span-8 p-8 md:p-12 border-r border-slate-100">
               <QuestionForm
                 questionText={questionData.question_text}
                 setQuestionText={(val) => setQuestionData((prev) => ({ ...prev, question_text: val }))}
                 questionType={questionData.question_type}
                 setQuestionType={(val) => {
-                  if (questionData.id) return; // locked for existing questions
+                  if (questionData.id) return;
                   setQuestionData((prev) => ({ ...prev, question_type: val, answers: buildBlankAnswers(val) }));
                 }}
                 answers={questionData.answers}
@@ -321,20 +286,16 @@ const AddQuestion = () => {
                 isSubmitting={loading}
                 currentStep={currentStep}
                 totalQuestions={totalQuestions}
-                setTotalQuestions={(val) => setTotalQuestions(Math.max(currentStep, val))}
+                setTotalQuestions={(val) => setTotalQuestions(Math.max(1, val))}
                 isExistingQuestion={!!questionData.id}
                 themeColor={accentColor}
               />
             </div>
 
-            {/* Sidebar */}
             <div className="lg:col-span-4 p-8 bg-slate-50/50 flex flex-col">
               <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <ListChecks size={18} className="text-indigo-500" />
-                  <span className="font-black text-[11px] uppercase tracking-widest text-slate-700">Question Stack</span>
-                </div>
-                <span className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-black text-indigo-600 shadow-sm">
+                <span className="font-black text-[11px] uppercase tracking-widest text-slate-700">Question Stack</span>
+                <span className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-black text-indigo-600">
                   {savedQuestions.length} Saved
                 </span>
               </div>
@@ -344,47 +305,40 @@ const AddQuestion = () => {
                   const stepNum  = idx + 1;
                   const isActive = currentStep === stepNum;
                   return (
-                    <button key={q.id || q.question_id || idx} onClick={() => goToStep(stepNum)}
-                      className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 group ${
-                        isActive
-                          ? 'bg-white border-indigo-500 shadow-lg shadow-indigo-500/10'
-                          : 'bg-white border-transparent text-slate-500 hover:border-slate-200'
-                      }`}>
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <span className={`text-[10px] font-black w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${
-                          isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
-                        }`}>{stepNum}</span>
-                        <span className="truncate text-xs font-bold">{q.question_text || 'Untitled'}</span>
-                      </div>
-                      {isActive
-                        ? <ChevronRight size={14} className="shrink-0 text-indigo-500" />
-                        : <CheckCircle2 size={13} className="shrink-0 text-emerald-400 opacity-60 group-hover:opacity-100" />
-                      }
-                    </button>
+                    <div key={q.id || q.question_id || idx} className="relative group">
+                      <button onClick={() => goToStep(stepNum)}
+                        className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 ${
+                          isActive ? 'bg-white border-indigo-500 shadow-md' : 'bg-white border-transparent hover:border-slate-200'
+                        }`}>
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <span className={`text-[10px] font-black w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                          }`}>{stepNum}</span>
+                          <span className="truncate text-xs font-bold text-slate-600">{q.question_text || 'Untitled'}</span>
+                        </div>
+                        <ChevronRight size={14} className={isActive ? 'text-indigo-500' : 'text-slate-300'} />
+                      </button>
+                      
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDelete(q.id || q.question_id); }}
+                        className="absolute -right-2 -top-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md z-10"
+                      >
+                        <X size={12} strokeWidth={3} />
+                      </button>
+                    </div>
                   );
                 })}
 
-                {/* New question slot */}
-                <button
-                  onClick={() => goToStep(savedQuestions.length + 1)}
-                  className={`w-full p-4 rounded-2xl border-2 border-dashed transition-all flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest ${
-                    currentStep > savedQuestions.length
-                      ? 'bg-indigo-50 border-indigo-300 text-indigo-600'
-                      : 'border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-500'
-                  }`}
-                >
-                  <Plus size={14} /> New Question
-                </button>
-              </div>
-
-              {/* Guide */}
-              <div className="mt-6 p-5 bg-slate-900 rounded-[24px] text-white">
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-50 mb-2">Guide</p>
-                <p className="text-xs font-bold leading-relaxed opacity-80">
-                  Set total items, fill the form, then click <strong>"Save &amp; Add Next"</strong>.
-                  At the final item, only <strong>"Save &amp; Finish"</strong> is available.
-                  Click any saved question to edit it.
-                </p>
+                {savedQuestions.length < totalQuestions && (
+                  <button
+                    onClick={() => goToStep(savedQuestions.length + 1)}
+                    className={`w-full p-4 rounded-2xl border-2 border-dashed transition-all flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest ${
+                      currentStep > savedQuestions.length ? 'bg-indigo-50 border-indigo-300 text-indigo-600' : 'border-slate-200 text-slate-400 hover:border-slate-300'
+                    }`}
+                  >
+                    <Plus size={14} /> New Question
+                  </button>
+                )}
               </div>
             </div>
           </div>
