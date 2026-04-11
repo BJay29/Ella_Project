@@ -13,13 +13,15 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import InstructorDashboard from './pages/instructor/InstructorDashboard';
 import CMDashboard from './pages/cm/cmDashboard'; 
 
+// CM Specific Pages
+import AddQuestion from './pages/cm/QuestBuilder/AddQuestion'; 
+
 // Student Specific Pages
 import QuestLevels from './pages/student/QuestLevels'; 
 import GameEngine from './pages/student/GameEngine'; 
 
 /**
  * ProtectedRoute: Humaharang sa mga user na walang valid token.
- * Ginagamit ito para sa mga pages na kailangan ng login.
  */
 const ProtectedRoute = ({ children, allowedRole }) => {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -27,19 +29,16 @@ const ProtectedRoute = ({ children, allowedRole }) => {
   
   const normalizedRole = userRole ? userRole.toLowerCase().trim() : '';
 
-  // Kung walang token, balik sa login screen
   if (!token || token === '') {
     return <Navigate to="/login" replace />;
   }
 
-  // Kung may token pero maling dashboard ang sinusubukang pasukin
   if (allowedRole && normalizedRole !== allowedRole.toLowerCase()) {
     if (normalizedRole === 'student')            return <Navigate to="/student/dashboard" replace />;
     if (normalizedRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
     if (normalizedRole === 'instructor')         return <Navigate to="/instructor/dashboard" replace />;
     if (normalizedRole === 'curriculum_manager') return <Navigate to="/cm/dashboard" replace />; 
     
-    // Security fallback
     localStorage.clear(); 
     sessionStorage.clear();
     return <Navigate to="/login" replace />;
@@ -49,21 +48,17 @@ const ProtectedRoute = ({ children, allowedRole }) => {
 };
 
 /**
- * PublicRoute: Humaharang sa mga user na NAKA-LOGIN na para hindi na bumalik sa Login/Signup.
- * FIX: Papayagan ang user kung isPendingRegistration (may token galing Google pero wala pang role).
+ * PublicRoute: Humaharang sa mga user na NAKA-LOGIN na.
  */
 const PublicRoute = ({ children }) => {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   const userRole = (localStorage.getItem('userRole') || sessionStorage.getItem('userRole'))?.toLowerCase().trim();
   
-  // Eto ang "Magic Condition" para sa New Google Users
   const isPendingRegistration = token && !userRole;
 
-  // Check kung may force stop signal sa URL (ginagamit minsan sa logout/error flow)
   const params = new URLSearchParams(window.location.search);
   const shouldForceStop = params.get('stop') === 'true';
 
-  // Kung naka-login na (may token + role), dideretso sa Dashboard
   if (token && token !== '' && !shouldForceStop && !isPendingRegistration) {
     if (userRole === 'student')            return <Navigate to="/student/dashboard" replace />;
     if (userRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
@@ -91,12 +86,8 @@ function App() {
             </PublicRoute>
         } />
 
-        {/* REGISTER: Hindi nakabalot sa PublicRoute para payagan 
-            ang New Google User na may temporary token na pumasok dito.
-        */}
         <Route path="/register" element={<Register />} />
 
-        {/* GOOGLE CALLBACK: Middleman para sa SSO logic */}
         <Route path="/callback" element={<GoogleCallback />} />
         <Route path="/sso-callback" element={<GoogleCallback />} />
 
@@ -144,16 +135,29 @@ function App() {
           </ProtectedRoute>
         } />
 
+        {/* --- ADDED: ADD QUESTION ROUTES --- */}
+        {/* Route for Activity Question Designer */}
+        <Route path="/cm/dashboard/quest/:questId/level/:levelId/activity/:activityId/add-question" element={
+          <ProtectedRoute allowedRole="curriculum_manager">
+            <AddQuestion />
+          </ProtectedRoute>
+        } />
+
+        {/* Route for Quiz Question Designer */}
+        <Route path="/cm/dashboard/quest/:questId/level/:levelId/quiz/:quizId/add-question" element={
+          <ProtectedRoute allowedRole="curriculum_manager">
+            <AddQuestion />
+          </ProtectedRoute>
+        } />
+
 
         {/* --- REDIRECTS & FALLBACKS --- */}
-        {/* Default landing: Kung may login, dashboard. Kung wala, login. */}
         <Route path="/" element={
           <PublicRoute>
             <Navigate to="/login" replace />
           </PublicRoute>
         } />
         
-        {/* 404 Catch-all */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

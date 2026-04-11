@@ -1,30 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { authAPI } from '../../../services/APIservice';
-import { 
-  ChevronLeft, Plus, Trash2, Save, Send, 
-  Type, CheckCircle2, ListChecks, HelpCircle, AlertTriangle, FileText,
-  Settings2, Layout, Info
+import {
+  ChevronLeft, Plus, Trash2, ListChecks,
+  AlertTriangle, Layout, ChevronRight, CheckCircle2
 } from 'lucide-react';
 import QuestionForm from './QuestionForm';
 
-const AlertModal = ({ isOpen, onClose, message, title = "Notice" }) => {
+// ─────────────────────────────────────────────────────────────────────────────
+const AlertModal = ({ isOpen, onClose, message, title = 'Notice' }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl border border-slate-200 text-center animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl border border-slate-200 text-center">
         <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
           <AlertTriangle size={24} />
         </div>
         <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-        <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-          {message}
-        </p>
-        <button 
-          type="button" 
-          onClick={onClose}
-          className="w-full mt-6 bg-slate-900 text-white py-3 rounded-xl font-semibold text-sm hover:bg-slate-800 transition-all active:scale-95"
-        >
+        <p className="text-sm text-slate-500 mt-2 leading-relaxed">{message}</p>
+        <button type="button" onClick={onClose}
+          className="w-full mt-6 bg-slate-900 text-white py-3 rounded-xl font-semibold text-sm hover:bg-slate-800 transition-all active:scale-95">
           Understood
         </button>
       </div>
@@ -32,244 +27,377 @@ const AlertModal = ({ isOpen, onClose, message, title = "Notice" }) => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+const buildBlankAnswers = (type) => {
+  if (type === 'true_false')  return [{ text: 'True', is_correct: false }, { text: 'False', is_correct: false }];
+  if (type === 'essay')       return [];
+  if (type === 'identification' || type === 'fill_in_the_blanks') return [{ text: '', is_correct: true }];
+  return [
+    { text: '', is_correct: false }, { text: '', is_correct: false },
+    { text: '', is_correct: false }, { text: '', is_correct: false },
+  ];
+};
+
+const mapApiQuestion = (q) => ({
+  id:            q.id            || q.question_id  || null,
+  question_text: q.question_text || '',
+  question_type: q.question_type || 'multiple_choice',
+  answers: (q.answers || []).map((a) => ({
+    id:         a.id         || a.answer_id  || null,
+    text:       a.answer_text || a.text      || '',
+    is_correct: !!a.is_correct,
+  })),
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AddQuestion
+//
+// Supports TWO route patterns (both must be registered in App.js):
+//   Activity: /cm/dashboard/quest/:questId/level/:levelId/activity/:activityId/add-question
+//   Quiz:     /cm/dashboard/quest/:questId/level/:levelId/quiz/:quizId/add-question
+//
+// The component auto-detects which type it is based on which param is set.
+// ─────────────────────────────────────────────────────────────────────────────
 const AddQuestion = () => {
-  const { questId, levelId, activityId } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [alertConfig, setAlertConfig] = useState({ show: false, message: '', title: '' });
 
-  // --- NEW STATES FOR DYNAMIC LIMIT ---
-  const [totalQuestions, setTotalQuestions] = useState(10); // Default is 10, but user can change it
-  const [currentStep, setCurrentStep] = useState(1);
-  // -------------------------------------
+  // Both route patterns populate questId and levelId.
+  // Only ONE of activityId or quizId will be populated.
+  const { questId, levelId, activityId, quizId } = useParams();
 
-  const showAlert = (message, title = "Attention") => {
-    setAlertConfig({ show: true, message, title });
-  };
+  // Auto-detect content type from populated param
+  const contentType  = quizId ? 'quiz' : 'activity';
+  const finalContentId = quizId || activityId;
+
+  const [loading,         setLoading]         = useState(false);
+  const [alertConfig,     setAlertConfig]     = useState({ show: false, message: '', title: '' });
+  const [totalQuestions, setTotalQuestions] = useState(1);
+  const [currentStep,     setCurrentStep]     = useState(1);
+  const [savedQuestions, setSavedQuestions] = useState([]);
+  const [initialized,     setInitialized]     = useState(false);
+
+  // Guard: skip the step-change effect while a save is in flight
+  const skipEffectRef = useRef(false);
 
   const [questionData, setQuestionData] = useState({
+    id:            null,
     question_text: '',
-    question_type: 'multiple_choice', 
-    answers: [
-      { text: '', is_correct: false },
-      { text: '', is_correct: false },
-      { text: '', is_correct: false },
-      { text: '', is_correct: false }
-    ]
+    question_type: 'multiple_choice',
+    answers:       buildBlankAnswers('multiple_choice'),
   });
 
+  const showAlert = (message, title = 'Attention') =>
+    setAlertConfig({ show: true, message, title });
+
+  // ── Fetch all saved questions ─────────────────────────────────────────────
+  const fetchQuestions = useCallback(async (isInitialLoad = false) => {
+    if (!questId || !levelId || !finalContentId) {
+      console.error('AddQuestion: missing route params', { questId, levelId, finalContentId, contentType });
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      const res   = contentType === 'quiz'
+        ? await authAPI.getQuizQuestions(questId, levelId, finalContentId, token)
+        : await authAPI.getActivityQuestions(questId, levelId, finalContentId, token);
+
+      if (res.ok) {
+        const raw = await res.json();
+        const arr = Array.isArray(raw) ? raw : (raw.questions || []);
+        setSavedQuestions(arr);
+
+        // Update totalQuestions to at least the count of saved questions
+        setTotalQuestions((prev) => Math.max(prev, arr.length + (arr.length === prev ? 1 : 0)));
+
+        if (isInitialLoad) {
+          if (arr.length > 0) {
+            setCurrentStep(1); // start at Q1, let user navigate
+          }
+          setInitialized(true);
+        }
+      } else {
+        setSavedQuestions([]);
+        if (isInitialLoad) setInitialized(true);
+      }
+    } catch (err) {
+      console.error('fetchQuestions error:', err);
+      setSavedQuestions([]);
+      if (isInitialLoad) setInitialized(true);
+    }
+  }, [questId, levelId, finalContentId, contentType]);
+
+  useEffect(() => { fetchQuestions(true); }, [fetchQuestions]);
+
+  // ── Load question data when step changes ──────────────────────────────────
   useEffect(() => {
-    if (questionData.question_type === 'true_false') {
-      setQuestionData(prev => ({
-        ...prev,
-        answers: [
-          { text: 'True', is_correct: false },
-          { text: 'False', is_correct: false }
-        ]
-      }));
-    } else if (['identification', 'fill_in_the_blanks'].includes(questionData.question_type)) {
-      setQuestionData(prev => ({
-        ...prev,
-        answers: [{ text: '', is_correct: true }]
-      }));
-    } else if (questionData.question_type === 'essay') {
-      setQuestionData(prev => ({
-        ...prev,
-        answers: [] 
-      }));
-    } else if (questionData.question_type === 'multiple_choice') {
-      setQuestionData(prev => ({
-        ...prev,
-        answers: [
-          { text: '', is_correct: false },
-          { text: '', is_correct: false },
-          { text: '', is_correct: false },
-          { text: '', is_correct: false }
-        ]
+    if (!initialized)               return;
+    if (skipEffectRef.current)      return;
+
+    const existing = savedQuestions[currentStep - 1];
+    if (existing) {
+      setQuestionData(mapApiQuestion(existing));
+    } else {
+      setQuestionData((prev) => ({
+        id:            null,
+        question_text: '',
+        question_type: prev.question_type,
+        answers:       buildBlankAnswers(prev.question_type),
       }));
     }
-  }, [questionData.question_type]);
+  }, [currentStep, savedQuestions, initialized]);
 
+  // ── Navigate to step ──────────────────────────────────────────────────────
+  const goToStep = (step) => {
+    if (step < 1) return;
+    skipEffectRef.current = false;
+    setCurrentStep(step);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // ── Save question ─────────────────────────────────────────────────────────
   const handleSave = async (shouldExit = false) => {
-    if (!questionData.question_text.trim()) {
-      return showAlert("Please enter a question", "Missing Info");
+    const { id, question_text, question_type, answers } = questionData;
+
+    // Validation
+    if (!question_text.trim()) return showAlert('Please enter a question.', 'Missing Info');
+
+    const needsCorrect = ['multiple_choice', 'true_false'].includes(question_type);
+    if (needsCorrect && !answers.some((a) => a.is_correct && (a.text || '').trim())) {
+      return showAlert('Please mark at least one correct answer.', 'Validation Error');
     }
-    
-    if (questionData.question_type !== 'essay') {
-      const validAnswers = questionData.answers.filter(a => a.text.trim() !== "");
-      if (validAnswers.length === 0) {
-        return showAlert("Please provide at least one answer.", "Validation Error");
-      }
-      const hasCorrect = validAnswers.some(a => a.is_correct);
-      if (!hasCorrect) {
-        return showAlert("Please mark one answer as the correct one.", "Validation Error");
-      }
+    const needsText = ['identification', 'fill_in_the_blanks'].includes(question_type);
+    if (needsText && !answers[0]?.text?.trim()) {
+      return showAlert('Please provide the correct answer.', 'Validation Error');
     }
 
-    if (!activityId) {
-      return showAlert("Activity ID is missing. Please re-open the activity builder.", "System Error");
-    }
+    skipEffectRef.current = true;
+    setLoading(true);
 
+    try {
+      const token        = localStorage.getItem('token');
+      const finalAnswers = question_type === 'essay' ? [] : answers
+        .filter((a) => (a.text || '').trim() !== '')
+        .map((a, i) => ({
+          answer_text: a.text.trim(),
+          is_correct:  needsText ? true : a.is_correct,
+          order_index: i + 1,
+        }));
+
+      const payload = { question_text: question_text.trim(), question_type, answers: finalAnswers };
+
+      let res;
+      if (contentType === 'quiz') {
+        res = id
+          ? await authAPI.updateQuizQuestion(questId, levelId, finalContentId, id, payload, token)
+          : await authAPI.addQuizQuestion(questId, levelId, finalContentId, payload, token);
+      } else {
+        res = id
+          ? await authAPI.updateActivityQuestion(questId, levelId, finalContentId, id, payload, token)
+          : await authAPI.addActivityQuestion(questId, levelId, finalContentId, payload, token);
+      }
+
+      if (res.ok || res.status === 201) {
+        // Refresh sidebar list
+        await fetchQuestions(false);
+
+        if (shouldExit) {
+          navigate(-1);
+          return;
+        }
+
+        if (currentStep < totalQuestions) {
+          const nextStep = currentStep + 1;
+          setCurrentStep(nextStep);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          // If they saved the very last item, auto-increment totalQuestions to allow a "New Question"
+          setTotalQuestions(prev => prev + 1);
+          setCurrentStep(prev => prev + 1);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showAlert(errData.message || 'Failed to save question.', 'Error');
+      }
+    } catch (err) {
+      console.error('handleSave error:', err);
+      showAlert('Network error. Please try again.', 'Error');
+    } finally {
+      setLoading(false);
+      skipEffectRef.current = false;
+    }
+  };
+
+  // ── Delete question ────────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!questionData.id) return showAlert("This question hasn't been saved yet.", 'Nothing to Delete');
+    if (!window.confirm('Delete this question? This cannot be undone.')) return;
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const finalAnswers = questionData.answers
-        .filter(a => a.text.trim() !== "") 
-        .map((a, index) => ({
-          answer_text: a.text.trim(),
-          is_correct: a.is_correct,
-          order_index: index + 1
-        }));
-
-      const payload = {
-        question_text: questionData.question_text.trim(),
-        question_type: questionData.question_type,
-        answers: finalAnswers
-      };
-
-      const res = await authAPI.addActivityQuestion(questId, levelId, activityId, payload, token);
-
-      if (res.ok || res.status === 201) {
-        if (shouldExit) {
-          navigate(`/cm/dashboard/quest/${questId}`);
-        } else {
-          // --- LOGIC PARA SA NEXT STEP ---
-          if (currentStep < totalQuestions) {
-            setCurrentStep(prev => prev + 1);
-          }
-          
-          setQuestionData(prev => ({
-            ...prev,
-            question_text: '',
-            answers: prev.question_type === 'multiple_choice' ? [
-              { text: '', is_correct: false }, { text: '', is_correct: false },
-              { text: '', is_correct: false }, { text: '', is_correct: false }
-            ] : prev.question_type === 'true_false' ? [
-              { text: 'True', is_correct: false }, { text: 'False', is_correct: false }
-            ] : prev.question_type === 'essay' ? [] : [{ text: '', is_correct: true }]
-          }));
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-          showAlert("Question saved successfully!", "Success");
-        }
-      } else {
-        const errorData = await res.json();
-        showAlert(errorData.message || 'Failed to save question', "Error");
-      }
-    } catch (err) {
-      showAlert("Failed to save question. Please check your connection.", "Network Error");
-    } finally {
-      setLoading(false);
-    }
+      const res   = contentType === 'quiz'
+        ? await authAPI.deleteQuizQuestion(questId, levelId, finalContentId, questionData.id, token)
+        : await authAPI.deleteActivityQuestion(questId, levelId, finalContentId, questionData.id, token);
+      if (res.ok) {
+        await fetchQuestions(false);
+        // Reduce total count if we deleted an item
+        setTotalQuestions(prev => Math.max(1, prev - 1));
+        goToStep(Math.max(1, currentStep - 1));
+      } else { showAlert('Failed to delete.', 'Error'); }
+    } catch { showAlert('Network error.', 'Error'); }
+    finally { setLoading(false); }
   };
 
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  const isQuiz      = contentType === 'quiz';
+  const accentColor = isQuiz ? 'rose' : 'amber';
+  const typeLabel   = isQuiz ? 'Quiz' : 'Activity';
+  const headerEmoji = isQuiz ? '🏆' : '📝';
+  const headerBg    = isQuiz ? 'bg-rose-50' : 'bg-amber-50';
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <>
-      <div className="min-h-screen bg-[#f8fafc] p-4 md:p-10 font-sans text-slate-900">
-        <div className="max-w-6xl mx-auto">
-          <button 
-            onClick={() => navigate(-1)}
-            className="group flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors mb-6 font-medium text-sm"
-          >
-            <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-            Back to Workshop
+    <div className="min-h-screen bg-[#f8fafc] p-4 md:p-10">
+      <div className="max-w-6xl mx-auto">
+
+        {/* Top nav */}
+        <div className="flex justify-between mb-6">
+          <button onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold text-xs uppercase tracking-widest transition-all">
+            <ChevronLeft size={18} /> Back to Workshop
           </button>
+          {questionData.id && (
+            <button onClick={handleDelete} disabled={loading}
+              className="flex items-center gap-2 p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all font-black text-[10px] uppercase disabled:opacity-40">
+              <Trash2 size={16} /> Delete Question
+            </button>
+          )}
+        </div>
 
-          <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-8 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
-                  <Layout size={28} />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-900">Question Designer</h1>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Configure your activity content</p>
-                </div>
+        <div className="bg-white rounded-[40px] shadow-sm border border-slate-200 overflow-hidden">
+
+          {/* Header */}
+          <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className={`w-14 h-14 ${headerBg} rounded-[22px] flex items-center justify-center text-2xl`}>
+                {headerEmoji}
               </div>
-
-              <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-200">
-                <label className="pl-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode:</label>
-                <select 
-                  className="bg-white text-slate-700 text-sm font-bold px-5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all cursor-pointer shadow-sm"
-                  value={questionData.question_type}
-                  onChange={(e) => setQuestionData({...questionData, question_type: e.target.value})}
-                >
-                  <option value="multiple_choice">Multiple Choice</option>
-                  <option value="true_false">True / False</option>
-                  <option value="identification">Identification</option>
-                  <option value="fill_in_the_blanks">Fill in the Blanks</option>
-                  <option value="essay">Essay Type</option>
-                </select>
+              <div>
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                  {typeLabel} Question Designer
+                </h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                    {questionData.id ? 'Editing Saved Question' : 'New Question'}
+                  </p>
+                </div>
               </div>
             </div>
+            <div className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                {savedQuestions.length} question{savedQuestions.length !== 1 ? 's' : ''} saved
+              </p>
+            </div>
+          </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12">
-              <div className="lg:col-span-8 p-8 md:p-12 border-r border-slate-100">
-                <QuestionForm 
-                    questionText={questionData.question_text}
-                    setQuestionText={(val) => setQuestionData({...questionData, question_text: val})}
-                    questionType={questionData.question_type}
-                    answers={questionData.answers}
-                    setAnswers={(val) => setQuestionData({...questionData, answers: val})}
-                    onSaveNext={() => handleSave(false)}
-                    onFinish={() => handleSave(true)}
-                    isSubmitting={loading}
-                    // IPINASA NATIN ANG MGA BAGONG PROPS DITO
-                    currentStep={currentStep}
-                    totalQuestions={totalQuestions}
-                    setTotalQuestions={setTotalQuestions}
-                />
+          <div className="grid grid-cols-1 lg:grid-cols-12">
+
+            {/* Main editor */}
+            <div className="lg:col-span-8 p-8 md:p-12 border-r border-slate-100">
+              <QuestionForm
+                questionText={questionData.question_text}
+                setQuestionText={(val) => setQuestionData((prev) => ({ ...prev, question_text: val }))}
+                questionType={questionData.question_type}
+                setQuestionType={(val) => {
+                  if (questionData.id) return; // locked for existing questions
+                  setQuestionData((prev) => ({ ...prev, question_type: val, answers: buildBlankAnswers(val) }));
+                }}
+                answers={questionData.answers}
+                setAnswers={(val) => setQuestionData((prev) => ({ ...prev, answers: val }))}
+                onSaveNext={() => handleSave(false)}
+                onFinish={() => handleSave(true)}
+                onBack={() => goToStep(currentStep - 1)}
+                isSubmitting={loading}
+                currentStep={currentStep}
+                totalQuestions={totalQuestions}
+                setTotalQuestions={(val) => setTotalQuestions(Math.max(currentStep, val))}
+                isExistingQuestion={!!questionData.id}
+                themeColor={accentColor}
+              />
+            </div>
+
+            {/* Sidebar */}
+            <div className="lg:col-span-4 p-8 bg-slate-50/50 flex flex-col">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <ListChecks size={18} className="text-indigo-500" />
+                  <span className="font-black text-[11px] uppercase tracking-widest text-slate-700">Question Stack</span>
+                </div>
+                <span className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-black text-indigo-600 shadow-sm">
+                  {savedQuestions.length} Saved
+                </span>
               </div>
 
-              <div className="lg:col-span-4 p-8 bg-slate-50/50">
-                <div className="sticky top-8 space-y-6">
-                  <div>
-                    <div className="flex items-center gap-2 mb-4 text-slate-800">
-                      <Settings2 size={18} className="text-indigo-500" />
-                      <span className="font-black text-[11px] uppercase tracking-widest">Designer Guidelines</span>
-                    </div>
-                    <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm space-y-5">
-                      <div className="flex gap-4">
-                        <div className="mt-1 flex-shrink-0 w-6 h-6 bg-indigo-50 rounded-lg flex items-center justify-center">
-                            <Info size={14} className="text-indigo-500" />
-                        </div>
-                        <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                          For <strong className="text-slate-900">Fill in the Blanks</strong>, use underscores (___) where you want the blank to appear.
-                        </p>
+              <div className="space-y-2 flex-1 overflow-y-auto max-h-[500px] pr-1">
+                {savedQuestions.map((q, idx) => {
+                  const stepNum  = idx + 1;
+                  const isActive = currentStep === stepNum;
+                  return (
+                    <button key={q.id || q.question_id || idx} onClick={() => goToStep(stepNum)}
+                      className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 group ${
+                        isActive
+                          ? 'bg-white border-indigo-500 shadow-lg shadow-indigo-500/10'
+                          : 'bg-white border-transparent text-slate-500 hover:border-slate-200'
+                      }`}>
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <span className={`text-[10px] font-black w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                          isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                        }`}>{stepNum}</span>
+                        <span className="truncate text-xs font-bold">{q.question_text || 'Untitled'}</span>
                       </div>
-                      <div className="flex gap-4">
-                        <div className="mt-1 flex-shrink-0 w-6 h-6 bg-emerald-50 rounded-lg flex items-center justify-center">
-                            <CheckCircle2 size={14} className="text-emerald-500" />
-                        </div>
-                        <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                          Mark exactly one correct answer for auto-graded questions.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                      {isActive
+                        ? <ChevronRight size={14} className="shrink-0 text-indigo-500" />
+                        : <CheckCircle2 size={13} className="shrink-0 text-emerald-400 opacity-60 group-hover:opacity-100" />
+                      }
+                    </button>
+                  );
+                })}
 
-                  <div className="p-6 rounded-[24px] bg-indigo-600 text-white shadow-xl shadow-indigo-100">
-                    <h4 className="font-black text-[10px] uppercase tracking-widest opacity-70 mb-2">Sync Status</h4>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2.5 h-2.5 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
-                      <span className="text-sm font-bold">
-                        {loading ? 'Uploading Data...' : 'Ready to Save'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                {/* New question slot */}
+                <button
+                  onClick={() => goToStep(savedQuestions.length + 1)}
+                  className={`w-full p-4 rounded-2xl border-2 border-dashed transition-all flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest ${
+                    currentStep > savedQuestions.length
+                      ? 'bg-indigo-50 border-indigo-300 text-indigo-600'
+                      : 'border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-500'
+                  }`}
+                >
+                  <Plus size={14} /> New Question
+                </button>
+              </div>
+
+              {/* Guide */}
+              <div className="mt-6 p-5 bg-slate-900 rounded-[24px] text-white">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-50 mb-2">Guide</p>
+                <p className="text-xs font-bold leading-relaxed opacity-80">
+                  Set total items, fill the form, then click <strong>"Save &amp; Add Next"</strong>.
+                  At the final item, only <strong>"Save &amp; Finish"</strong> is available.
+                  Click any saved question to edit it.
+                </p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <AlertModal 
-        isOpen={alertConfig.show} 
+      <AlertModal
+        isOpen={alertConfig.show}
         title={alertConfig.title}
-        message={alertConfig.message} 
-        onClose={() => setAlertConfig({ ...alertConfig, show: false })} 
+        message={alertConfig.message}
+        onClose={() => setAlertConfig((prev) => ({ ...prev, show: false }))}
       />
-    </>
+    </div>
   );
 };
 
