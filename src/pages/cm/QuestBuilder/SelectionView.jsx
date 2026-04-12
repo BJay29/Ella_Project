@@ -4,9 +4,6 @@ import ActivityCreator from './ActivityCreator';
 import QuizCreator from './QuizCreator';
 import { authAPI } from '../../../services/APIservice';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
 const getDifficultyStyle = (diff) => {
   const d = (diff || '').toLowerCase();
   if (d === 'hard')   return 'bg-rose-50 text-rose-600 border border-rose-100';
@@ -14,26 +11,11 @@ const getDifficultyStyle = (diff) => {
   return 'bg-emerald-50 text-emerald-600 border border-emerald-100';
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SelectionView
-// ─────────────────────────────────────────────────────────────────────────────
 const SelectionView = ({
-  selectedQuest,
-  selectedLevel,
-  existingActivity,
-  existingQuiz,
-  loadingContent,
-  currentQuestId,
-  currentLevelId,
-  activityModal,
-  quizModal,
-  setActivityModal,
-  setQuizModal,
-  onBack,
-  onActivitySuccess,
-  onQuizSuccess,
-  onDeleteActivity,
-  onDeleteQuiz,
+  selectedQuest, selectedLevel, existingActivity, existingQuiz,
+  loadingContent, currentQuestId, currentLevelId,
+  activityModal, quizModal, setActivityModal, setQuizModal,
+  onBack, onActivitySuccess, onQuizSuccess, onDeleteActivity, onDeleteQuiz,
 }) => {
   const navigate = useNavigate();
 
@@ -41,23 +23,19 @@ const SelectionView = ({
   const [quizQuestionCount,     setQuizQuestionCount]     = useState(null);
   const [loadingCounts,         setLoadingCounts]         = useState(false);
 
-  // Unwrap nested response shapes
   const activityData = existingActivity?.activity || existingActivity || null;
   const quizData     = existingQuiz?.quiz          || existingQuiz     || null;
+  const activityId   = activityData?.activity_id   || activityData?.id || null;
+  const quizId       = quizData?.quiz_id            || quizData?.id    || null;
 
-  const activityId = activityData?.activity_id || activityData?.id || null;
-  const quizId     = quizData?.quiz_id          || quizData?.id     || null;
-
-  // ── Fetch question counts ────────────────────────────────────────────────
+  // ── Fetch question counts ─────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
-
     const fetchCounts = async () => {
       if (!currentQuestId || !currentLevelId) return;
       setLoadingCounts(true);
       try {
         const token = localStorage.getItem('token');
-
         if (activityId) {
           try {
             const res = await authAPI.getActivityQuestions(currentQuestId, currentLevelId, activityId, token);
@@ -85,30 +63,28 @@ const SelectionView = ({
         if (!cancelled) setLoadingCounts(false);
       }
     };
-
     fetchCounts();
     return () => { cancelled = true; };
   }, [activityId, quizId, currentQuestId, currentLevelId]);
 
-  // ── Navigation to question designer ─────────────────────────────────────
-  // Uses the SAME route pattern that already exists in App.js:
-  //   Activity: /cm/dashboard/quest/:questId/level/:levelId/activity/:activityId/add-question
-  //   Quiz:     /cm/dashboard/quest/:questId/level/:levelId/quiz/:quizId/add-question
-  const goToAddQuestions = (contentId, type) => {
-    if (!contentId || !currentQuestId || !currentLevelId) {
-      console.error('goToAddQuestions: missing IDs', { contentId, currentQuestId, currentLevelId });
-      return;
-    }
-    const path = `/cm/dashboard/quest/${currentQuestId}/level/${currentLevelId}/${type}/${contentId}/add-question`;
+  // ── Navigate to question designer ─────────────────────────────────────────
+  // mode='add'  → opens AddQuestion in Add Mode  (creates new questions)
+  // mode='edit' → opens AddQuestion in Edit Mode (updates existing questions)
+  //
+  // The route is the same for both — only the ?mode= param differs.
+  // AddQuestion reads the param on mount and sets its initial pageMode.
+  // navigate(-1) inside AddQuestion will return here correctly.
+  const goToQuestions = (contentId, type, mode = 'add') => {
+    if (!contentId || !currentQuestId || !currentLevelId) return;
+    const path = `/cm/dashboard/quest/${currentQuestId}/level/${currentLevelId}/${type}/${contentId}/add-question?mode=${mode}`;
     navigate(path);
   };
 
   const levelNumber =
-    selectedLevel?.level_order  ||
-    selectedLevel?.level_number ||
+    selectedLevel?.level_order       ||
+    selectedLevel?.level_number      ||
     selectedLevel?.quest_level_order || null;
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="w-full font-sans min-h-screen bg-[#f8fafc]">
 
@@ -141,9 +117,7 @@ const SelectionView = ({
             <span>📝</span> Create Activity
           </button>
         )}
-
         <div className="w-px h-8 bg-gray-200" />
-
         {quizData ? (
           <div className="flex items-center gap-3 px-4 py-2.5 bg-emerald-50 border border-emerald-100 rounded-2xl">
             <span className="text-sm">✅</span>
@@ -155,19 +129,17 @@ const SelectionView = ({
             <span>🏆</span> Create Quiz
           </button>
         )}
-
         <div className="ml-auto flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-full">
           <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" />
           <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Workshop Active</span>
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main Content */}
       <div className="p-8 max-w-7xl mx-auto">
         {loadingContent ? (
           <div className="flex flex-col items-center justify-center py-40">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent" />
-            <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fetching Content...</p>
           </div>
         ) : !activityData && !quizData ? (
           <div className="flex flex-col items-center justify-center py-32 text-center bg-white rounded-[40px] border-2 border-dashed border-slate-200">
@@ -212,27 +184,34 @@ const SelectionView = ({
                         Passing: {activityData.passing_score}
                       </span>
                       <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                        activityQuestionCount > 0 ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-slate-50 text-slate-400 border-slate-100'
+                        (activityQuestionCount ?? 0) > 0
+                          ? 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                          : 'bg-slate-50 text-slate-400 border-slate-100'
                       }`}>
-                        {loadingCounts || activityQuestionCount === null ? '…' : `${activityQuestionCount} Q${activityQuestionCount !== 1 ? 's' : ''}`}
+                        {loadingCounts || activityQuestionCount === null
+                          ? '…'
+                          : `${activityQuestionCount} Q${activityQuestionCount !== 1 ? 's' : ''}`}
                       </span>
                     </div>
 
                     <div className="mt-auto grid grid-cols-2 gap-4 pt-6 border-t border-slate-50">
+                      {/* Add Questions → mode=add */}
                       <button
-                        onClick={() => goToAddQuestions(activityId, 'activity')}
+                        onClick={() => goToQuestions(activityId, 'activity', 'add')}
                         disabled={!activityId || loadingCounts || activityQuestionCount === null}
-                        className={`py-4 font-black text-[11px] uppercase tracking-widest rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 ${
-                          activityQuestionCount > 0
-                            ? 'bg-slate-100 text-slate-400 hover:bg-amber-50 hover:text-amber-600 cursor-pointer'
-                            : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                        className={`py-4 font-black text-[11px] uppercase tracking-widest rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          (activityQuestionCount ?? 0) > 0
+                            ? 'bg-slate-100 text-slate-400 hover:bg-amber-50 hover:text-amber-600'
+                            : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-100'
                         }`}
                       >
-                        {activityQuestionCount > 0 ? '✅ Questions Added' : '+ Add Questions'}
+                        {(activityQuestionCount ?? 0) > 0 ? '✅ Questions Added' : '+ Add Questions'}
                       </button>
+
+                      {/* Edit Questions → mode=edit */}
                       <button
-                        onClick={() => goToAddQuestions(activityId, 'activity')}
-                        disabled={!activityId || !activityQuestionCount}
+                        onClick={() => goToQuestions(activityId, 'activity', 'edit')}
+                        disabled={!activityId || !(activityQuestionCount ?? 0)}
                         className="py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[11px] uppercase tracking-widest rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         ✏️ Edit Questions
@@ -281,27 +260,34 @@ const SelectionView = ({
                         Passing: {quizData.passing_score}
                       </span>
                       <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                        quizQuestionCount > 0 ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-slate-50 text-slate-400 border-slate-100'
+                        (quizQuestionCount ?? 0) > 0
+                          ? 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                          : 'bg-slate-50 text-slate-400 border-slate-100'
                       }`}>
-                        {loadingCounts || quizQuestionCount === null ? '…' : `${quizQuestionCount} Q${quizQuestionCount !== 1 ? 's' : ''}`}
+                        {loadingCounts || quizQuestionCount === null
+                          ? '…'
+                          : `${quizQuestionCount} Q${quizQuestionCount !== 1 ? 's' : ''}`}
                       </span>
                     </div>
 
                     <div className="mt-auto grid grid-cols-2 gap-4 pt-6 border-t border-slate-50">
+                      {/* Add Questions → mode=add */}
                       <button
-                        onClick={() => goToAddQuestions(quizId, 'quiz')}
+                        onClick={() => goToQuestions(quizId, 'quiz', 'add')}
                         disabled={!quizId || loadingCounts || quizQuestionCount === null}
-                        className={`py-4 font-black text-[11px] uppercase tracking-widest rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 ${
-                          quizQuestionCount > 0
-                            ? 'bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer'
-                            : 'bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                        className={`py-4 font-black text-[11px] uppercase tracking-widest rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          (quizQuestionCount ?? 0) > 0
+                            ? 'bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600'
+                            : 'bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-100'
                         }`}
                       >
-                        {quizQuestionCount > 0 ? '✅ Questions Added' : '+ Add Questions'}
+                        {(quizQuestionCount ?? 0) > 0 ? '✅ Questions Added' : '+ Add Questions'}
                       </button>
+
+                      {/* Edit Questions → mode=edit */}
                       <button
-                        onClick={() => goToAddQuestions(quizId, 'quiz')}
-                        disabled={!quizId || !quizQuestionCount}
+                        onClick={() => goToQuestions(quizId, 'quiz', 'edit')}
+                        disabled={!quizId || !(quizQuestionCount ?? 0)}
                         className="py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[11px] uppercase tracking-widest rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         ✏️ Edit Questions

@@ -234,9 +234,9 @@ const CMDashboard = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
                         </div>
-                        <h2 className="text-2xl font-black text-gray-800 mb-2 uppercase tracking-tighter italic">Logging Out?</h2>
+                        <h2 className="text-2xl font-black text-gray-800 mb-2 uppercase tracking-tighter italic">Log Out</h2>
                         <p className="text-gray-500 text-center font-medium mb-8 leading-relaxed text-sm px-4">
-                            Are you sure you want to exit the Curriculum Manager dashboard? Siguraduhin na nai-save ang changes.
+                            Are you sure you want to exit the Curriculum Manager dashboard?
                         </p>
                         <div className="flex flex-col gap-3 w-full">
                             <button 

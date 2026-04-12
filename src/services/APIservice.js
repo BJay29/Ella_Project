@@ -338,7 +338,9 @@ export const authAPI = {
         });
     },
 
-    // ── ACTIVITY CRUD ──
+    // ─────────────────────────────────────────────────────────────────────────
+    // ACTIVITY CRUD
+    // ─────────────────────────────────────────────────────────────────────────
     getActivities: async (questId, quest_level_id, token) => {
         validateParams({ questId, quest_level_id });
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities`, {
@@ -373,44 +375,56 @@ export const authAPI = {
         });
     },
 
-    // ── ACTIVITY QUESTIONS ──
-    // ✅ ADDED: get all questions for an activity
+    // ─────────────────────────────────────────────────────────────────────────
+    // ACTIVITY QUESTIONS
+    // FIX: All question routes now include activityId in the path
+    // ─────────────────────────────────────────────────────────────────────────
     getActivityQuestions: async (questId, quest_level_id, activityId, token) => {
         validateParams({ questId, quest_level_id, activityId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions`,
+            { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+        );
     },
 
     addActivityQuestion: async (questId, quest_level_id, activityId, data, token) => {
         validateParams({ questId, quest_level_id, activityId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions`,
+            {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }
+        );
     },
 
+    // FIXED URL: was /activities/questions/:id (WRONG — missing activityId)
+    // Now: /activities/:activityId/questions/:questionId (CORRECT)
     updateActivityQuestion: async (questId, quest_level_id, activityId, questionId, data, token) => {
         validateParams({ questId, quest_level_id, activityId, questionId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions/${questionId}`, {
-            method: 'PUT',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions/${questionId}`,
+            {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }
+        );
     },
 
-    // ✅ ADDED: delete a specific activity question
+    // FIXED URL: was /activities/questions/:id (WRONG — missing activityId)
     deleteActivityQuestion: async (questId, quest_level_id, activityId, questionId, token) => {
         validateParams({ questId, quest_level_id, activityId, questionId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions/${questionId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions/${questionId}`,
+            { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }
+        );
     },
 
-    // ── QUIZ CRUD ──
+    // ─────────────────────────────────────────────────────────────────────────
+    // QUIZ CRUD
+    // ─────────────────────────────────────────────────────────────────────────
     getQuizzes: async (questId, quest_level_id, token) => {
         validateParams({ questId, quest_level_id });
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes`, {
@@ -445,40 +459,50 @@ export const authAPI = {
         });
     },
 
-    // ── QUIZ QUESTIONS ──
-    // ✅ ADDED: get all questions for a quiz
+    // ─────────────────────────────────────────────────────────────────────────
+    // QUIZ QUESTIONS
+    // FIX: All question routes now include quizId in the path
+    // ─────────────────────────────────────────────────────────────────────────
     getQuizQuestions: async (questId, quest_level_id, quizId, token) => {
         validateParams({ questId, quest_level_id, quizId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions`,
+            { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+        );
     },
 
     addQuizQuestion: async (questId, quest_level_id, quizId, data, token) => {
         validateParams({ questId, quest_level_id, quizId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions`,
+            {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }
+        );
     },
 
+    // FIXED URL: was /quizzes/questions/:id (WRONG — missing quizId)
+    // Now: /quizzes/:quizId/questions/:questionId (CORRECT)
     updateQuizQuestion: async (questId, quest_level_id, quizId, questionId, data, token) => {
         validateParams({ questId, quest_level_id, quizId, questionId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions/${questionId}`, {
-            method: 'PUT',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions/${questionId}`,
+            {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }
+        );
     },
 
-    // ✅ ADDED: delete a specific quiz question
+    // FIXED URL: was /quizzes/questions/:id (WRONG — missing quizId)
     deleteQuizQuestion: async (questId, quest_level_id, quizId, questionId, token) => {
         validateParams({ questId, quest_level_id, quizId, questionId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions/${questionId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions/${questionId}`,
+            { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }
+        );
     },
 };
