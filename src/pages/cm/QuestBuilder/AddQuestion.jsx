@@ -103,15 +103,17 @@ const buildBlankForm = () => ({
 const mapApiQuestion = (q) => {
   if (!q) return null;
   return {
-    // ✅ This line is CRITICAL. It maps the server's ID to the frontend 'id'
-    id: q.id || q.activity_question_id || q.question_id || null,
+    // Kinukuha lahat ng posibleng ID fields galing backend
+    id: q.id || q.activity_question_id || q.quiz_question_id || q.question_id || null,
     question_text: q.question_text || '',
     question_type: q.question_type || 'multiple_choice',
-    answers: (q.answers || []).map(a => ({
-      id: a.id || a.answer_id || null,
-      text: a.answer_text || '',
-      is_correct: !!a.is_correct
-    }))
+    order_index: q.order_index || null,
+    media_url: q.media_url || null,
+    answers: (q.answers || []).map((a) => ({
+      id: a.id || a.answer_id || a.quiz_answer_id || null,
+      text: a.answer_text || a.text || '',
+      is_correct: a.is_correct === true || a.is_correct === 1 || !!a.is_correct,
+    })),
   };
 };
 // ─────────────────────────────────────────────────────────────────────────────
@@ -366,53 +368,50 @@ const contentType    = quizId ? 'quiz' : 'activity';
   // ✅ Save Changes — updates in-place ONLY, never creates a new question,
   // never navigates away. Shows toast on success.
 const handleSaveChanges = async () => {
-  // 1. Prevents double execution and sets loading states
   if (loading) return;
   
   skipEffectRef.current = true;
   setLoading(true);
 
   try {
-    // 2. ID Validation: Check if we actually have an ID to update
-    const currentId = questionData.id || questionData.activity_question_id;
+    // 1. Kunin ang ID (Unified check)
+    const qId = questionData.id || questionData.activity_question_id || questionData.quiz_question_id;
     
-    if (!currentId) {
-      showAlert('Select a Question First (No valid ID found).', 'Error');
+    if (!qId) {
+      showAlert('No ID found. Please select a question from the sidebar first.', 'Error');
       setLoading(false);
       return;
     }
 
-    // 3. Call the API
-    // Ensure questId, levelId, and activityId are available in your scope
+    // 2. API Call (Gagamit ng PUT dahil edit mode/update ito)
+    // Ang callSaveApi dapat ay nag-dedetermine kung Quiz o Activity URL ang gagamitin
     const res = await callSaveApi(questionData);
 
     if (res.ok || res.status === 200 || res.status === 201) {
-      // 4. Refresh Sidebar Data
-      // fetchQuestions(false) is called to get the latest data from the DB
-      const freshArr = await fetchQuestions(false); 
+      // 3. Fetch Fresh Data para mag-sync ang UI at DB
+      const freshArr = await fetchQuestions(false);
       
       if (freshArr && freshArr.length > 0) {
-        // Find the correct index to keep the user on the same question
+        // Panatilihin ang user sa kasalukuyang index
         const safeIdx = Math.min(editSelectedIdx, freshArr.length - 1);
         setEditSelectedIdx(safeIdx);
         
-        // 5. Update the form with the fresh mapped data from the server
-        const mapped = mapApiQuestion(freshArr[safeIdx]);
-        setQuestionData(mapped);
+        // I-map ang bagong data galing server
+        const mappedData = mapApiQuestion(freshArr[safeIdx]);
+        setQuestionData(mappedData);
         
-        // Also update the main savedQuestions list to reflect changes in the sidebar
+        // I-update ang sidebar list
         setSavedQuestions(freshArr.map(q => mapApiQuestion(q)));
       }
 
-      showToast('✅ Question updated successfully!');
+      showToast('✅ Saved successfully!');
     } else {
-      const e = await res.json().catch(() => ({}));
-      showAlert(e.message || 'Failed to update question.', 'Error');
+      const errorData = await res.json().catch(() => ({}));
+      showAlert(errorData.message || 'Failed to save changes.', 'Error');
     }
   } catch (err) {
-    console.error('handleSaveChanges error:', err);
-    // This catches the 404 errors seen in your logs
-    showAlert('Network error or Resource Not Found (404). Please try again.', 'Error');
+    console.error('Save Error:', err);
+    showAlert('Network error or 404 Not Found. Please check your API connection.', 'Error');
   } finally {
     setLoading(false);
     skipEffectRef.current = false;
