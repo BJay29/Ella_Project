@@ -98,24 +98,22 @@ const buildBlankForm = () => ({
   answers:       buildBlankAnswers('multiple_choice'),
 });
 
-// Maps API response shape → local form shape
-// Handles both q.id and q.question_id field names from the backend
+// Maps API response → local form shape
+// Handles all possible id field names from the backend
 const mapApiQuestion = (q) => {
-  if (!q) return null;
+  if (!q) return buildBlankForm();
   return {
-    // Kinukuha lahat ng posibleng ID fields galing backend
-    id: q.id || q.activity_question_id || q.quiz_question_id || q.question_id || null,
+    id:            q.id || q.activity_question_id || q.quiz_question_id || q.question_id || null,
     question_text: q.question_text || '',
     question_type: q.question_type || 'multiple_choice',
-    order_index: q.order_index || null,
-    media_url: q.media_url || null,
     answers: (q.answers || []).map((a) => ({
-      id: a.id || a.answer_id || a.quiz_answer_id || null,
-      text: a.answer_text || a.text || '',
+      id:         a.id || a.answer_id || a.quiz_answer_id || null,
+      text:       a.answer_text || a.text || '',
       is_correct: a.is_correct === true || a.is_correct === 1 || !!a.is_correct,
     })),
   };
 };
+
 // ─────────────────────────────────────────────────────────────────────────────
 // AddQuestion Page
 //
@@ -123,22 +121,27 @@ const mapApiQuestion = (q) => {
 //   /cm/dashboard/quest/:questId/level/:levelId/activity/:activityId/add-question?mode=add
 //   /cm/dashboard/quest/:questId/level/:levelId/quiz/:quizId/add-question?mode=edit
 //
+// NAVIGATION:
+//   goBackToWorkspace() uses navigate(-1) — ALWAYS returns to SelectionView
+//   (the activity/quiz card page after selecting a level).
+//   This works because SelectionView navigated TO this page via navigate(path).
+//
 // KEY: `levelId` from useParams() IS the quest_level_id for all API calls.
 // ─────────────────────────────────────────────────────────────────────────────
 const AddQuestion = () => {
-  const navigate  = useNavigate();
-  const location  = useLocation();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // ✅ levelId === quest_level_id — used directly in every API call below
-const { questId, levelId: quest_level_id, activityId, quizId } = useParams();
-  
-const contentType    = quizId ? 'quiz' : 'activity';
+  // ✅ Rename levelId → quest_level_id immediately so every API call uses it correctly
+  const { questId, levelId: quest_level_id, activityId, quizId } = useParams();
+
+  const contentType    = quizId ? 'quiz' : 'activity';
   const finalContentId = quizId || activityId;
 
   const searchParams = new URLSearchParams(location.search);
   const initialMode  = searchParams.get('mode') === 'edit' ? 'edit' : 'add';
 
-  // ── State ─────────────────────────────────────────────────────────────────
+  // ── State ──────────────────────────────────────────────────────────────────
   const [pageMode,     setPageMode]     = useState(initialMode);
   const [loading,      setLoading]      = useState(false);
   const [alertConfig,  setAlertConfig]  = useState({ show: false, message: '', title: '', variant: 'warning' });
@@ -161,7 +164,7 @@ const contentType    = quizId ? 'quiz' : 'activity';
 
   const skipEffectRef = useRef(false);
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── Helpers ────────────────────────────────────────────────────────────────
   const showAlert = (message, title = 'Attention', variant = 'warning') =>
     setAlertConfig({ show: true, message, title, variant });
 
@@ -171,19 +174,26 @@ const contentType    = quizId ? 'quiz' : 'activity';
     setTimeout(() => setToastVisible(false), 3000);
   };
 
-  // ✅ navigate(-1) always returns to the page we came from (SelectionView/workshop)
-  const goBackToWorkspace = () => navigate(-1);
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // fetchQuestions — returns the fresh array directly so callers can use it
-  // without depending on stale React state
-  // ─────────────────────────────────────────────────────────────────────────
+  // ✅ SINGLE navigate(-1) — ALWAYS goes back to SelectionView (workspace)
+  // This is the ONLY navigation function. No duplicates. No /cm/dashboard/quest/:id.
+  // Works for: Back button, Save & Finish, Back to Workspace in edit mode.
+const goBackToWorkspace = () => {
+  navigate(
+    `/cm/dashboard/quest/${questId}/level/${quest_level_id}`,
+    {
+      state: {
+        fromAddQuestion: true,
+        contentType,        // 'quiz' or 'activity'
+        contentId: finalContentId,
+      }
+    }
+  );
+};
+  // ── Fetch questions ────────────────────────────────────────────────────────
   const fetchQuestions = useCallback(async (isInit = false) => {
     if (!questId || !quest_level_id || !finalContentId) return [];
     try {
       const token = localStorage.getItem('token');
-
-      // ✅ FIXED: use `levelId` (= quest_level_id), not any other variable
       const res = contentType === 'quiz'
         ? await authAPI.getQuizQuestions(questId, quest_level_id, finalContentId, token)
         : await authAPI.getActivityQuestions(questId, quest_level_id, finalContentId, token);
@@ -199,8 +209,9 @@ const contentType    = quizId ? 'quiz' : 'activity';
             const nextSlot = arr.length + 1;
             setAddStep(nextSlot);
             setTotalQuestions(Math.max(nextSlot, 1));
+            setQuestionData(buildBlankForm());
           } else {
-            // Edit mode: auto-load first question
+            // Edit mode: auto-load first question immediately
             if (arr.length > 0) {
               setQuestionData(mapApiQuestion(arr[0]));
               setEditSelectedIdx(0);
@@ -218,19 +229,17 @@ const contentType    = quizId ? 'quiz' : 'activity';
 
   useEffect(() => { fetchQuestions(true); }, [fetchQuestions]);
 
-  // Load question when addStep changes (ADD mode only)
+  // Load question into editor when addStep changes (ADD mode only)
   useEffect(() => {
     if (!initialized || pageMode !== 'add' || skipEffectRef.current) return;
     const existing = savedQuestions[addStep - 1];
     setQuestionData(existing ? mapApiQuestion(existing) : buildBlankForm());
   }, [addStep, savedQuestions, initialized, pageMode]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Build payload
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Build payload ──────────────────────────────────────────────────────────
   const buildPayload = (qd) => {
     const { question_text, question_type, answers } = qd;
-    const needsText    = ['identification', 'fill_in_the_blanks'].includes(question_type);
+    const needsText = ['identification', 'fill_in_the_blanks'].includes(question_type);
     const finalAnswers = question_type === 'essay' ? [] : answers
       .filter(a => (a.text || '').trim() !== '')
       .map((a, i) => ({
@@ -241,7 +250,7 @@ const contentType    = quizId ? 'quiz' : 'activity';
     return { question_text: question_text.trim(), question_type, answers: finalAnswers };
   };
 
-  // Validate form — shows alert and returns false if invalid
+  // ── Validate ───────────────────────────────────────────────────────────────
   const validate = (qd) => {
     const { question_text, question_type, answers } = qd;
     if (!question_text?.trim()) {
@@ -258,16 +267,12 @@ const contentType    = quizId ? 'quiz' : 'activity';
     return true;
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // ✅ FIXED callSaveApi — was using undefined `quest_level_id`.
-  //    Now uses `levelId` from useParams() which IS the quest_level_id.
-  //    qd.id present → UPDATE (PUT), absent → CREATE (POST)
-  // ─────────────────────────────────────────────────────────────────────────
+  // ✅ callSaveApi — uses quest_level_id from useParams()
+  // id present → UPDATE (PUT), absent → CREATE (POST)
   const callSaveApi = async (qd) => {
     const token   = localStorage.getItem('token');
     const payload = buildPayload(qd);
     const { id }  = qd;
-
     if (contentType === 'quiz') {
       return id
         ? authAPI.updateQuizQuestion(questId, quest_level_id, finalContentId, id, payload, token)
@@ -279,10 +284,7 @@ const contentType    = quizId ? 'quiz' : 'activity';
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // ✅ FIXED callDeleteApi — was using undefined `quest_level_id`.
-  //    Now uses `levelId` from useParams().
-  // ─────────────────────────────────────────────────────────────────────────
+  // ✅ callDeleteApi — uses quest_level_id from useParams()
   const callDeleteApi = async (questionId) => {
     const token = localStorage.getItem('token');
     return contentType === 'quiz'
@@ -290,9 +292,9 @@ const contentType    = quizId ? 'quiz' : 'activity';
       : authAPI.deleteActivityQuestion(questId, quest_level_id, finalContentId, questionId, token);
   };
 
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
   // ADD MODE HANDLERS
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
 
   const handleSaveNext = async () => {
     if (!validate(questionData)) return;
@@ -322,25 +324,25 @@ const contentType    = quizId ? 'quiz' : 'activity';
     }
   };
 
-  const handleSaveFinish = async () => {
-    if (!validate(questionData)) return;
-    setLoading(true);
-    try {
-      const res = await callSaveApi(questionData);
-      if (res.ok || res.status === 201) {
-        // ✅ navigate(-1) returns to workshop/SelectionView (not main dashboard)
-        goBackToWorkspace();
-      } else {
-        const e = await res.json().catch(() => ({}));
-        showAlert(e.message || 'Failed to save.', 'Error');
-      }
-    } catch (err) {
-      console.error('handleSaveFinish error:', err);
-      showAlert('Network error. Please try again.', 'Error');
-    } finally {
-      setLoading(false);
+  // ✅ Save & Finish — saves then returns to workspace (SelectionView)
+const handleSaveFinish = async () => {
+  if (!validate(questionData)) return;
+  setLoading(true);
+  try {
+    const res = await callSaveApi(questionData);
+    if (res.ok || res.status === 201) {
+      goBackToWorkspace(); // ✅ now reliable
+    } else {
+      const e = await res.json().catch(() => ({}));
+      showAlert(e.message || 'Failed to save.', 'Error');
     }
-  };
+  } catch (err) {
+    console.error('handleSaveFinish error:', err);
+    showAlert('Network error. Please try again.', 'Error');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handlePrev = () => {
     if (addStep <= 1) return;
@@ -349,80 +351,60 @@ const contentType    = quizId ? 'quiz' : 'activity';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
   // EDIT MODE HANDLERS
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
 
-  // Select a question from the sidebar — loads it into the editor
- const handleSelectQuestion = (idx) => {
-  const selected = savedQuestions[idx];
-  const mapped = mapApiQuestion(selected);
-  
-  console.log("Mapped ID to be loaded:", mapped.id); // Dapat HINDI ito null sa console
+  const handleSelectQuestion = (idx) => {
+    const selected = savedQuestions[idx];
+    if (!selected) return;
+    const mapped = mapApiQuestion(selected);
+    setEditSelectedIdx(idx);
+    setQuestionData(mapped);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-  setEditSelectedIdx(idx);
-  setQuestionData(mapped); 
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-};
+  // ✅ Save Changes — updates in-place ONLY, never creates, never navigates
+  const handleSaveChanges = async () => {
+    if (!validate(questionData)) return;
 
-  // ✅ Save Changes — updates in-place ONLY, never creates a new question,
-  // never navigates away. Shows toast on success.
-const handleSaveChanges = async () => {
-  if (loading) return;
-  
-  skipEffectRef.current = true;
-  setLoading(true);
-
-  try {
-    // 1. Kunin ang ID (Unified check)
-    const qId = questionData.id || questionData.activity_question_id || questionData.quiz_question_id;
-    
+    const qId = questionData.id;
     if (!qId) {
-      showAlert('No ID found. Please select a question from the sidebar first.', 'Error');
-      setLoading(false);
+      showAlert(
+        'No question selected. Please click a question from the stack on the right to load it.',
+        'Select a Question First'
+      );
       return;
     }
 
-    // 2. API Call (Gagamit ng PUT dahil edit mode/update ito)
-    // Ang callSaveApi dapat ay nag-dedetermine kung Quiz o Activity URL ang gagamitin
-    const res = await callSaveApi(questionData);
-
-    if (res.ok || res.status === 200 || res.status === 201) {
-      // 3. Fetch Fresh Data para mag-sync ang UI at DB
-      const freshArr = await fetchQuestions(false);
-      
-      if (freshArr && freshArr.length > 0) {
-        // Panatilihin ang user sa kasalukuyang index
-        const safeIdx = Math.min(editSelectedIdx, freshArr.length - 1);
-        setEditSelectedIdx(safeIdx);
-        
-        // I-map ang bagong data galing server
-        const mappedData = mapApiQuestion(freshArr[safeIdx]);
-        setQuestionData(mappedData);
-        
-        // I-update ang sidebar list
-        setSavedQuestions(freshArr.map(q => mapApiQuestion(q)));
+    skipEffectRef.current = true;
+    setLoading(true);
+    try {
+      const res = await callSaveApi(questionData);
+      if (res.ok || res.status === 200 || res.status === 201) {
+        const freshArr = await fetchQuestions(false);
+        if (freshArr && freshArr.length > 0) {
+          const safeIdx = Math.min(editSelectedIdx, freshArr.length - 1);
+          setEditSelectedIdx(safeIdx);
+          setQuestionData(mapApiQuestion(freshArr[safeIdx]));
+        }
+        showToast('✅ Question updated successfully!');
+        // ✅ Does NOT navigate — stays on this page
+      } else {
+        const e = await res.json().catch(() => ({}));
+        showAlert(e.message || 'Failed to update question.', 'Error');
       }
-
-      showToast('✅ Saved successfully!');
-    } else {
-      const errorData = await res.json().catch(() => ({}));
-      showAlert(errorData.message || 'Failed to save changes.', 'Error');
+    } catch (err) {
+      console.error('handleSaveChanges error:', err);
+      showAlert('Network error. Please try again.', 'Error');
+    } finally {
+      setLoading(false);
+      skipEffectRef.current = false;
     }
-  } catch (err) {
-    console.error('Save Error:', err);
-    showAlert('Network error or 404 Not Found. Please check your API connection.', 'Error');
-  } finally {
-    setLoading(false);
-    skipEffectRef.current = false;
-  }
-};
+  };
 
-  // Open the delete confirmation modal
   const openDeleteModal = (e, qId, idx, qText) => {
     e.stopPropagation();
-    // ✅ FIXED: qId comes from q.id || q.question_id in the sidebar map
-    // If qId is falsy here, the question genuinely has no DB record
     if (!qId) {
       showAlert("This question hasn't been saved to the database yet.", 'Nothing to Delete');
       return;
@@ -430,25 +412,18 @@ const handleSaveChanges = async () => {
     setDeleteModal({ open: true, questionId: qId, idx, questionText: qText || '' });
   };
 
-  // ✅ FIXED confirmDelete — uses callDeleteApi which correctly uses `levelId`
   const confirmDelete = async () => {
     const { questionId, idx } = deleteModal;
-
     setIsDeleting(true);
     try {
       const res = await callDeleteApi(questionId);
-
       if (res.ok) {
-        // Fetch fresh list — sidebar auto-renumbers based on array index
         const freshArr = await fetchQuestions(false);
-
         if (!freshArr || freshArr.length === 0) {
-          // All questions deleted — clear the form
           setEditSelectedIdx(0);
           setQuestionData(buildBlankForm());
         } else {
-          // Land on the question that now occupies the same slot (or the last one)
-          const newIdx = Math.min(idx, freshArr.length - 1);
+          const newIdx = Math.max(0, Math.min(idx, freshArr.length - 1));
           setEditSelectedIdx(newIdx);
           setQuestionData(mapApiQuestion(freshArr[newIdx]));
         }
@@ -481,16 +456,22 @@ const handleSaveChanges = async () => {
 
       <div className="max-w-6xl mx-auto">
 
-        {/* Top Nav */}
+        {/* ── Top Nav ── */}
         <div className="flex items-center justify-between mb-6">
-          <button onClick={goBackToWorkspace}
-            className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold text-xs uppercase tracking-widest transition-all">
-            <ChevronLeft size={18} /> Back to Workspace
+          {/* ✅ Single back button — navigate(-1) → SelectionView */}
+          <button
+            type="button"
+            onClick={goBackToWorkspace}
+            className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold text-xs uppercase tracking-widest transition-all group"
+          >
+            <ChevronLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+            Back to Workspace
           </button>
 
           {/* Mode Toggle */}
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl">
             <button
+              type="button"
               onClick={() => {
                 setPageMode('add');
                 setQuestionData(buildBlankForm());
@@ -505,6 +486,7 @@ const handleSaveChanges = async () => {
               ➕ Add
             </button>
             <button
+              type="button"
               onClick={() => {
                 setPageMode('edit');
                 skipEffectRef.current = true;
@@ -526,7 +508,7 @@ const handleSaveChanges = async () => {
 
         <div className="bg-white rounded-[40px] shadow-sm border border-slate-200 overflow-hidden">
 
-          {/* Header */}
+          {/* ── Header ── */}
           <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-4">
               <div className={`w-14 h-14 ${headerBg} rounded-[22px] flex items-center justify-center text-2xl`}>
@@ -537,7 +519,9 @@ const handleSaveChanges = async () => {
                   {typeLabel} Question Designer
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className={`w-2 h-2 rounded-full animate-pulse ${pageMode === 'add' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className={`w-2 h-2 rounded-full animate-pulse ${
+                    pageMode === 'add' ? 'bg-emerald-500' : 'bg-amber-500'
+                  }`} />
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                     {pageMode === 'add'
                       ? `Add Mode — Question ${addStep} of ${totalQuestions}`
@@ -557,7 +541,7 @@ const handleSaveChanges = async () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-12">
 
-            {/* ── Left: Form ── */}
+            {/* ══ Left: Form ══ */}
             <div className="lg:col-span-8 p-8 md:p-12 border-r border-slate-100">
 
               {/* ADD MODE */}
@@ -568,7 +552,9 @@ const handleSaveChanges = async () => {
                   setQuestionText={(val) => setQuestionData(prev => ({ ...prev, question_text: val }))}
                   questionType={questionData.question_type}
                   setQuestionType={(val) => setQuestionData(prev => ({
-                    ...prev, question_type: val, answers: buildBlankAnswers(val),
+                    ...prev,
+                    question_type: val,
+                    answers: buildBlankAnswers(val),
                   }))}
                   answers={questionData.answers}
                   setAnswers={(val) => setQuestionData(prev => ({ ...prev, answers: val }))}
@@ -591,13 +577,19 @@ const handleSaveChanges = async () => {
                 savedQuestions.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-24 text-center">
                     <div className="text-5xl mb-4">📭</div>
-                    <h3 className="text-xl font-black text-slate-700 uppercase tracking-tighter mb-2">No Questions Yet</h3>
-                    <p className="text-sm text-slate-400 mb-6">Switch to Add Mode to create questions first.</p>
+                    <h3 className="text-xl font-black text-slate-700 uppercase tracking-tighter mb-2">
+                      No Questions Yet
+                    </h3>
+                    <p className="text-sm text-slate-400 mb-6">
+                      Switch to Add Mode to create questions first.
+                    </p>
                     <button
+                      type="button"
                       onClick={() => { setPageMode('add'); setQuestionData(buildBlankForm()); }}
-                      className={`px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest text-white ${
+                      className={`px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest text-white transition-all active:scale-95 ${
                         isQuiz ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-500 hover:bg-amber-600'
-                      } transition-all active:scale-95`}>
+                      }`}
+                    >
                       ➕ Go to Add Mode
                     </button>
                   </div>
@@ -607,7 +599,7 @@ const handleSaveChanges = async () => {
                     questionText={questionData.question_text}
                     setQuestionText={(val) => setQuestionData(prev => ({ ...prev, question_text: val }))}
                     questionType={questionData.question_type}
-                    setQuestionType={null}  // locked in edit mode
+                    setQuestionType={null}
                     answers={questionData.answers}
                     setAnswers={(val) => setQuestionData(prev => ({ ...prev, answers: val }))}
                     onSaveChanges={handleSaveChanges}
@@ -615,177 +607,162 @@ const handleSaveChanges = async () => {
                     isSubmitting={loading}
                     currentStep={editSelectedIdx + 1}
                     totalQuestions={savedQuestions.length}
-                    setTotalQuestions={() => {}}  // no-op in edit mode
+                    setTotalQuestions={() => {}}
                     themeColor={accentColor}
                   />
                 )
               )}
             </div>
 
-            {/* ── Right: Sidebar ── */}
+            {/* ══ Right: Sidebar ══ */}
             <div className="lg:col-span-4 p-8 bg-slate-50/50 flex flex-col">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <ListChecks size={18} className="text-indigo-500" />
-                  <span className="font-black text-[11px] uppercase tracking-widest text-slate-700">Question Stack</span>
+                  <span className="font-black text-[11px] uppercase tracking-widest text-slate-700">
+                    Question Stack
+                  </span>
                 </div>
                 <span className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-black text-indigo-600">
                   {savedQuestions.length} Saved
                 </span>
               </div>
 
-   {/* ADD MODE sidebar */}
-{pageMode === 'add' && (
-  <div className="space-y-2 flex-1 overflow-y-auto max-h-[500px] pr-1">
-    {/* 1. List of Already Saved Questions */}
-    {savedQuestions.map((q, idx) => {
-      const stepNum  = idx + 1;
-      const isActive = addStep === stepNum;
-      
-      // ✅ Fail-safe key: gamit ang ID kung meron, index kung wala
-      const qKey = q.id || q.question_id || `saved-${idx}`;
+              {/* ── ADD MODE sidebar ── */}
+              {pageMode === 'add' && (
+                <div className="space-y-2 flex-1 overflow-y-auto max-h-[500px] pr-1">
+                  {/* Saved questions */}
+                  {savedQuestions.map((q, idx) => {
+                    const stepNum  = idx + 1;
+                    const isActive = addStep === stepNum;
+                    const qKey     = q.id || q.question_id || `saved-${idx}`;
+                    return (
+                      <button
+                        key={qKey}
+                        type="button"
+                        onClick={() => { skipEffectRef.current = false; setAddStep(stepNum); }}
+                        className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${
+                          isActive
+                            ? 'bg-white border-indigo-500 shadow-md'
+                            : 'bg-white border-transparent hover:border-slate-200'
+                        }`}
+                      >
+                        <span className={`text-[10px] font-black w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                        }`}>{stepNum}</span>
+                        <span className="truncate text-xs font-bold text-slate-600 flex-1">
+                          {q.question_text || 'Saved Question'}
+                        </span>
+                        <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                      </button>
+                    );
+                  })}
 
-      return (
-        <button
-          key={qKey}
-          type="button"
-          onClick={() => { 
-            skipEffectRef.current = false; 
-            setAddStep(stepNum); 
-          }}
-          className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${
-            isActive 
-              ? 'bg-white border-indigo-500 shadow-md' 
-              : 'bg-white border-transparent hover:border-slate-200'
-          }`}
-        >
-          <span className={`text-[10px] font-black w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-            isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
-          }`}>{stepNum}</span>
-          
-          <span className="truncate text-xs font-bold text-slate-600 flex-1">
-            {q.question_text || 'Saved Question'}
-          </span>
-          
-          <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-        </button>
-      );
-    })}
+                  {/* Current editing slot */}
+                  {addStep > savedQuestions.length && (
+                    <div className={`w-full p-4 rounded-2xl border-2 border-dashed flex items-center gap-3 ${
+                      isQuiz ? 'border-rose-300 bg-rose-50/50' : 'border-amber-300 bg-amber-50/50'
+                    }`}>
+                      <span className={`text-[10px] font-black w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-white ${
+                        isQuiz ? 'bg-rose-500' : 'bg-amber-500'
+                      }`}>{addStep}</span>
+                      <span className={`text-xs font-black uppercase tracking-widest ${
+                        isQuiz ? 'text-rose-500' : 'text-amber-500'
+                      }`}>
+                        Editing now…
+                      </span>
+                    </div>
+                  )}
 
-    {/* 2. Currently editing slot (The 'New' question entry) */}
-    {addStep > savedQuestions.length && (
-      <div className={`w-full p-4 rounded-2xl border-2 border-dashed flex items-center gap-3 ${
-        isQuiz ? 'border-rose-300 bg-rose-50/50' : 'border-amber-300 bg-amber-50/50'
-      }`}>
-        <span className={`text-[10px] font-black w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-white ${
-          isQuiz ? 'bg-rose-500' : 'bg-amber-500'
-        }`}>{addStep}</span>
-        
-        <span className={`text-xs font-black uppercase tracking-widest ${isQuiz ? 'text-rose-500' : 'text-amber-500'}`}>
-          Editing now…
-        </span>
-      </div>
-    )}
-
-    {/* 3. Future empty slots (Remaining placeholders) */}
-    {Array.from({ length: Math.max(0, totalQuestions - Math.max(savedQuestions.length, addStep)) }).map((_, i) => {
-      const nextNum = Math.max(savedQuestions.length, addStep) + 1 + i;
-      return (
-        <div 
-          key={`empty-${nextNum}`}
-          className="w-full p-4 rounded-2xl border-2 border-dashed border-slate-100 flex items-center gap-3 opacity-40"
-        >
-          <span className="text-[10px] font-black w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-slate-100 text-slate-400">
-            {nextNum}
-          </span>
-          <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">Empty Slot</span>
-        </div>
-      );
-    })}
-  </div>
-)}
-{/* EDIT MODE sidebar */}
-{pageMode === 'edit' && (
-  <div className="space-y-2 flex-1 overflow-y-auto max-h-[500px] pr-1 custom-scrollbar">
-    {savedQuestions.length === 0 ? (
-      <div className="text-center py-10 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-          No questions found
-        </p>
-      </div>
-    ) : (
-      savedQuestions.map((q, idx) => {
-        const stepNum = idx + 1;
-        const isActive = editSelectedIdx === idx;
-
-        /** * ✅ FAIL-SAFE ID CHECK:
-         * Kasama na dito ang 'activity_question_id' para match sa database at sa mapping function.
-         */
-        const qId = q.id || q.activity_question_id || q.question_id || q._id;
-
-        return (
-          <div key={qId || `edit-item-${idx}`} className="relative group">
-            <button
-              type="button"
-              onClick={() => handleSelectQuestion(idx)}
-              className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 ${
-                isActive
-                  ? 'bg-white border-indigo-500 shadow-lg scale-[1.02] z-10 relative'
-                  : 'bg-white border-transparent hover:border-slate-200 shadow-sm'
-              }`}
-            >
-              <div className="flex items-center gap-3 overflow-hidden">
-                {/* Step Number Indicator */}
-                <span className={`text-[10px] font-black w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                  isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
-                }`}>
-                  {stepNum}
-                </span>
-
-                <div className="overflow-hidden">
-                  <p className={`truncate text-xs font-bold transition-colors ${
-                    isActive ? 'text-indigo-900' : 'text-slate-700'
-                  }`}>
-                    {q.question_text || 'Untitled Question'}
-                  </p>
-                  <p className="text-[9px] font-bold text-slate-300 uppercase mt-0.5 tracking-tighter">
-                    {(q.question_type || 'multiple_choice').replace(/_/g, ' ')}
-                  </p>
+                  {/* Empty future slots */}
+                  {Array.from({
+                    length: Math.max(0, totalQuestions - Math.max(savedQuestions.length, addStep))
+                  }).map((_, i) => {
+                    const nextNum = Math.max(savedQuestions.length, addStep) + 1 + i;
+                    return (
+                      <div
+                        key={`empty-${nextNum}`}
+                        className="w-full p-4 rounded-2xl border-2 border-dashed border-slate-100 flex items-center gap-3 opacity-40"
+                      >
+                        <span className="text-[10px] font-black w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-slate-100 text-slate-400">
+                          {nextNum}
+                        </span>
+                        <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">
+                          Empty Slot
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
+              )}
 
-              {/* Active Indicators */}
-              <div className="flex items-center gap-1 shrink-0">
-                {isActive && (
-                  <>
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse mr-1" />
-                    <ChevronRight size={14} className="text-indigo-500" />
-                  </>
-                )}
-              </div>
-            </button>
+              {/* ── EDIT MODE sidebar ── */}
+              {pageMode === 'edit' && (
+                <div className="space-y-2 flex-1 overflow-y-auto max-h-[500px] pr-1">
+                  {savedQuestions.length === 0 ? (
+                    <div className="text-center py-10 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        No questions found
+                      </p>
+                    </div>
+                  ) : (
+                    savedQuestions.map((q, idx) => {
+                      const stepNum  = idx + 1; // ✅ Always sequential after any deletion
+                      const isActive = editSelectedIdx === idx;
+                      const qId      = q.id || q.activity_question_id || q.quiz_question_id || q.question_id;
 
-            {/* ✅ DELETE BUTTON: 
-                Ipinapasa ang qId (para sa API) at idx (para sa UI state) 
-            */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation(); // Iwasan ang pag-trigger ng handleSelectQuestion
-                openDeleteModal(e, qId, idx, q.question_text);
-              }}
-              disabled={loading || isDeleting}
-              className="absolute -right-2 -top-2 w-7 h-7 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md z-10 disabled:opacity-30 border-2 border-white"
-              title="Delete this question"
-            >
-              <X size={13} strokeWidth={3} />
-            </button>
-          </div>
-        );
-      })
-    )}
-  </div>
-)}
+                      return (
+                        <div key={qId || `edit-${idx}`} className="relative group">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectQuestion(idx)}
+                            className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 ${
+                              isActive
+                                ? 'bg-white border-indigo-500 shadow-lg'
+                                : 'bg-white border-transparent hover:border-slate-200 shadow-sm'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 overflow-hidden">
+                              <span className={`text-[10px] font-black w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                              }`}>{stepNum}</span>
+                              <div className="overflow-hidden">
+                                <p className={`truncate text-xs font-bold ${
+                                  isActive ? 'text-indigo-900' : 'text-slate-700'
+                                }`}>
+                                  {q.question_text || 'Untitled Question'}
+                                </p>
+                                <p className="text-[9px] font-bold text-slate-300 uppercase mt-0.5">
+                                  {(q.question_type || 'multiple_choice').replace(/_/g, ' ')}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {isActive && (
+                                <>
+                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse mr-1" />
+                                  <ChevronRight size={14} className="text-indigo-500" />
+                                </>
+                              )}
+                            </div>
+                          </button>
+
+                          {/* ✅ Delete X — hover to reveal */}
+                          <button
+                            type="button"
+                            onClick={(e) => openDeleteModal(e, qId, idx, q.question_text)}
+                            disabled={loading || isDeleting}
+                            className="absolute -right-2 -top-2 w-7 h-7 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md z-10 disabled:opacity-30 border-2 border-white"
+                            title="Delete this question"
+                          >
+                            <X size={13} strokeWidth={3} />
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
 
               {/* Guide */}
               <div className="mt-6 p-5 bg-slate-900 rounded-[24px] text-white space-y-2">
@@ -794,12 +771,12 @@ const handleSaveChanges = async () => {
                   <p className="text-xs font-bold leading-relaxed opacity-80">
                     Set Total Items → fill the form →{' '}
                     <strong className="text-white opacity-100">Save & Next</strong> to continue.<br />
-                    Click <strong className="text-white opacity-100">Save & Finish</strong> on the last question to return to workspace.
+                    Click <strong className="text-white opacity-100">Save & Finish</strong> to save and return to workspace.
                   </p>
                 ) : (
                   <p className="text-xs font-bold leading-relaxed opacity-80">
-                    Click a question to load it.<br />
-                    <strong className="text-white opacity-100">Save Changes</strong> updates only that question — nothing else moves.<br />
+                    Click a question to load it into the editor.<br />
+                    <strong className="text-white opacity-100">Save Changes</strong> updates only that question.<br />
                     Hover a question → click <strong className="text-white opacity-100">×</strong> to delete and renumber.
                   </p>
                 )}

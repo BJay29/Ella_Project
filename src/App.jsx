@@ -21,11 +21,9 @@ import QuestLevels from './pages/student/QuestLevels';
 import GameEngine  from './pages/student/GameEngine';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ProtectedRoute
-// ─────────────────────────────────────────────────────────────────────────────
 const ProtectedRoute = ({ children, allowedRole }) => {
-  const token    = localStorage.getItem('token')    || sessionStorage.getItem('token');
-  const userRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
+  const token      = localStorage.getItem('token')    || sessionStorage.getItem('token');
+  const userRole   = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
   const normalized = userRole ? userRole.toLowerCase().trim() : '';
 
   if (!token || token === '') return <Navigate to="/login" replace />;
@@ -44,8 +42,6 @@ const ProtectedRoute = ({ children, allowedRole }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PublicRoute
-// ─────────────────────────────────────────────────────────────────────────────
 const PublicRoute = ({ children }) => {
   const token    = localStorage.getItem('token')    || sessionStorage.getItem('token');
   const userRole = (localStorage.getItem('userRole') || sessionStorage.getItem('userRole'))?.toLowerCase().trim();
@@ -62,15 +58,20 @@ const PublicRoute = ({ children }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+const CM = ({ children }) => (
+  <ProtectedRoute allowedRole="curriculum_manager">{children}</ProtectedRoute>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 function App() {
   return (
     <Router>
       <Routes>
 
         {/* ── Public ── */}
-        <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
-        <Route path="/signup"   element={<PublicRoute><SignupMethod /></PublicRoute>} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/login"        element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/signup"       element={<PublicRoute><SignupMethod /></PublicRoute>} />
+        <Route path="/register"     element={<Register />} />
         <Route path="/callback"     element={<GoogleCallback />} />
         <Route path="/sso-callback" element={<GoogleCallback />} />
 
@@ -95,39 +96,29 @@ function App() {
           <ProtectedRoute allowedRole="instructor"><InstructorDashboard /></ProtectedRoute>
         } />
 
-        {/* ── CM: main dashboard ── */}
-        <Route path="/cm/dashboard" element={
-          <ProtectedRoute allowedRole="curriculum_manager"><CMDashboard /></ProtectedRoute>
-        } />
+        {/* ── CM: main dashboard (list view) ── */}
+        <Route path="/cm/dashboard" element={<CM><CMDashboard /></CM>} />
 
-        {/* ── CM: quest detail → renders CMDashboard which restores selection-view ──
-            When AddQuestion calls navigate(-1), it lands here.
-            CMDashboard reads the route params and auto-navigates to selection-view.
+        {/* ── CM: quest level ─────────────────────────────────────────────────
+            When navigate(-1) fires from AddQuestion it lands here.
+            CMDashboard renders QuestBuilder which reads these route params
+            and auto-restores to selection-view via its mount useEffect.
         ── */}
-        <Route path="/cm/dashboard/quest/:questId" element={
-          <ProtectedRoute allowedRole="curriculum_manager"><CMDashboard /></ProtectedRoute>
-        } />
+        <Route path="/cm/dashboard/quest/:questId" element={<CM><CMDashboard /></CM>} />
+        <Route path="/cm/dashboard/quest/:questId/level/:levelId" element={<CM><CMDashboard /></CM>} />
 
-        <Route path="/cm/dashboard/quest/:questId/level/:levelId" element={
-          <ProtectedRoute allowedRole="curriculum_manager"><CMDashboard /></ProtectedRoute>
-        } />
-
-        {/* ── CM: Add/Edit Questions ──
-            Two separate routes: one for activity, one for quiz.
-            ?mode=add  → AddQuestion opens in add mode
-            ?mode=edit → AddQuestion opens in edit mode
+        {/* ── CM: Add / Edit Questions ─────────────────────────────────────
+            ?mode=add  → AddQuestion opens in Add Mode
+            ?mode=edit → AddQuestion opens in Edit Mode
+            Both routes use the same component.
         ── */}
         <Route
           path="/cm/dashboard/quest/:questId/level/:levelId/activity/:activityId/add-question"
-          element={
-            <ProtectedRoute allowedRole="curriculum_manager"><AddQuestion /></ProtectedRoute>
-          }
+          element={<CM><AddQuestion /></CM>}
         />
         <Route
           path="/cm/dashboard/quest/:questId/level/:levelId/quiz/:quizId/add-question"
-          element={
-            <ProtectedRoute allowedRole="curriculum_manager"><AddQuestion /></ProtectedRoute>
-          }
+          element={<CM><AddQuestion /></CM>}
         />
 
         {/* ── Redirects ── */}

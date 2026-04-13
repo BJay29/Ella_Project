@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import HierarchyManager from './Hierarchy/HierarchyManager'; 
 import QuestBuilder from './QuestBuilder/QuestBuilder'; 
@@ -10,11 +10,22 @@ import EllaAvatar from '../../assets/image.png';
 
 const CMDashboard = () => {
     const navigate = useNavigate();
-    // Default tab is materials as per your original code
+    const { questId, levelId } = useParams();
+    
+    // Default tab is materials
     const [activeTab, setActiveTab] = useState('materials');
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     
     const [materials, setMaterials] = useState([]);
+
+    // --- AUTO-SWITCH TAB LOGIC ---
+    // Kung may questId sa URL (ibig sabihin galing sa AddQuestion or specific route),
+    // ilipat ang active tab sa 'quests' (Quest Workshop)
+    useEffect(() => {
+        if (questId) {
+            setActiveTab('quests');
+        }
+    }, [questId]);
 
     const stats = {
         total: materials.length,
@@ -127,7 +138,11 @@ const CMDashboard = () => {
                         ].map((tab) => (
                             <button 
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
+                                onClick={() => {
+                                    setActiveTab(tab.id);
+                                    // Linisin ang URL kung manual na nag-click ng ibang tabs para iwas conflict
+                                    if(tab.id !== 'quests') navigate('/cm/dashboard');
+                                }}
                                 className={`pb-4 text-sm font-bold capitalize transition-all whitespace-nowrap relative ${
                                     activeTab === tab.id 
                                     ? 'text-indigo-600' 
@@ -236,7 +251,7 @@ const CMDashboard = () => {
                         </div>
                         <h2 className="text-2xl font-black text-gray-800 mb-2 uppercase tracking-tighter italic">Log Out</h2>
                         <p className="text-gray-500 text-center font-medium mb-8 leading-relaxed text-sm px-4">
-                            Are you sure you want to exit the Curriculum Manager dashboard?
+                            Are you sure you want to exit the Curriculum Manager dashboard? Siguraduhin na nai-save ang changes.
                         </p>
                         <div className="flex flex-col gap-3 w-full">
                             <button 
