@@ -73,12 +73,101 @@ export const authAPI = {
         });
     },
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // INSTRUCTOR DASHBOARD & SECTION MANAGEMENT
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    // Kunin ang mga courses na hawak na ng instructor (yung nasa cards)
     getMyCourses: async (token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/courses/my-courses`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
     },
+
+    // Ito ang gagamitin para sa "Save" sa Modal para i-link ang section sa instructor
+    assignSectionToInstructor: async (sectionId, token) => {
+        validateParams({ sectionId });
+        return await fetchWithTimeout(`${BASE_URL}/api/instructor/sections/assign`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sectionId }),
+        });
+    },
+
+    // DELETE/UNASSIGN: Para alisin ang card sa instructor dashboard
+    unassignSection: async (sectionId, token) => {
+        validateParams({ sectionId });
+        return await fetchWithTimeout(`${BASE_URL}/api/instructor/sections/${sectionId}/unassign`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+    },
+
+    getInstructorSections: async (token) => {
+        return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+    },
+
+    getStudentsBySection: async (sectionId, token) => {
+        return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections/${sectionId}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+    },
+
+    approveRejectStudent: async (courseId, sectionId, ssId, status, token) => {
+        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/sections/${sectionId}/students/${ssId}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status }),
+        });
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CURRICULUM FETCHING (Para sa Modal Selection)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // 1. Get All Courses from CM
+    getCMCourses: async (token) => {
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/courses`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+    },
+
+    // 2. Get Depts by Course ID
+    getCMDepartments: async (courseId, token) => {
+        validateParams({ courseId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/courses/${courseId}/departments`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+    },
+
+    // 3. Get Programs by Dept ID
+    getCMPrograms: async (deptId, token) => {
+        validateParams({ deptId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+    },
+
+    // 4. Get Sections by Program ID
+    getCMSections: async (programId, token) => {
+        validateParams({ programId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/programs/${programId}/sections`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ORIGINAL CM CRUD (Maintain existing)
+    // ─────────────────────────────────────────────────────────────────────────
 
     createCourse: async (payload, token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/courses`, {
@@ -194,20 +283,6 @@ export const authAPI = {
         });
     },
 
-    getInstructorSections: async (token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
-    },
-
-    getStudentsBySection: async (sectionId, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections/${sectionId}`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
-    },
-
     getSectionsByProgram: async (courseId, deptId, programId, token) => {
         validateParams({ courseId, deptId, programId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections`, {
@@ -254,13 +329,9 @@ export const authAPI = {
         });
     },
 
-    approveRejectStudent: async (courseId, sectionId, ssId, status, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/sections/${sectionId}/students/${ssId}`, {
-            method: 'PUT',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status }),
-        });
-    },
+    // ─────────────────────────────────────────────────────────────────────────
+    // QUESTS & ACTIVITIES (Original)
+    // ─────────────────────────────────────────────────────────────────────────
 
     getQuests: async (token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/quests`, {
@@ -338,9 +409,6 @@ export const authAPI = {
         });
     },
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // ACTIVITY CRUD
-    // ─────────────────────────────────────────────────────────────────────────
     getActivities: async (questId, quest_level_id, token) => {
         validateParams({ questId, quest_level_id });
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities`, {
@@ -375,10 +443,6 @@ export const authAPI = {
         });
     },
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // ACTIVITY QUESTIONS
-    // FIX: All question routes now include activityId in the path
-    // ─────────────────────────────────────────────────────────────────────────
     getActivityQuestions: async (questId, quest_level_id, activityId, token) => {
         validateParams({ questId, quest_level_id, activityId });
         return await fetchWithTimeout(
@@ -399,8 +463,6 @@ export const authAPI = {
         );
     },
 
-    // FIXED URL: was /activities/questions/:id (WRONG — missing activityId)
-    // Now: /activities/:activityId/questions/:questionId (CORRECT)
     updateActivityQuestion: async (questId, quest_level_id, activityId, questionId, data, token) => {
         validateParams({ questId, quest_level_id, activityId, questionId });
         return await fetchWithTimeout(
@@ -413,7 +475,6 @@ export const authAPI = {
         );
     },
 
-    // FIXED URL: was /activities/questions/:id (WRONG — missing activityId)
     deleteActivityQuestion: async (questId, quest_level_id, activityId, questionId, token) => {
         validateParams({ questId, quest_level_id, activityId, questionId });
         return await fetchWithTimeout(
@@ -422,9 +483,6 @@ export const authAPI = {
         );
     },
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // QUIZ CRUD
-    // ─────────────────────────────────────────────────────────────────────────
     getQuizzes: async (questId, quest_level_id, token) => {
         validateParams({ questId, quest_level_id });
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes`, {
@@ -459,10 +517,6 @@ export const authAPI = {
         });
     },
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // QUIZ QUESTIONS
-    // FIX: All question routes now include quizId in the path
-    // ─────────────────────────────────────────────────────────────────────────
     getQuizQuestions: async (questId, quest_level_id, quizId, token) => {
         validateParams({ questId, quest_level_id, quizId });
         return await fetchWithTimeout(
@@ -483,8 +537,6 @@ export const authAPI = {
         );
     },
 
-    // FIXED URL: was /quizzes/questions/:id (WRONG — missing quizId)
-    // Now: /quizzes/:quizId/questions/:questionId (CORRECT)
     updateQuizQuestion: async (questId, quest_level_id, quizId, questionId, data, token) => {
         validateParams({ questId, quest_level_id, quizId, questionId });
         return await fetchWithTimeout(
@@ -497,7 +549,6 @@ export const authAPI = {
         );
     },
 
-    // FIXED URL: was /quizzes/questions/:id (WRONG — missing quizId)
     deleteQuizQuestion: async (questId, quest_level_id, quizId, questionId, token) => {
         validateParams({ questId, quest_level_id, quizId, questionId });
         return await fetchWithTimeout(

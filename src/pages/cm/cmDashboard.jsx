@@ -251,7 +251,7 @@ const CMDashboard = () => {
                         </div>
                         <h2 className="text-2xl font-black text-gray-800 mb-2 uppercase tracking-tighter italic">Log Out</h2>
                         <p className="text-gray-500 text-center font-medium mb-8 leading-relaxed text-sm px-4">
-                            Are you sure you want to exit the Curriculum Manager dashboard? Siguraduhin na nai-save ang changes.
+                            Are you sure you want to exit the Curriculum Manager dashboard?
                         </p>
                         <div className="flex flex-col gap-3 w-full">
                             <button 
@@ -264,7 +264,7 @@ const CMDashboard = () => {
                                 onClick={() => setShowLogoutModal(false)}
                                 className="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold rounded-2xl transition-all active:scale-95 uppercase tracking-widest text-[10px]"
                             >
-                                Stay on Dashboard
+                                Cancel
                             </button>
                         </div>
                     </div>

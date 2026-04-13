@@ -39,15 +39,15 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isDeleting, questionTe
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
       <div className="bg-white w-full max-w-sm rounded-2xl p-8 shadow-2xl border border-slate-200 text-center">
-        <div className="text-4xl mb-4">🗑️</div>
-        <h3 className="text-lg font-black text-slate-900">Delete this question?</h3>
+        <div className="text-4xl mb-4"></div>
+        <h3 className="text-lg font-black text-slate-900">Delete this question</h3>
         {questionText && (
           <p className="text-sm text-slate-500 mt-2 bg-slate-50 rounded-xl p-3 font-medium italic line-clamp-2">
             "{questionText}"
           </p>
         )}
         <p className="text-xs text-slate-400 mt-3 leading-relaxed">
-          This will permanently remove the question and automatically renumber the remaining ones.
+          This will permanently remove the question.  
         </p>
         <div className="flex gap-3 mt-6">
           <button type="button" onClick={onClose} disabled={isDeleting}
@@ -56,7 +56,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isDeleting, questionTe
           </button>
           <button type="button" onClick={onConfirm} disabled={isDeleting}
             className="flex-1 py-3 bg-rose-500 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-rose-600 transition-all active:scale-95 disabled:opacity-60">
-            {isDeleting ? 'Deleting…' : 'Yes, Delete'}
+            {isDeleting ? 'Deleting…' : ' Delete'}
           </button>
         </div>
       </div>
@@ -516,7 +516,7 @@ const handleSaveFinish = async () => {
               </div>
               <div>
                 <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                  {typeLabel} Question Designer
+                  {typeLabel} 
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
                   <span className={`w-2 h-2 rounded-full animate-pulse ${
@@ -620,7 +620,7 @@ const handleSaveFinish = async () => {
                 <div className="flex items-center gap-2">
                   <ListChecks size={18} className="text-indigo-500" />
                   <span className="font-black text-[11px] uppercase tracking-widest text-slate-700">
-                    Question Stack
+                    Question List
                   </span>
                 </div>
                 <span className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-black text-indigo-600">

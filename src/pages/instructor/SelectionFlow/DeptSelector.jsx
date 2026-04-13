@@ -1,83 +1,59 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
-// --- MOCK DATA PARA SA DEPARTMENTS ---
-const MOCK_DEPARTMENTS = [
-    { 
-        id: 1, 
-        name: 'CCS', 
-        description: 'College of Computer Studies',
-        icon: '💻'
-    },
-    { 
-        id: 2, 
-        name: 'CBM', 
-        description: 'College of Business Management',
-        icon: '📊'
-    },
-    { 
-        id: 3, 
-        name: 'CAS', 
-        description: 'College of Arts and Sciences',
-        icon: '🎨'
-    },
-    { 
-        id: 4, 
-        name: 'COE', 
-        description: 'College of Engineering',
-        icon: '⚙️'
-    }
-];
+const DeptSelector = ({ value, onChange, courseId }) => {
+    const [departments, setDepartments] = useState([]);
+    const [loading,     setLoading]     = useState(false);
 
-const DeptSelector = ({ onNext }) => {
+    useEffect(() => {
+        // Always load all departments (or filter by courseId when API is ready)
+        setLoading(true);
+        const mockData = [
+            { id: 1, name: 'College of Information Technology', abbr: 'CIT', icon: '💻' },
+            { id: 2, name: 'College of Engineering',            abbr: 'COE', icon: '⚙️' },
+            { id: 3, name: 'College of Arts and Sciences',      abbr: 'CAS', icon: '🎨' },
+        ];
+        setDepartments(mockData);
+        setLoading(false);
+    }, [courseId]);
+
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header Section */}
-            <div className="mb-10">
-                <h2 className="text-3xl font-black italic uppercase text-gray-800 tracking-tighter leading-none">
-                    Select Department
-                </h2>
-                <p className="text-[10px] text-gray-400 font-bold uppercase mt-3 tracking-widest">
-                    Step 1: Choose the department of the course
-                </p>
-            </div>
-
-            {/* Selection Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {MOCK_DEPARTMENTS.map((dept) => (
-                    <button 
-                        key={dept.id}
-                        onClick={() => onNext(dept)}
-                        className="bg-white p-8 rounded-[2.5rem] border-2 border-gray-50 hover:border-[#22C55E] hover:shadow-2xl transition-all group text-left w-full active:scale-95 flex flex-col items-start min-h-[200px] relative overflow-hidden"
-                    >
-                        {/* Background Decoration */}
-                        <div className="absolute -right-4 -top-4 text-6xl opacity-5 group-hover:opacity-10 transition-opacity">
-                            {dept.icon}
-                        </div>
-
-                        <div className="text-3xl mb-4 group-hover:scale-110 transition-transform">
-                            {dept.icon}
-                        </div>
-
-                        <div>
-                            <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1 group-hover:text-[#22C55E] transition-colors">
-                                Department
-                            </p>
-                            <h3 className="text-2xl font-black text-gray-800 uppercase italic tracking-tighter leading-none">
-                                {dept.name}
-                            </h3>
-                            <p className="text-[11px] text-gray-400 font-medium mt-3 leading-tight group-hover:text-gray-600 transition-colors">
-                                {dept.description}
-                            </p>
-                        </div>
-
-                        {/* Hover Indicator */}
-                        <div className="mt-auto pt-4 w-full flex justify-end">
-                            <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-[#22C55E] group-hover:text-white transition-all">
-                                <span className="text-lg">→</span>
+        <div className="w-full">
+            <div className="max-h-[200px] overflow-y-auto space-y-2 pr-1">
+                {loading ? (
+                    <div className="py-8 text-center">
+                        <div className="animate-spin inline-block w-5 h-5 border-2 border-current border-t-transparent text-green-500 rounded-full" />
+                    </div>
+                ) : departments.length > 0 ? (
+                    departments.map((d) => (
+                        <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => onChange(d)}
+                            className={`w-full p-3 rounded-2xl border-2 transition-all flex items-center justify-between text-left ${
+                                value === d.id
+                                    ? 'border-[#22C55E] bg-green-50'
+                                    : 'border-gray-100 bg-white hover:border-gray-300'
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className="text-lg">{d.icon}</span>
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">{d.abbr}</span>
+                                    <span className="text-[11px] font-black text-gray-800 uppercase italic leading-tight">{d.name}</span>
+                                </div>
                             </div>
-                        </div>
-                    </button>
-                ))}
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                value === d.id ? 'bg-[#22C55E] text-white' : 'bg-gray-100 text-gray-400'
+                            }`}>
+                                {value === d.id ? '✓' : '+'}
+                            </div>
+                        </button>
+                    ))
+                ) : (
+                    <div className="py-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">No Departments Found</p>
+                    </div>
+                )}
             </div>
         </div>
     );

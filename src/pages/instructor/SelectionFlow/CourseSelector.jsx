@@ -1,75 +1,71 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
-// --- MOCK DATA PARA SA SUBJECTS ---
-const MOCK_SUBJECTS = {
-    // IT Subjects (deptId 1 -> progId 101)
-    101: [
-        { id: 501, name: 'PROG 1', code: 'IT111', units: 3 },
-        { id: 502, name: 'NETWORKING 1', code: 'IT112', units: 3 },
-        { id: 503, name: 'WEB DEV', code: 'IT113', units: 3 }
-    ],
-    // CS Subjects (deptId 1 -> progId 102)
-    102: [
-        { id: 601, name: 'CS 101', code: 'CS211', units: 3 },
-        { id: 602, name: 'ALGORITHMS', code: 'CS212', units: 4 },
-        { id: 603, name: 'DISCRETE MATH', code: 'CS213', units: 3 }
-    ],
-    // HM Subjects (deptId 2 -> progId 201)
-    201: [
-        { id: 701, name: 'KITCHEN MGMT', code: 'HM101', units: 5 },
-        { id: 702, name: 'FRONT OFFICE', code: 'HM102', units: 3 }
-    ]
-};
+const CourseSelector = ({ value, onChange }) => {
+    const [courses,    setCourses]    = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [loading,    setLoading]    = useState(false);
 
-const CourseSelector = ({ programId, onNext }) => {
-    // Kunin ang listahan base sa programId na pinasa ng Management.jsx
-    const subjectList = MOCK_SUBJECTS[programId] || [];
+    useEffect(() => {
+        setLoading(true);
+        // Replace with real API call
+        const mockData = [
+            { id: 1, course_code: 'IT111',  course_name: 'Introduction to Computing' },
+            { id: 2, course_code: 'IT112',  course_name: 'Computer Programming 1' },
+            { id: 3, course_code: 'GE101',  course_name: 'Understanding the Self' },
+            { id: 4, course_code: 'NET101', course_name: 'Networking Technologies' },
+        ];
+        setCourses(mockData);
+        setLoading(false);
+    }, []);
+
+    const filtered = courses.filter(c =>
+        c.course_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.course_code.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header ng Selector */}
-            <div className="mb-8">
-                <h2 className="text-2xl font-black italic uppercase text-gray-800 tracking-tighter leading-none">
-                    Select Subject
-                </h2>
-                <p className="text-[10px] text-gray-400 font-bold uppercase mt-2">
-                    Step 3: Choose the specific course/subject you are handling
-                </p>
+        <div className="w-full">
+            <div className="relative mb-3">
+                <span className="absolute inset-y-0 left-3 flex items-center text-gray-300 text-xs">🔍</span>
+                <input
+                    type="text"
+                    placeholder="Search Code or Subject..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border-2 border-gray-100 focus:border-[#22C55E] rounded-2xl text-[10px] font-bold uppercase tracking-wider outline-none transition-all placeholder:text-gray-300"
+                />
             </div>
-
-            {/* Grid ng mga Subjects */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {subjectList.length > 0 ? (
-                    subjectList.map((subject) => (
-                        <button 
-                            key={subject.id}
-                            onClick={() => onNext(subject)}
-                            className="bg-white p-8 rounded-[2.5rem] border-2 border-gray-50 hover:border-[#22C55E] hover:shadow-xl transition-all group text-left w-full active:scale-95 flex flex-col justify-between min-h-[160px]"
+            <div className="max-h-[200px] overflow-y-auto space-y-2 pr-1">
+                {loading ? (
+                    <div className="py-8 text-center">
+                        <div className="animate-spin inline-block w-5 h-5 border-2 border-current border-t-transparent text-green-500 rounded-full" />
+                    </div>
+                ) : filtered.length > 0 ? (
+                    filtered.map((c) => (
+                        <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => onChange(c)}
+                            className={`w-full p-3 rounded-2xl border-2 transition-all flex items-center justify-between text-left ${
+                                value === c.id
+                                    ? 'border-[#22C55E] bg-green-50'
+                                    : 'border-gray-100 bg-white hover:border-gray-300'
+                            }`}
                         >
-                            <div>
-                                <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1 group-hover:text-[#22C55E] transition-colors">
-                                    {subject.code}
-                                </p>
-                                <h3 className="text-xl font-black text-gray-800 uppercase italic tracking-tighter leading-tight">
-                                    {subject.name}
-                                </h3>
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-[9px] font-black text-[#22C55E] uppercase tracking-widest">{c.course_code}</span>
+                                <span className="text-[11px] font-black text-gray-800 uppercase italic">{c.course_name}</span>
                             </div>
-
-                            <div className="mt-4 pt-4 border-t border-gray-50 w-full flex justify-between items-center">
-                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                    {subject.units} Units
-                                </span>
-                                <div className="h-6 w-6 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-[#22C55E]/10 transition-colors">
-                                    <span className="text-[#22C55E] text-xs">→</span>
-                                </div>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                value === c.id ? 'bg-[#22C55E] text-white' : 'bg-gray-100 text-gray-400'
+                            }`}>
+                                {value === c.id ? '✓' : '+'}
                             </div>
                         </button>
                     ))
                 ) : (
-                    <div className="col-span-full py-20 text-center">
-                        <p className="text-gray-400 font-black uppercase text-[10px] italic">
-                            No subjects found for this program.
-                        </p>
+                    <div className="py-10 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
+                        <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">No Subjects Found</p>
                     </div>
                 )}
             </div>

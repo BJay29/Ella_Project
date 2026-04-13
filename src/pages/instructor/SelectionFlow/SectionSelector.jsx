@@ -1,68 +1,88 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
-// --- MOCK DATA PARA SA SECTIONS ---
-// Karaniwan ang sections ay standard (A, B, C) 
-// Pero pwede mo rin itong i-filter base sa subjectId kung gusto mo sa future
-const MOCK_SECTIONS = [
-    { id: 901, name: '3A', schedule: 'MW 8:00 AM - 10:00 AM', room: 'LAB 1' },
-    { id: 902, name: '3B', schedule: 'TTH 1:00 PM - 3:00 PM', room: 'LAB 2' },
-    { id: 903, name: '3C', schedule: 'F 8:00 AM - 12:00 PM', room: 'LEC 3' },
-    { id: 904, name: '4A', schedule: 'MW 10:00 AM - 12:00 PM', room: 'LAB 1' },
-    { id: 905, name: '4B', schedule: 'TTH 3:00 PM - 5:00 PM', room: 'LAB 2' }
-];
+const SectionSelector = ({ value, onChange, programId }) => {
+    const [sections, setSections] = useState([]);
+    const [loading,  setLoading]  = useState(false);
 
-const SectionSelector = ({ onNext }) => {
+    useEffect(() => {
+        if (!programId) { setSections([]); return; }
+        setLoading(true);
+        const mockByProgram = {
+            1: [
+                { id: 1, name: 'BSIT-1A', year: '1st Year', room: 'Room 201', schedule: 'MWF 7:00-8:30 AM' },
+                { id: 2, name: 'BSIT-1B', year: '1st Year', room: 'Room 202', schedule: 'TTH 7:00-8:30 AM' },
+                { id: 3, name: 'BSIT-2A', year: '2nd Year', room: 'Room 301', schedule: 'MWF 9:00-10:30 AM' },
+            ],
+            2: [
+                { id: 4, name: 'BSCS-1A', year: '1st Year', room: 'Room 101', schedule: 'MWF 1:00-2:30 PM' },
+                { id: 5, name: 'BSCS-2A', year: '2nd Year', room: 'Room 102', schedule: 'TTH 3:00-4:30 PM' },
+            ],
+            3: [
+                { id: 6, name: 'BSCE-1A', year: '1st Year', room: 'Lab 1',    schedule: 'TTH 10:00-11:30 AM' },
+            ],
+            4: [
+                { id: 7, name: 'BSEE-2A', year: '2nd Year', room: 'Lab 3',    schedule: 'MWF 3:00-4:30 PM' },
+            ],
+            5: [
+                { id: 8, name: 'BSED-1A', year: '1st Year', room: 'Room 401', schedule: 'TTH 1:00-2:30 PM' },
+            ],
+            6: [
+                { id: 9, name: 'BSMATH-1A', year: '1st Year', room: 'Room 501', schedule: 'MWF 10:00-11:30 AM' },
+            ],
+        };
+        setSections(mockByProgram[programId] || []);
+        setLoading(false);
+    }, [programId]);
+
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header Section */}
-            <div className="mb-10">
-                <h2 className="text-3xl font-black italic uppercase text-gray-800 tracking-tighter leading-none">
-                    Select Section
-                </h2>
-                <p className="text-[10px] text-gray-400 font-bold uppercase mt-3 tracking-widest">
-                    Step 4: Finalize by selecting the specific class section
-                </p>
-            </div>
-
-            {/* Selection Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {MOCK_SECTIONS.map((section) => (
-                    <button 
-                        key={section.id}
-                        onClick={() => onNext(section)}
-                        className="bg-white p-6 rounded-[2.5rem] border-2 border-gray-50 hover:border-[#22C55E] hover:shadow-2xl transition-all group text-left w-full active:scale-95 flex flex-col min-h-[160px] relative overflow-hidden"
-                    >
-                        {/* Section Header */}
-                        <div className="flex justify-between items-start w-full mb-4">
-                            <div>
-                                <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1 group-hover:text-[#22C55E] transition-colors">
-                                    Class Group
-                                </p>
-                                <h3 className="text-3xl font-black text-gray-800 uppercase italic tracking-tighter leading-none">
-                                    Section {section.name}
-                                </h3>
+        <div className="w-full">
+            <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1">
+                {loading ? (
+                    <div className="py-8 text-center">
+                        <div className="animate-spin inline-block w-5 h-5 border-2 border-current border-t-transparent text-green-500 rounded-full" />
+                    </div>
+                ) : sections.length > 0 ? (
+                    sections.map((s) => (
+                        <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => onChange(s)}
+                            className={`w-full p-3 rounded-2xl border-2 transition-all flex flex-col text-left gap-1 ${
+                                value === s.id
+                                    ? 'border-[#22C55E] bg-green-50'
+                                    : 'border-gray-100 bg-white hover:border-gray-300'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between w-full">
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="text-[11px] font-black text-gray-800 uppercase italic">{s.name}</span>
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase">{s.year}</span>
+                                </div>
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                    value === s.id ? 'bg-[#22C55E] text-white' : 'bg-gray-100 text-gray-400'
+                                }`}>
+                                    {value === s.id ? '✓' : '+'}
+                                </div>
                             </div>
-                            <div className="bg-gray-50 px-3 py-1 rounded-full group-hover:bg-[#22C55E]/10 transition-colors">
-                                <span className="text-[9px] font-black text-gray-400 group-hover:text-[#22C55E] uppercase tracking-tighter">
-                                    {section.room}
-                                </span>
+                            <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[9px] font-bold ${
+                                value === s.id ? 'bg-white text-gray-600' : 'bg-gray-50 text-gray-400'
+                            }`}>
+                                <span>🕒</span>
+                                <span>{s.schedule}</span>
+                                <span className="mx-1 opacity-40">•</span>
+                                <span>📍</span>
+                                <span>{s.room}</span>
                             </div>
-                        </div>
-
-                        {/* Schedule Info */}
-                        <div className="mt-auto border-t border-gray-50 pt-4 flex items-center gap-2">
-                            <span className="text-sm">🕒</span>
-                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight leading-none group-hover:text-gray-700 transition-colors">
-                                {section.schedule}
-                            </p>
-                        </div>
-
-                        {/* Visual Confirm Hint */}
-                        <div className="absolute bottom-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <p className="text-[9px] font-black text-[#22C55E] uppercase italic">Confirm Selection</p>
-                        </div>
-                    </button>
-                ))}
+                        </button>
+                    ))
+                ) : (
+                    <div className="py-10 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
+                        <div className="text-xl mb-1 opacity-20">📅</div>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                            {programId ? 'No sections in this program' : 'Select a program first'}
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );
