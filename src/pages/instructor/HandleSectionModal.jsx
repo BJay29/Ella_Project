@@ -17,14 +17,13 @@ const SelectList = ({ items, value, onChange, emptyText = 'No items found', rend
             </div>
         ) : (
             items.map((item) => {
-                const itemId = item._id || item.id;
-                // Strict comparison para mag-match sa selection state
-                const isSelected = value && itemId && String(value) === String(itemId);
+             const itemId = item._id || item.id || item.course_id || item.dept_id || item.program_id || Math.random();               
+              const isSelected = value && itemId && String(value) === String(itemId);
 
                 return (
                     <button
-                        key={itemId}
-                        type="button"
+                 key={itemId || Math.random()}                        
+                 type="button"
                         onClick={() => onChange(item)}
                         className={`w-full p-3 rounded-2xl border-2 transition-all flex items-center justify-between group text-left ${
                             isSelected
@@ -53,8 +52,14 @@ const SelectList = ({ items, value, onChange, emptyText = 'No items found', rend
 // Main Modal Component
 // ─────────────────────────────────────────────────────────────────────────────
 const HandleSectionModal = ({ onClose, onSuccess }) => {
-    const token = localStorage.getItem('token');
 
+    const token = localStorage.getItem('token') || null;
+
+    if (!token) {
+    console.error("❌ No token found. Please login again.");
+    return;
+}
+   
     const [selection, setSelection] = useState({
         course: null, dept: null, program: null, section: null
     });
@@ -87,71 +92,144 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
     }, [token]);
 
     // STEP 2: Fetch Departments based on Course
-    useEffect(() => {
-        const courseId = selection.course?._id || selection.course?.id;
-        if (!courseId) {
-            setLists(p => ({ ...p, depts: [], programs: [], sections: [] }));
-            return;
-        }
-        const fetchDepts = async () => {
-            setLoading(p => ({ ...p, depts: true }));
-            try {
-                const res = await authAPI.getInstructorDepartments(courseId, token);
-                if (res.ok) {
-                    const data = await res.json();
-                    setLists(p => ({ ...p, depts: Array.isArray(data) ? data : (data.departments || []) }));
-                }
-            } catch (err) { console.error('Fetch depts error:', err); }
+useEffect(() => {
+    const courseId =
+        selection.course?.course_id ||
+        selection.course?._id ||
+        selection.course?.id;
+
+    console.log("SELECTED COURSE:", selection.course);
+    console.log("COURSE ID:", courseId);
+
+    if (!courseId) {
+        console.log("NO COURSE ID, RESETTING...");
+        setLists(p => ({ ...p, depts: [], programs: [], sections: [] }));
+        return;
+    }
+
+    const fetchDepts = async () => {
+        setLoading(p => ({ ...p, depts: true }));
+
+        try {
+            console.log("CALLING API...");
+
+            const res = await authAPI.getInstructorDepartments(courseId, token);
+
+            console.log("RAW RESPONSE:", res);
+
+            if (res.ok) {
+                const data = await res.json();
+
+                console.log("DEPT RESPONSE:", data);
+
+                setLists(p => ({
+                    ...p,
+                    depts: data?.departments || data?.data || data || []
+                }));
+            } else {
+                console.error("API ERROR:", res.status);
+            }
+
+        } catch (err) {
+            console.error("FETCH ERROR:", err);
+        } finally {
             setLoading(p => ({ ...p, depts: false }));
-        };
-        fetchDepts();
-    }, [selection.course, token]);
-
-    // STEP 3: Fetch Programs based on Course & Dept
-    useEffect(() => {
-        const courseId = selection.course?._id || selection.course?.id;
-        const deptId = selection.dept?._id || selection.dept?.id;
-        if (!courseId || !deptId) {
-            setLists(p => ({ ...p, programs: [], sections: [] }));
-            return;
         }
-        const fetchPrograms = async () => {
-            setLoading(p => ({ ...p, programs: true }));
-            try {
-                const res = await authAPI.getInstructorPrograms(courseId, deptId, token);
-                if (res.ok) {
-                    const data = await res.json();
-                    setLists(p => ({ ...p, programs: Array.isArray(data) ? data : (data.programs || []) }));
-                }
-            } catch (err) { console.error('Fetch programs error:', err); }
+    };
+
+    fetchDepts();
+}, [selection.course, token]);
+    
+// STEP 3: Fetch Programs based on Course & Dept
+  useEffect(() => {
+    const courseId =
+        selection.course?.course_id ||
+        selection.course?._id ||
+        selection.course?.id;
+
+    const deptId =
+        selection.dept?.dept_id ||
+        selection.dept?._id ||
+        selection.dept?.id;
+
+    if (!courseId || !deptId) {
+        setLists(p => ({ ...p, programs: [], sections: [] }));
+        return;
+    }
+
+    const fetchPrograms = async () => {
+        setLoading(p => ({ ...p, programs: true }));
+
+        try {
+            const res = await authAPI.getInstructorPrograms(courseId, deptId, token);
+
+            if (res.ok) {
+                const data = await res.json();
+
+                setLists(p => ({
+                    ...p,
+                    programs: data?.programs || data?.data || data || []
+                }));
+            }
+        } catch (err) {
+            console.error("Fetch programs error:", err);
+        } finally {
             setLoading(p => ({ ...p, programs: false }));
-        };
-        fetchPrograms();
-    }, [selection.dept, token]);
-
-    // STEP 4: Fetch Sections based on Program
-    useEffect(() => {
-        const courseId = selection.course?._id || selection.course?.id;
-        const deptId = selection.dept?._id || selection.dept?.id;
-        const programId = selection.program?._id || selection.program?.id;
-        if (!courseId || !deptId || !programId) {
-            setLists(p => ({ ...p, sections: [] }));
-            return;
         }
-        const fetchSections = async () => {
-            setLoading(p => ({ ...p, sections: true }));
-            try {
-                const res = await authAPI.getInstructorSectionsByProgram(courseId, deptId, programId, token);
-                if (res.ok) {
-                    const data = await res.json();
-                    setLists(p => ({ ...p, sections: Array.isArray(data) ? data : (data.sections || []) }));
-                }
-            } catch (err) { console.error('Fetch sections error:', err); }
-            setLoading(p => ({ ...p, sections: false }));
-        };
-        fetchSections();
-    }, [selection.program, token]);
+    };
 
+    fetchPrograms();
+}, [selection.dept, token]);
+    // STEP 4: Fetch Sections based on Program
+  useEffect(() => {
+    const courseId =
+        selection.course?.course_id ||
+        selection.course?._id ||
+        selection.course?.id;
+
+    const deptId =
+        selection.dept?.dept_id ||
+        selection.dept?._id ||
+        selection.dept?.id;
+
+    const programId =
+        selection.program?.program_id ||
+        selection.program?._id ||
+        selection.program?.id;
+
+    if (!courseId || !deptId || !programId) {
+        setLists(p => ({ ...p, sections: [] }));
+        return;
+    }
+
+    const fetchSections = async () => {
+        setLoading(p => ({ ...p, sections: true }));
+
+        try {
+            const res = await authAPI.getInstructorSectionsByProgram(
+                courseId,
+                deptId,
+                programId,
+                token
+            );
+
+            if (res.ok) {
+                const data = await res.json();
+
+                setLists(p => ({
+                    ...p,
+                    sections: data?.sections || data?.data || data || []
+                }));
+            }
+        } catch (err) {
+            console.error("Fetch sections error:", err);
+        } finally {
+            setLoading(p => ({ ...p, sections: false }));
+        }
+    };
+
+    fetchSections();
+}, [selection.program, token]);
     const handleChange = (field, item) => {
         const itemId = item?._id || item?.id;
         setSelection(prev => {
@@ -265,7 +343,7 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
                                 renderLabel={(d) => (
                                     <>
                                         <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">{d.dept_abbr || d.abbreviation || 'DEPT'}</span>
-                                        <span className="text-[12px] font-black text-gray-800 uppercase italic">{d.dept_name || d.name}</span>
+                                        <span className="text-[12px] font-black text-gray-800 uppercase italic"> {d.department_name || d.dept_name || d.name}</span>
                                     </>
                                 )}
                             />
