@@ -1,6 +1,5 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import Management from './Management';
-import HandleSectionModal from './HandleSectionModal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
@@ -12,13 +11,13 @@ const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
                     <div className="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                         <span className="text-2xl">🚪</span>
                     </div>
-                    <h3 className="text-gray-800 font-black uppercase italic text-xl tracking-tight leading-none">Logging Out?</h3>
+                    <h3 className="text-gray-800 font-black uppercase italic text-xl tracking-tight leading-none">Log Out</h3>
                     <p className="text-gray-400 text-[10px] font-bold mt-2 uppercase tracking-widest leading-relaxed">
-                        Are you sure you want to end your session?
+                        Are you sure you want to logout?
                     </p>
                 </div>
                 <div className="flex flex-col gap-2 mt-8">
-                    <button onClick={onConfirm} className="w-full py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg active:scale-95">Yes, Sign Out</button>
+                    <button onClick={onConfirm} className="w-full py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg active:scale-95">Logout</button>
                     <button onClick={onClose} className="w-full py-4 bg-gray-50 hover:bg-gray-100 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95">Cancel</button>
                 </div>
             </div>
@@ -75,11 +74,6 @@ const NavTab = ({ active, label, onClick, icon }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// InstructorDashboard
-// ✅ FIX: Removed duplicate "My Courses" header and "Handle Section" button
-//    that were previously rendered here AND inside Management.jsx
-//    Management.jsx now owns its own header + button — this component just mounts it
-// ─────────────────────────────────────────────────────────────────────────────
 const InstructorDashboard = () => {
     const [activeTab, setActiveTab]       = useState('courses');
     const [isLogoutModalOpen, setLogout]  = useState(false);
@@ -113,9 +107,12 @@ const InstructorDashboard = () => {
             </div>
 
             <div className="p-4 md:p-8 pt-6">
+                {/* ✅ FIX: Inalis ang accentColor="border-green-500" sa Resolved card 
+                  para maging border-transparent lahat at mawala yung green line.
+                */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <StatCard icon="⚠️" label="Pending Alerts"   count={stats.pendingAlerts} />
-                    <StatCard icon="✅" label="Resolved"         count={stats.resolved}      accentColor="border-green-500" />
+                    <StatCard icon="✅" label="Resolved"         count={stats.resolved} />
                     <StatCard icon="👥" label="Total Students"   count={stats.totalStudents} />
                     <StatCard icon="🎤" label="Speaking Pending" count={stats.speakingPending} />
                 </div>
@@ -130,7 +127,6 @@ const InstructorDashboard = () => {
                 <main className="max-w-[1600px] mx-auto">
                     {activeTab === 'courses' && (
                         <div className="w-full animate-in fade-in slide-in-from-bottom-3 duration-500">
-                            {/* ✅ Management owns its own header + Handle Section button */}
                             <Management />
                         </div>
                     )}
