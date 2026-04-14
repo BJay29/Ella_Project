@@ -30,7 +30,22 @@ const TopNav = ({ onLogoutClick }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     return (
         <div className="bg-white w-full px-8 py-4 flex justify-between items-center border-b border-gray-100 relative z-50">
-            <span className="font-black italic text-lg tracking-tighter text-gray-800 uppercase">Ella Quest</span>
+            {/* Logo and Brand Section */}
+            <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-orange-500 flex items-center justify-center overflow-hidden shadow-lg shadow-orange-100">
+                    <img 
+                        src="/image.png" 
+                        alt="Ella Logo" 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "https://ui-avatars.com/api/?name=Ella&background=F97316&color=fff";
+                        }}
+                    />
+                </div>
+                <span className="font-black italic text-lg tracking-tighter text-gray-800 uppercase">Ella Quest</span>
+            </div>
+
             <div className="relative">
                 <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="flex items-center gap-3 hover:bg-gray-50 p-1 pr-3 rounded-full transition-all group">
                     <div className="text-right hidden md:block">
@@ -107,9 +122,6 @@ const InstructorDashboard = () => {
             </div>
 
             <div className="p-4 md:p-8 pt-6">
-                {/* ✅ FIX: Inalis ang accentColor="border-green-500" sa Resolved card 
-                  para maging border-transparent lahat at mawala yung green line.
-                */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <StatCard icon="⚠️" label="Pending Alerts"   count={stats.pendingAlerts} />
                     <StatCard icon="✅" label="Resolved"         count={stats.resolved} />
@@ -120,8 +132,8 @@ const InstructorDashboard = () => {
                 <div className="flex items-center gap-6 md:gap-10 px-6 pt-6 border-b border-gray-200 mb-8 overflow-x-auto whitespace-nowrap bg-transparent">
                     <NavTab active={activeTab === 'courses'}       onClick={() => setActiveTab('courses')}       label="MY COURSES"      icon="📚" />
                     <NavTab active={activeTab === 'interventions'} onClick={() => setActiveTab('interventions')} label="INTERVENTIONS"   icon="⚠️" />
-                    <NavTab active={activeTab === 'review'}        onClick={() => setActiveTab('review')}        label="SPEAKING REVIEW" icon="🎙️" />
-                    <NavTab active={activeTab === 'messages'}      onClick={() => setActiveTab('messages')}      label="MESSAGES"        icon="💬" />
+                    <NavTab active={activeTab === 'review'}         onClick={() => setActiveTab('review')}        label="SPEAKING REVIEW" icon="🎙️" />
+                    <NavTab active={activeTab === 'messages'}       onClick={() => setActiveTab('messages')}      label="MESSAGES"        icon="💬" />
                 </div>
 
                 <main className="max-w-[1600px] mx-auto">
