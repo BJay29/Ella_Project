@@ -30,11 +30,10 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await authAPI.getPrograms(deptId, token);
+            const response = await authAPI.getPrograms(courseId, deptId, token);
             if (response.ok) {
                 const data = await response.json();
                 const programsArray = Array.isArray(data) ? data : (data.programs || []);
-                console.log("RAW PROGRAM DATA:", programsArray);
                 setPrograms(programsArray);
             } else {
                 const errorData = await response.json().catch(() => ({}));
@@ -71,14 +70,15 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
             const payload = {
                 program_name: newProgram.program_name.trim(),
                 program_code: newProgram.program_code.trim().toUpperCase(),
-                description: newProgram.description?.trim() || ""
+                description:  newProgram.description?.trim() || ""
             };
 
             let response;
             if (editingId) {
-                response = await authAPI.updateProgram(deptId, editingId, payload, token);
+                // ✅ FIXED: pass courseId as first arg (was missing before)
+                response = await authAPI.updateProgram(courseId, deptId, editingId, payload, token);
             } else {
-                response = await authAPI.createProgram(deptId, payload, token);
+                response = await authAPI.createProgram(courseId, deptId, payload, token);
             }
 
             if (response.ok) {
@@ -108,7 +108,8 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await authAPI.deleteProgram(deptId, id, token);
+            // ✅ FIXED: pass courseId as first arg (was missing before)
+            const response = await authAPI.deleteProgram(courseId, deptId, id, token);
             if (response.ok) {
                 await fetchPrograms();
                 setIsDeleteModalOpen(false);
@@ -131,7 +132,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
         setNewProgram({
             program_name: prog.program_name,
             program_code: prog.program_code,
-            description: prog.description || ''
+            description:  prog.description || ''
         });
         setError('');
         setIsModalOpen(true);
@@ -202,7 +203,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
                     <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-3xl mb-4">📜</div>
                     <h3 className="text-xl font-bold text-gray-800">No Programs Found</h3>
                     <p className="text-gray-400 text-sm mt-1 max-w-[250px] text-center">
-                        Add a course for this department.
+                        Add a program for this department.
                     </p>
                 </div>
             ) : (
@@ -343,7 +344,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
                         </div>
                         <div className="p-8 text-center">
                             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-6">
-                                Are you sure you want to delete <span className="font-black text-gray-800">"{progToDelete?.program_code}"</span>? 
+                                Are you sure you want to delete <span className="font-black text-gray-800">"{progToDelete?.program_code}"</span>?
                                 This action cannot be undone.
                             </p>
                             <div className="flex gap-3">
