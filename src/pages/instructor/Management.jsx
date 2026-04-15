@@ -7,6 +7,7 @@ const Management = ({ onShowPending }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     
     const STORAGE_KEY = 'instructor_handled_sections';
+    const SELECTED_SECTION_KEY = 'selectedSection'; // Key na ginagamit ng StudentTable
 
     const [mySections, setMySections] = useState(() => {
         try {
@@ -47,6 +48,15 @@ const Management = ({ onShowPending }) => {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [fetchMySections]);
 
+    // ── Bagong Function: Pag-click sa Manage Students ──
+    const handleManageStudents = (item) => {
+        // I-save sa localStorage para mabasa ng StudentTable fetcher
+        localStorage.setItem(SELECTED_SECTION_KEY, JSON.stringify(item));
+        
+        setActiveSection(item); 
+        setView('focus');
+    };
+
     const handleUnassign = (sectionId) => {
         if (!window.confirm('Are you sure you want to remove this course from your dashboard?')) return;
         
@@ -56,6 +66,8 @@ const Management = ({ onShowPending }) => {
         
         setMySections(updatedCards);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCards));
+        // Linisin din ang selected kung ito yung tinanggal
+        localStorage.removeItem(SELECTED_SECTION_KEY);
     };
 
     const handleAddSuccess = (updatedListOrNewItem) => {
@@ -104,7 +116,8 @@ const Management = ({ onShowPending }) => {
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                                 </span>
-                                Pending Requests                            </button>
+                                Pending Requests
+                            </button>
 
                             <button
                                 onClick={() => setIsModalOpen(true)}
@@ -166,7 +179,7 @@ const Management = ({ onShowPending }) => {
                                     </div>
 
                                     <button
-                                        onClick={() => { setActiveSection(item); setView('focus'); }}
+                                        onClick={() => handleManageStudents(item)}
                                         className="w-full mt-6 py-4 bg-slate-900 group-hover:bg-[#22C55E] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98]"
                                     >
                                         Manage Students

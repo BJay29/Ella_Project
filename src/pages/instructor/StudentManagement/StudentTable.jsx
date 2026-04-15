@@ -38,18 +38,35 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
 
     // ── Data Fetching Logic ────────────────────────────────────────────────
     const fetchData = useCallback(async () => {
-        if (!sectionId) return;
+        // Kukunin natin ang IDs mula sa localStorage (selectedSection card)
+        const activeSection = JSON.parse(localStorage.getItem('selectedSection'));
+        if (!activeSection) return;
+
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
             
-            const studentRes = await authAPI.getStudentsBySection(sectionId, token);
+            // 1. Fetch Official Enrolled Students
+            const studentRes = await authAPI.getStudentsBySection(
+                activeSection.course_id,
+                activeSection.dept_id,
+                activeSection.program_id,
+                activeSection.section_id,
+                token
+            );
             if (studentRes.ok) {
                 const sData = await studentRes.json();
                 setStudents(sData.data || sData || []);
             }
 
-            const pendingRes = await authAPI.getPendingRequestsBySection(sectionId, token);
+            // 2. Fetch Pending Join Requests (Dito gagamitin ang getPendingStudents)
+            const pendingRes = await authAPI.getPendingStudents(
+                activeSection.course_id,
+                activeSection.dept_id,
+                activeSection.program_id,
+                activeSection.section_id,
+                token
+            );
             if (pendingRes.ok) {
                 const pData = await pendingRes.json();
                 setPendingRequests(pData.data || pData || []);
@@ -60,16 +77,32 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
         } finally {
             setLoading(false);
         }
-    }, [sectionId]);
+    }, []);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    const handleAction = async (requestId, status) => {
+    // ── Updated: Handle Action (Approve/Reject) ───────────────────────────
+    const handleAction = async (requestId, action) => {
+        const activeSection = JSON.parse(localStorage.getItem('selectedSection'));
+        const statusMapping = action === 'approve' ? 'approved' : 'rejected';
+        
         try {
             const token = localStorage.getItem('token');
-            const res = await authAPI.updateRequestStatus(requestId, { status }, token);
+            const res = await authAPI.approveRejectStudent(
+                activeSection.course_id,
+                activeSection.dept_id,
+                activeSection.program_id,
+                activeSection.section_id,
+                requestId, // Ito yung ss_id o id ng student request
+                statusMapping,
+                token
+            );
+
             if (res.ok) {
+                // Refresh data para lumipat ang student from Pending to Official list
                 fetchData();
+            } else {
+                alert(`Failed to ${action} request.`);
             }
         } catch (err) {
             console.error("Error updating request:", err);
@@ -102,7 +135,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
                         <div>
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="text-[10px] font-black text-[#22C55E] uppercase tracking-[0.2em]">
-                                    BACHELOR OF SCIENCE IN ACCOUNTANCY
+                                    Academic Management
                                 </span>
                             </div>
                             <h2 className="text-3xl font-black uppercase text-gray-900 tracking-tighter leading-none">
@@ -164,14 +197,14 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
                             Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
                         ) : filteredStudents.length > 0 ? (
                             filteredStudents.map((student) => (
-                                <tr key={student.id} className="group hover:bg-[#F8FAFC] transition-all">
+                                <tr key={student.id || student.student_id} className="group hover:bg-[#F8FAFC] transition-all">
                                     <td className="px-6 py-6">
                                         <div className="flex items-center gap-4">
                                             <div className="h-10 w-10 rounded-full bg-[#22C55E] flex items-center justify-center text-white text-[10px] font-black">
-                                                {student.full_name?.substring(0, 2).toUpperCase() || 'ST'}
+                                                {(student.full_name || student.name || 'ST').substring(0, 2).toUpperCase()}
                                             </div>
                                             <span className="text-sm font-black text-gray-800 uppercase italic tracking-tight group-hover:text-[#22C55E] transition-colors">
-                                                {student.full_name}
+                                                {student.full_name || student.name}
                                             </span>
                                         </div>
                                     </td>
@@ -214,16 +247,14 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
                 </table>
             </div>
 
-            {/* ── UPDATED: SLIDE-OVER REQUESTS PANEL ── */}
+            {/* ── SLIDE-OVER REQUESTS PANEL ── */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex justify-end">
-                    {/* Backdrop */}
                     <div 
                         className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-300" 
                         onClick={() => setIsModalOpen(false)} 
                     />
                     
-                    {/* Slide Content */}
                     <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
                         <div className="p-10 border-b border-gray-50 flex justify-between items-center">
                             <div>
@@ -241,11 +272,11 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
                         <div className="flex-1 overflow-y-auto p-10 space-y-6">
                             {pendingRequests.length > 0 ? (
                                 pendingRequests.map((req) => (
-                                    <div key={req.id} className="group p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-green-100 hover:bg-green-50/30 transition-all">
+                                    <div key={req.ss_id || req.id} className="group p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-green-100 hover:bg-green-50/30 transition-all">
                                         <div className="mb-4">
                                             <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Student Name</span>
                                             <h4 className="text-lg font-black text-gray-800 uppercase italic tracking-tight group-hover:text-[#22C55E]">
-                                                {req.full_name}
+                                                {req.full_name || req.name}
                                             </h4>
                                         </div>
 
@@ -256,13 +287,13 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
 
                                         <div className="flex gap-3">
                                             <button 
-                                                onClick={() => handleAction(req.id, 'approve')}
+                                                onClick={() => handleAction(req.ss_id || req.id, 'approve')}
                                                 className="flex-1 py-4 bg-[#22C55E] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-green-100"
                                             >
                                                 Confirm
                                             </button>
                                             <button 
-                                                onClick={() => handleAction(req.id, 'deny')}
+                                                onClick={() => handleAction(req.ss_id || req.id, 'deny')}
                                                 className="px-6 py-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all"
                                             >
                                                 Deny

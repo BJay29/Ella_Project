@@ -27,14 +27,17 @@ const normalise = (raw) => ({
 });
 
 const StatusBadge = ({ status }) => {
-  if (status === 'approved') return <span className="text-xs font-bold text-green-600 dark:text-green-400">✅ Enrolled</span>;
-  if (status === 'pending')  return <span className="text-xs font-bold text-yellow-600 dark:text-yellow-400">⏳ Pending Approval</span>;
-  if (status === 'rejected') return <span className="text-xs font-bold text-red-500">✕ Rejected</span>;
+  const s = status?.toLowerCase();
+  if (s === 'approved' || s === 'active') return <span className="text-xs font-bold text-green-600 dark:text-green-400">✅ Enrolled</span>;
+  if (s === 'pending')  return <span className="text-xs font-bold text-yellow-600 dark:text-yellow-400">⏳ Pending Approval</span>;
+  if (s === 'rejected') return <span className="text-xs font-bold text-red-500">✕ Rejected</span>;
   return null;
 };
 
 const EnrollmentCard = ({ enroll }) => {
-  const avatarBg = enroll.status === 'approved' ? 'bg-[#4CAF50]' : enroll.status === 'rejected' ? 'bg-red-400' : 'bg-yellow-400';
+  const s = enroll.status?.toLowerCase();
+  const avatarBg = (s === 'approved' || s === 'active') ? 'bg-[#4CAF50]' : s === 'rejected' ? 'bg-red-400' : 'bg-yellow-400';
+  
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden mb-4 transition-colors">
       <div className="p-6">
@@ -81,19 +84,11 @@ const EnrollmentCard = ({ enroll }) => {
             <StatusBadge status={enroll.status} />
           </div>
 
-          {enroll.status === 'pending' && (
+          {s === 'pending' && (
             <div className="mt-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl px-4 py-3 flex items-start gap-2">
               <span className="text-yellow-500 mt-0.5">⏳</span>
               <p className="text-xs text-yellow-700 dark:text-yellow-300 font-medium leading-snug">
                 Your request is pending. You'll be notified once the instructor approves it.
-              </p>
-            </div>
-          )}
-          {enroll.status === 'rejected' && (
-            <div className="mt-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl px-4 py-3 flex items-start gap-2">
-              <span className="text-red-400 mt-0.5">✕</span>
-              <p className="text-xs text-red-600 dark:text-red-400 font-medium leading-snug">
-                Your request was rejected. Contact your instructor for more information.
               </p>
             </div>
           )}
@@ -122,6 +117,7 @@ const JoinModal = ({ sectionCode, setSectionCode, joinStatus, setJoinStatus, joi
           disabled={joinStatus === 'loading' || joinStatus === 'success'} autoFocus
         />
         <p className="text-[11px] text-gray-400 mt-1 mb-3">Ask your instructor for the 6-character section code.</p>
+        
         {joinStatus === 'error' && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-xs font-semibold rounded-lg px-4 py-2.5 mb-3 flex items-center gap-2">
             ❌ {joinMessage}
@@ -130,14 +126,7 @@ const JoinModal = ({ sectionCode, setSectionCode, joinStatus, setJoinStatus, joi
         {joinStatus === 'success' && (
           <div className="space-y-2 mb-3">
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-300 text-xs font-semibold rounded-lg px-4 py-2.5 flex items-center gap-2">
-              ✅ {joinMessage}
-            </div>
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg px-4 py-3 flex items-start gap-2">
-              <span className="text-yellow-500 mt-0.5">⏳</span>
-              <div>
-                <p className="text-xs font-bold text-yellow-700 dark:text-yellow-300">Request Pending</p>
-                <p className="text-[11px] text-yellow-600 dark:text-yellow-400 leading-snug">You'll be enrolled once your instructor approves the request.</p>
-              </div>
+              ✅ Request Sent Successfully!
             </div>
           </div>
         )}
@@ -160,29 +149,31 @@ const JoinModal = ({ sectionCode, setSectionCode, joinStatus, setJoinStatus, joi
 const MyCourses = () => {
   const { addJoinNotification, notificationsEnabled } = useNotification();
   const [enrollments, setEnrollments] = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState('');
-  const [showModal,   setShowModal]   = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showModal, setShowModal] = useState(false);
   const [sectionCode, setSectionCode] = useState('');
-  const [joinStatus,  setJoinStatus]  = useState('idle');
+  const [joinStatus, setJoinStatus] = useState('idle');
   const [joinMessage, setJoinMessage] = useState('');
 
+  // ── FETCH: Gamit ang bagong API /api/section/student/my-section ──
   const fetchEnrollments = useCallback(async () => {
     const token = getToken();
     if (!token) { setError('Not logged in.'); setLoading(false); return; }
     setLoading(true); setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/student/student/my-section`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API_BASE}/api/section/student/my-section`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      
       if (res.status === 404 || res.status === 204) { setEnrollments([]); return; }
       if (!res.ok) throw new Error(`Server error ${res.status}`);
+      
       const data = await res.json();
-      let raw;
-      if (Array.isArray(data))       raw = data;
-      else if (data.sections)        raw = data.sections;
-      else if (data.enrollments)     raw = data.enrollments;
-      else if (data.section)         raw = [data.section];
-      else if (data && typeof data === 'object') raw = [data];
-      else raw = [];
+      
+      // I-handle ang iba't ibang possible return shapes
+      let raw = Array.isArray(data) ? data : (data.sections || data.enrollments || (data.section ? [data.section] : []));
+      
       setEnrollments(raw.map(normalise));
     } catch (err) {
       setError(err.message || 'Connection error.');
@@ -191,33 +182,49 @@ const MyCourses = () => {
 
   useEffect(() => { fetchEnrollments(); }, [fetchEnrollments]);
 
+  // ── JOIN: Gamit ang bagong API /api/student/student/join-section ──
   const handleJoin = async () => {
     const code = sectionCode.trim().toUpperCase();
     const token = getToken();
     if (!code)  { setJoinStatus('error'); setJoinMessage('Please enter a section code.'); return; }
     if (!token) { setJoinStatus('error'); setJoinMessage('You are not logged in.'); return; }
+    
     setJoinStatus('loading');
     try {
       const res = await fetch(`${API_BASE}/api/student/student/join-section`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ section_code: code }),
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${token}` 
+        },
+        // In-update sa 'sectionId' base sa iyong API service snippet
+        body: JSON.stringify({ sectionId: code }), 
       });
+      
       const data = await res.json().catch(() => ({}));
+      
       if (res.ok) {
         setJoinStatus('success');
-        setJoinMessage(data.message || 'Request sent! Waiting for instructor approval.');
+        setJoinMessage(data.message || 'Request sent!');
         setSectionCode('');
-        fetchEnrollments();
+        fetchEnrollments(); // I-refresh ang listahan
         if (notificationsEnabled) addJoinNotification(code, data.section_name || code, data.course_name || '');
       } else {
         setJoinStatus('error');
-        setJoinMessage(data.message || data.detail || `Could not join section (${res.status}).`);
+        setJoinMessage(data.message || data.detail || `Could not join section.`);
       }
-    } catch { setJoinStatus('error'); setJoinMessage('Network error.'); }
+    } catch { 
+      setJoinStatus('error'); 
+      setJoinMessage('Network error.'); 
+    }
   };
 
-  const closeModal = () => { setShowModal(false); setJoinStatus('idle'); setJoinMessage(''); setSectionCode(''); };
+  const closeModal = () => { 
+    setShowModal(false); 
+    setJoinStatus('idle'); 
+    setJoinMessage(''); 
+    setSectionCode(''); 
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
@@ -231,7 +238,11 @@ const MyCourses = () => {
         </button>
       </div>
 
-      {loading && <div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-4 border-[#4CAF50] border-t-transparent rounded-full" /></div>}
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin w-8 h-8 border-4 border-[#4CAF50] border-t-transparent rounded-full" />
+        </div>
+      )}
 
       {!loading && error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-sm font-semibold rounded-2xl px-6 py-4 mb-6 flex items-center gap-2">
@@ -240,17 +251,19 @@ const MyCourses = () => {
       )}
 
       {!loading && !error && enrollments.length === 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-16 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-16 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 text-center">
           <span className="text-5xl mb-4">🏫</span>
           <p className="font-bold text-base">No courses yet</p>
-          <p className="text-sm mt-1">Join a course using a section code from your instructor.</p>
+          <p className="text-sm mt-1 max-w-xs">Join a course using a section code from your instructor.</p>
           <button onClick={() => setShowModal(true)} className="mt-5 bg-[#4CAF50] text-white text-sm font-bold px-6 py-2 rounded-full hover:bg-[#43A047] transition-colors">
             + Join Course / Section
           </button>
         </div>
       )}
 
-      {!loading && !error && enrollments.map((enroll, idx) => <EnrollmentCard key={enroll.ss_id ?? idx} enroll={enroll} />)}
+      {!loading && !error && enrollments.map((enroll, idx) => (
+        <EnrollmentCard key={enroll.ss_id ?? idx} enroll={enroll} />
+      ))}
 
       {!loading && enrollments.length > 0 && (
         <div className="flex justify-center mt-2 mb-4">
@@ -258,7 +271,18 @@ const MyCourses = () => {
         </div>
       )}
 
-      {showModal && <JoinModal sectionCode={sectionCode} setSectionCode={setSectionCode} joinStatus={joinStatus} setJoinStatus={setJoinStatus} joinMessage={joinMessage} setJoinMessage={setJoinMessage} onJoin={handleJoin} onClose={closeModal} />}
+      {showModal && (
+        <JoinModal 
+          sectionCode={sectionCode} 
+          setSectionCode={setSectionCode} 
+          joinStatus={joinStatus} 
+          setJoinStatus={setJoinStatus} 
+          joinMessage={joinMessage} 
+          setJoinMessage={setJoinMessage} 
+          onJoin={handleJoin} 
+          onClose={closeModal} 
+        />
+      )}
     </div>
   );
 };

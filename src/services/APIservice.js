@@ -74,6 +74,26 @@ export const authAPI = {
     },
 
     // ─────────────────────────────────────────────────────────────────────────
+    // STUDENT ACTIONS (Join Section & Dashboard)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    joinSection: async (sectionId, token) => {
+        validateParams({ sectionId });
+        return await fetchWithTimeout(`${BASE_URL}/api/student/student/join-section`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sectionId }),
+        });
+    },
+
+    getStudentSection: async (token) => {
+        return await fetchWithTimeout(`${BASE_URL}/api/section/student/my-section`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
     // INSTRUCTOR SECTION SELECTION (Modal: Course → Dept → Program → Section)
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -147,13 +167,29 @@ export const authAPI = {
         });
     },
 
-    approveRejectStudent: async (courseId, sectionId, ssId, status, token) => {
-        validateParams({ courseId, sectionId, ssId });
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/sections/${sectionId}/students/${ssId}`, {
-            method: 'PUT',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status }),
-        });
+    // Get Pending Students for a Specific Section
+    getPendingStudents: async (courseId, deptId, programId, sectionId, token) => {
+        validateParams({ courseId, deptId, programId, sectionId });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections/${sectionId}/students/pending`,
+            {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            }
+        );
+    },
+
+    // Approve or Reject Student Admission
+    approveRejectStudent: async (courseId, deptId, programId, sectionId, ssId, status, token) => {
+        validateParams({ courseId, deptId, programId, sectionId, ssId });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections/${sectionId}/students/${ssId}`,
+            {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status }),
+            }
+        );
     },
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -261,7 +297,6 @@ export const authAPI = {
         });
     },
 
-    // ✅ FIXED: signature now (courseId, deptId, token) — was missing courseId in URL
     getPrograms: async (courseId, deptId, token) => {
         validateParams({ courseId, deptId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs`, {
@@ -270,7 +305,6 @@ export const authAPI = {
         });
     },
 
-    // ✅ FIXED: was already correct
     createProgram: async (courseId, deptId, programData, token) => {
         validateParams({ courseId, deptId });
         return await fetchWithTimeout(
@@ -283,7 +317,6 @@ export const authAPI = {
         );
     },
 
-    // ✅ FIXED: added courseId to signature + correct URL (was referencing undefined courseId)
     updateProgram: async (courseId, deptId, programId, programData, token) => {
         validateParams({ courseId, deptId, programId });
         return await fetchWithTimeout(
@@ -296,7 +329,6 @@ export const authAPI = {
         );
     },
 
-    // ✅ FIXED: added courseId to signature + correct URL (was referencing undefined courseId)
     deleteProgram: async (courseId, deptId, programId, token) => {
         validateParams({ courseId, deptId, programId });
         return await fetchWithTimeout(
@@ -331,18 +363,6 @@ export const authAPI = {
         );
     },
 
-    getSections: async (courseId, deptId, programId, token) => {
-        validateParams({ courseId, deptId, programId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections`,
-            {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            }
-        );
-    },
-
-    // ✅ CORRECT — unchanged
     createSection: async (courseId, deptId, programId, sectionData, token) => {
         validateParams({ courseId, deptId, programId });
         return await fetchWithTimeout(
@@ -359,7 +379,6 @@ export const authAPI = {
         );
     },
 
-    // ✅ FIXED: signature is (courseId, deptId, programId, sectionId, sectionData, token)
     updateSection: async (courseId, deptId, programId, sectionId, sectionData, token) => {
         validateParams({ courseId, deptId, programId, sectionId });
         return await fetchWithTimeout(
@@ -372,7 +391,6 @@ export const authAPI = {
         );
     },
 
-    // ✅ FIXED: signature is (courseId, deptId, programId, sectionId, token)
     deleteSection: async (courseId, deptId, programId, sectionId, token) => {
         validateParams({ courseId, deptId, programId, sectionId });
         return await fetchWithTimeout(
