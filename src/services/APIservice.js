@@ -176,7 +176,7 @@ export const authAPI = {
     return await fetchWithTimeout(
         `${BASE_URL}/api/instructor/sections/${sectionId}/students/pending`,
         {
-            method: 'PATCH',
+            method: 'GET',
             headers: { 
                 'Authorization': `Bearer ${token}`, 
                 'Content-Type': 'application/json' 
