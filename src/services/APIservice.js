@@ -156,20 +156,20 @@ export const authAPI = {
         });
     },
 
-    // getInstructorSections: async (token) => {
-    //     return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections`, {
-    //         method: 'GET',
-    //         headers: { 'Authorization': `Bearer ${token}` },
-    //     });
-    // },
-
-    getStudentsBySection: async (sectionId, token) => {
-        validateParams({ sectionId });
-        return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections/${sectionId}`, {
+    getInstructorSections: async (token) => {
+        return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections`, {
             method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            headers: { 'Authorization': `Bearer ${token}` },
         });
     },
+
+    // getStudentsBySection: async (sectionId, token) => {
+    //     validateParams({ sectionId });
+    //     return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections/${sectionId}`, {
+    //         method: 'GET',
+    //         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    //     });
+    // },
 
     // Get Pending Students for a Specific Section
   getPendingStudents: async (sectionId, token) => {
