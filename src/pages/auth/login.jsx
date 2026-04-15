@@ -30,17 +30,15 @@ const Login = () => {
   const messages = [
     "HELLO!", 
     "WELCOME TO ELLA QUEST!", 
-    
   ];
 
   // Logic for Letter-by-Letter (Typewriter) Effect
   useEffect(() => {
     let currentText = messages[messageIndex];
     let charIndex = 0;
-    setDisplayedMessage(""); // Clear text immediately when index changes
+    setDisplayedMessage(""); 
 
     const typingInterval = setInterval(() => {
-      // Gumamit ng functional update para hindi mawala ang previous characters
       setDisplayedMessage((prev) => {
         if (charIndex < currentText.length) {
           const nextChar = currentText.charAt(charIndex);
@@ -51,7 +49,7 @@ const Login = () => {
           return prev;
         }
       });
-    }, 60); // Swabeng bilis para mabasa nang maayos
+    }, 60); 
 
     return () => clearInterval(typingInterval);
   }, [messageIndex]);
@@ -60,7 +58,7 @@ const Login = () => {
   useEffect(() => {
     const nextMessageInterval = setInterval(() => {
       setMessageIndex((prev) => (prev + 1) % messages.length);
-    }, 5000); // 5 seconds interval para may sapat na oras matapos ang pag-type
+    }, 5000); 
     return () => clearInterval(nextMessageInterval);
   }, []);
 
@@ -104,7 +102,13 @@ const Login = () => {
         const rawRole = data.role || data.user?.role || data.userRole || 'student';
         const normalizedRole = rawRole.toLowerCase().trim();
 
-        localStorage.clear();
+        // --- FIXED LOGIC START ---
+        // Sinisigurado nating tanging auth keys lang ang tinatanggal
+        localStorage.removeItem('token');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userEmail');
+        // --- FIXED LOGIC END ---
+
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', normalizedRole);
         
@@ -146,25 +150,18 @@ const Login = () => {
 
   return (
     <div className="h-screen w-screen bg-[#C8E6C0] flex flex-col items-center justify-center font-sans relative overflow-hidden p-4">
-      
-      {/* Background Decorative Circles */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/20 rounded-full blur-3xl"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#7a9e50]/10 rounded-full blur-3xl"></div>
 
-      {/* --- LOGO AND SPEECH BUBBLE SECTION --- */}
       <div className="relative mb-6 flex flex-col items-center z-10">
-        
-        {/* SPEECH BUBBLE: Fixed position on top of head */}
         <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white px-5 py-2 rounded-2xl shadow-xl border-2 border-[#7a9e50] animate-bounce-subtle z-20 min-w-[120px] flex justify-center items-center transition-all duration-300">
           <p className="text-[10px] font-black text-[#7a9e50] tracking-widest whitespace-nowrap uppercase italic min-h-[14px]">
             {displayedMessage}
             <span className="animate-pulse ml-0.5">|</span>
           </p>
-          {/* Bubble Tail centered to avatar head */}
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r-2 border-b-2 border-[#7a9e50] rotate-45"></div>
         </div>
 
-        {/* Ella Face in Circle: Fixed Size */}
         <div className="relative">
           <div className="absolute inset-0 bg-white/60 blur-xl rounded-full scale-110"></div>
           <div className="w-32 h-32 md:w-36 md:h-36 bg-white rounded-full border-4 border-[#7a9e50] shadow-2xl overflow-hidden flex items-center justify-center relative z-10 animate-float">
@@ -176,15 +173,12 @@ const Login = () => {
           </div>
         </div>
 
-        {/* TEXT LOGO */}
         <h1 className="mt-3 text-lg md:text-xl font-black tracking-[0.2em] text-[#5a7a35] drop-shadow-sm uppercase italic">
           ELLA QUEST
         </h1>
       </div>
 
-      {/* --- FORM SECTION --- */}
       <div className="w-full max-w-[320px] flex flex-col relative z-10">
-        
         <div className="w-full text-left mb-2 pl-2">
           <h2 className="text-[11px] font-black tracking-[0.3em] text-gray-700 uppercase inline-block relative">
             Login
@@ -193,7 +187,6 @@ const Login = () => {
         </div>
 
         <form onSubmit={handleLogin} className="w-full flex flex-col gap-2.5">
-          
           <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-md focus-within:ring-2 focus-within:ring-white/50">
             <div className="pl-4 pr-2 py-2.5 flex items-center justify-center">
               <HiOutlineMail className="w-4 h-4 text-white opacity-90" />
@@ -254,7 +247,6 @@ const Login = () => {
             <div className="flex-grow border-t border-black/10"></div>
           </div>
 
-          {/* Fixed Google SSO Button */}
           <button
             type="button"
             onClick={handleGoogleLogin}

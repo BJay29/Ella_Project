@@ -1,96 +1,154 @@
-import React from 'react';
-
-// --- MOCK DATA PARA SA PENDING REQUESTS ---
-const MOCK_PENDING = [
-    { id: 1, type: 'STUDENT_ENROLLMENT', name: 'ANDRES BONIFACIO', section: '3A', date: '2026-04-07' },
-    { id: 2, type: 'STUDENT_ENROLLMENT', name: 'APOLINARIO MABINI', section: '3B', date: '2026-04-06' },
-    { id: 3, type: 'COURSE_ACCESS', name: 'SECTION 4A - REQUEST ACCESS', section: '4A', date: '2026-04-05' }
-];
+import React, { useState, useEffect } from 'react';
+import { authAPI } from '../../../services/APIservice';
 
 const PendingApproval = ({ onBack }) => {
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    // ── Fetch Pending Requests ─────────────────────────────────────────────
+    const fetchRequests = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await authAPI.getPendingApprovals(token);
+            if (res.ok) {
+                const data = await res.json();
+                setRequests(data.data || data || []);
+            } else {
+                setError('Failed to fetch pending requests.');
+            }
+        } catch (err) {
+            setError('Network error. Please try again later.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchRequests();
+    }, []);
+
+    // ── Handle Action (Approve/Deny) ───────────────────────────────────────
+    const handleAction = async (requestId, action) => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await authAPI.updateRequestStatus(requestId, { status: action }, token);
+            if (res.ok) {
+                fetchRequests();
+            } else {
+                alert(`Failed to ${action} request.`);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* HEADER SECTION */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-7xl mx-auto p-6">
+            
+            {/* ── HEADER SECTION ── */}
+            <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-black italic uppercase text-gray-800 tracking-tighter leading-none">
-                        Pending Approvals
-                    </h2>
-                    <p className="text-[10px] text-amber-500 font-black uppercase mt-2 tracking-[0.2em] flex items-center gap-2">
-                        <span className="animate-pulse text-lg">⚠️</span> 
-                        Requires action from department head
+                    <h2 className="text-3xl font-black uppercase tracking-tighter text-gray-900 italic">
+                        Access Request                   </h2>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                        Review and manage incoming student join requests
                     </p>
                 </div>
                 
                 <button 
                     onClick={onBack}
-                    className="text-[10px] font-black text-gray-400 hover:text-indigo-600 uppercase tracking-widest transition-colors"
+                    className="group flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:border-[#22C55E] hover:text-[#22C55E] transition-all active:scale-95 shadow-sm"
                 >
-                    ← Back to Dashboard
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 transition-transform group-hover:-translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to Dashboard
                 </button>
             </div>
 
-            {/* PENDING LIST GRID */}
-            <div className="grid grid-cols-1 gap-4">
-                {MOCK_PENDING.length > 0 ? (
-                    MOCK_PENDING.map((item) => (
-                        <div key={item.id} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-between group hover:shadow-md transition-all">
-                            
-                            <div className="flex items-center gap-6 w-full">
-                                {/* Type Icon */}
-                                <div className="h-14 w-14 rounded-2xl bg-amber-50 flex items-center justify-center text-2xl group-hover:bg-amber-500 group-hover:text-white transition-all">
-                                    {item.type === 'STUDENT_ENROLLMENT' ? '👤' : '📚'}
-                                </div>
+            {/* ── LIST VIEW ── */}
+            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-100/50 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="bg-gray-50/50 border-b border-gray-100">
+                                <th className="px-8 py-6 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Student Details</th>
+                                <th className="px-8 py-6 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Gbox Account</th>
+                                <th className="px-8 py-6 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]"> Section</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan="3" className="py-20 text-center text-[10px] font-black text-gray-300 uppercase tracking-widest animate-pulse">
+                                        Synchronizing Data...
+                                    </td>
+                                </tr>
+                            ) : error ? (
+                                <tr>
+                                    <td colSpan="3" className="py-20 text-center text-red-400 text-[10px] font-black uppercase italic">
+                                        ⚠️ {error}
+                                    </td>
+                                </tr>
+                            ) : requests.length > 0 ? (
+                                requests.map((item) => (
+                                    <tr key={item.id || item._id} className="hover:bg-gray-50/50 transition-colors group">
+                                        {/* Name with Avatar & Sub-Actions */}
+                                        <td className="px-8 py-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-12 w-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center font-black text-sm group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-sm">
+                                                    {(item.full_name || item.name || 'U').charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="flex flex-col gap-2">
+                                                    <span className="text-sm font-black text-gray-800 uppercase italic">
+                                                        {item.full_name || item.name || 'Unknown Student'}
+                                                    </span>
+                                                    {/* INLINE ACTIONS BELOW NAME */}
+                                                    <div className="flex items-center gap-2">
+                                                        <button 
+                                                            onClick={() => handleAction(item.id || item._id, 'approve')}
+                                                            className="px-4 py-1.5 bg-[#22C55E] text-white text-[8px] font-black uppercase tracking-widest rounded-lg hover:bg-gray-900 transition-all shadow-md active:scale-95"
+                                                        >
+                                                            Accept
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleAction(item.id || item._id, 'deny')}
+                                                            className="px-4 py-1.5 bg-white border border-gray-200 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-lg hover:border-red-500 hover:text-red-500 transition-all active:scale-95"
+                                                        >
+                                                            Decline
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        
+                                        {/* Gbox / Email */}
+                                        <td className="px-8 py-6 text-sm font-bold text-gray-500 lowercase italic align-top pt-8">
+                                            {item.email || 'no-email@univ.edu.ph'}
+                                        </td>
 
-                                <div className="flex-1">
-                                    <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-1">
-                                        {item.type.replace('_', ' ')}
-                                    </p>
-                                    <h3 className="text-lg font-black text-gray-800 uppercase italic leading-none tracking-tight">
-                                        {item.name}
-                                    </h3>
-                                    <div className="flex gap-4 mt-2">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase">
-                                            Section: <span className="text-gray-600 font-black">{item.section}</span>
-                                        </p>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase">
-                                            Requested: <span className="text-gray-600 font-black">{item.date}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex gap-2 mt-6 md:mt-0 w-full md:w-auto">
-                                <button className="flex-1 md:flex-none px-6 py-3 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">
-                                    Deny
-                                </button>
-                                <button className="flex-1 md:flex-none px-6 py-3 bg-[#22C55E] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 transition-all shadow-lg shadow-green-100">
-                                    Approve
-                                </button>
-                            </div>
-
-                        </div>
-                    ))
-                ) : (
-                    /* Empty State */
-                    <div className="py-32 bg-white/50 border-2 border-dashed border-gray-100 rounded-[3rem] text-center">
-                        <div className="text-4xl mb-4">✨</div>
-                        <p className="text-gray-400 font-black uppercase text-[10px] tracking-widest italic">
-                            Everything is clear! No pending approvals.
-                        </p>
-                    </div>
-                )}
-            </div>
-
-            {/* NOTIFICATION BOX (Gaya nung sa Image 3) */}
-            <div className="mt-12 bg-indigo-50/50 p-8 rounded-[2.5rem] border border-indigo-100 flex items-start gap-4">
-                <span className="text-2xl">💡</span>
-                <div>
-                    <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-widest">Instructor Tip</h4>
-                    <p className="text-[11px] text-indigo-400 font-bold mt-1 leading-relaxed uppercase tracking-tighter">
-                        Approving student enrollment will automatically sync them to your section roster. Please verify identity before confirming.
-                    </p>
+                                        {/* Section */}
+                                        <td className="px-8 py-6 align-top pt-8">
+                                            <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[9px] font-black uppercase tracking-tighter">
+                                                Section {item.section_name || item.section || 'N/A'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="3" className="py-32 text-center">
+                                        <div className="text-4xl mb-4 opacity-20">📂</div>
+                                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">
+                                            Queue is Clear
+                                        </h3>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

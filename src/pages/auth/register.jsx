@@ -130,7 +130,9 @@ const Register = () => {
       }
 
       if (response.ok) {
-        localStorage.clear();
+      localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');   
         sessionStorage.clear();
         setModalMessage("ACCOUNT CREATED SUCCESSFULLY! YOU CAN NOW LOG IN.");
         setShowSuccessModal(true);
@@ -138,7 +140,9 @@ const Register = () => {
         const serverMsg = data.message?.toUpperCase() || "";
         if (response.status === 409 || serverMsg.includes("EXISTS") || serverMsg.includes("ALREADY")) {
           // IMPORTANT: If account exists, clear the bad registration session
-          localStorage.clear();
+        localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');   
           sessionStorage.setItem('sso_intent', 'login'); // Switch intent so next SSO attempt goes to dashboard
           setModalTitle("Account Exists");
           setModalMessage("THIS EMAIL IS ALREADY REGISTERED. PLEASE LOG IN TO YOUR EXISTING ACCOUNT.");

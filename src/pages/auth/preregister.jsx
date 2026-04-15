@@ -26,7 +26,9 @@ const SignupMethod = () => {
     
     try {
       // 1. NUCLEAR CLEANUP: Linisin ang lumang basura sa storage
-      localStorage.clear();
+      localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');   
       sessionStorage.clear();
 
       // 2. IMPORTANT FIX: I-set ang intent PAGKATAPOS ng clear.

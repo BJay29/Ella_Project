@@ -82,7 +82,9 @@ const GoogleCallback = () => {
           console.log("Action: EXISTING USER during registration. Triggering Modal.");
           
           // CRITICAL: Burahin ang lahat para hindi mahabol ng ProtectedRoute
-          localStorage.clear();
+         localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');   
           sessionStorage.clear();
           
           setErrorMsg("THIS ACCOUNT IS ALREADY REGISTERED. PLEASE LOGIN TO YOUR ACCOUNT.");
@@ -123,7 +125,9 @@ const GoogleCallback = () => {
   const handleModalClose = () => {
     setShowError(false);
     // Double check clean up
-    localStorage.clear();
+  localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');   
     sessionStorage.clear();
     navigate('/login', { replace: true });
   };

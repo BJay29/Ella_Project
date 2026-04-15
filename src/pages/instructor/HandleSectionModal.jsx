@@ -9,14 +9,14 @@ const SelectList = ({ items, value, onChange, emptyText = 'No items found', rend
         {isLoading ? (
             <div className="py-6 text-center">
                 <div className="w-5 h-5 border-4 border-[#22C55E] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Fetching Data...</p>
+                <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest"></p>
             </div>
         ) : !items || items.length === 0 ? (
             <div className="py-6 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
                 <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{emptyText}</p>
             </div>
         ) : (
-            items.map((item) => {
+            items.map((item, idx) => {
                 const itemId =
                     item._id ||
                     item.id ||
@@ -29,7 +29,7 @@ const SelectList = ({ items, value, onChange, emptyText = 'No items found', rend
                 
                 return (
                     <button
-                        key={itemId || Math.random()}
+                        key={itemId || `item-${idx}`}
                         type="button"
                         onClick={() => onChange(item)}
                         className={`w-full p-2.5 rounded-xl border-2 transition-all flex items-center justify-between group text-left ${
@@ -74,12 +74,19 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const token = localStorage.getItem('token') || null;
-
+    
+    /**
+     * STORAGE KEY SYNC - Dapat kapareho ito ng nasa Management.js
+     */
+    const STORAGE_KEY = 'instructor_handled_sections';
+    
     const isComplete =
         selection.course &&
         selection.dept &&
         selection.program &&
         selection.section;
+
+    const getID = (item) => item?._id || item?.id || item?.course_id || item?.dept_id || item?.program_id || item?.section_id;
 
     // STEP 1: Fetch Courses
     useEffect(() => {
@@ -100,7 +107,7 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
 
     // STEP 2: Fetch Departments
     useEffect(() => {
-        const courseId = selection.course?.course_id || selection.course?._id || selection.course?.id;
+        const courseId = getID(selection.course);
         if (!courseId) {
             setLists(p => ({ ...p, depts: [], programs: [], sections: [] }));
             return;
@@ -112,8 +119,8 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
                 if (res.ok) {
                     const data = await res.json();
                     const deptsData = data?.departments || data?.data || data || [];
-                    console.log("Department Data Received:", deptsData);
-                    setLists(p => ({ ...p, depts: deptsData }));
+                    const finalDepts = Array.isArray(deptsData) ? deptsData : [deptsData];
+                    setLists(p => ({ ...p, depts: finalDepts }));
                 }
             } catch (err) { console.error("FETCH ERROR:", err); }
             setLoading(p => ({ ...p, depts: false }));
@@ -123,8 +130,8 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
     
     // STEP 3: Fetch Programs
     useEffect(() => {
-        const courseId = selection.course?.course_id || selection.course?._id || selection.course?.id;
-        const deptId = selection.dept?.dept_id || selection.dept?._id || selection.dept?.id;
+        const courseId = getID(selection.course);
+        const deptId = getID(selection.dept);
         if (!courseId || !deptId) {
             setLists(p => ({ ...p, programs: [], sections: [] }));
             return;
@@ -135,7 +142,8 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
                 const res = await authAPI.getInstructorPrograms(courseId, deptId, token);
                 if (res.ok) {
                     const data = await res.json();
-                    setLists(p => ({ ...p, programs: data?.programs || data?.data || data || [] }));
+                    const progData = data?.programs || data?.data || data || [];
+                    setLists(p => ({ ...p, programs: Array.isArray(progData) ? progData : [progData] }));
                 }
             } catch (err) { console.error("Fetch programs error:", err); }
             setLoading(p => ({ ...p, programs: false }));
@@ -145,9 +153,9 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
 
     // STEP 4: Fetch Sections
     useEffect(() => {
-        const courseId = selection.course?.course_id || selection.course?._id || selection.course?.id;
-        const deptId = selection.dept?.dept_id || selection.dept?._id || selection.dept?.id;
-        const programId = selection.program?.program_id || selection.program?._id || selection.program?.id;
+        const courseId = getID(selection.course);
+        const deptId = getID(selection.dept);
+        const programId = getID(selection.program);
         if (!courseId || !deptId || !programId) {
             setLists(p => ({ ...p, sections: [] }));
             return;
@@ -158,7 +166,8 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
                 const res = await authAPI.getInstructorSectionsByProgram(courseId, deptId, programId, token);
                 if (res.ok) {
                     const data = await res.json();
-                    setLists(p => ({ ...p, sections: data?.sections || data?.data || data || [] }));
+                    const secData = data?.sections || data?.data || data || [];
+                    setLists(p => ({ ...p, sections: Array.isArray(secData) ? secData : [secData] }));
                 }
             } catch (err) { console.error("Fetch sections error:", err); }
             setLoading(p => ({ ...p, sections: false }));
@@ -167,12 +176,13 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
     }, [selection.program, token]);
 
     const handleChange = (field, item) => {
-        const itemId = item?._id || item?.id || item?.course_id || item?.dept_id || item?.program_id || item?.section_id;
+        const itemId = getID(item);
         setSelection(prev => {
-            const prevId = prev[field]?._id || prev[field]?.id || prev[field]?.course_id || prev[field]?.dept_id || prev[field]?.program_id || prev[field]?.section_id;
+            const prevId = getID(prev[field]);
             const isUnselecting = prevId && itemId && String(prevId) === String(itemId);
             const newValue = isUnselecting ? null : item;
             const next = { ...prev, [field]: newValue };
+            
             if (field === 'course') { next.dept = null; next.program = null; next.section = null; }
             else if (field === 'dept') { next.program = null; next.section = null; }
             else if (field === 'program') { next.section = null; }
@@ -180,36 +190,69 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
         });
     };
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
         if (!isComplete) return;
         setIsSubmitting(true);
         
-        const finalDeptAbbr = 
-            selection.dept.dept_code || 
-            selection.dept.code || 
-            selection.dept.dept_abbr || 
-            selection.dept.abbreviation || 
-            (selection.dept.department_name ? selection.dept.department_name.substring(0, 4).toUpperCase() : 'DEPT');
+        try {
+            // Mapping codes and abbreviations safely
+            const finalDeptAbbr = 
+                selection.dept.dept_code || 
+                selection.dept.code || 
+                selection.dept.dept_abbr || 
+                selection.dept.abbreviation || 
+                (selection.dept.department_name ? selection.dept.department_name.substring(0, 4).toUpperCase() : 'DEPT');
 
-        const finalProgAbbr = 
-            selection.program.program_code || 
-            selection.program.program_abbr || 
-            selection.program.abbreviation || 
-            'PROG';
+            const finalProgAbbr = 
+                selection.program.program_code || 
+                selection.program.program_abbr || 
+                selection.program.abbreviation || 
+                'PROG';
 
-        const cardData = {
-            id: selection.section._id || selection.section.id || selection.section.section_id,
-            course_name: selection.course.course_name,
-            course_code: selection.course.course_code,
-            dept_abbr: finalDeptAbbr,
-            program_abbr: finalProgAbbr,
-            section_name: selection.section.section_name || selection.section.name,
-            section_code: selection.section.section_code || selection.section.code,
-            semester: selection.section.semester,
-            school_year: selection.section.school_year
-        };
-        onSuccess(cardData);
-        onClose();
+            const sectionId = getID(selection.section);
+
+            const cardData = {
+                id: sectionId,
+                section_id: sectionId,
+                course_name: selection.course.course_name,
+                course_code: selection.course.course_code,
+                dept_abbr: finalDeptAbbr,
+                program_abbr: finalProgAbbr,
+                section_name: selection.section.section_name || selection.section.name,
+                section_code: selection.section.section_code || selection.section.code || selection.section.join_code,
+                semester: selection.section.semester,
+                school_year: selection.section.school_year
+            };
+
+            // Local Persistence Sync
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            let currentCards = [];
+
+            try {
+                currentCards = savedData ? JSON.parse(savedData) : [];
+                if (!Array.isArray(currentCards)) currentCards = [];
+            } catch {
+                currentCards = [];
+            }
+
+            const isDuplicate = currentCards.some(
+                card => String(card.id || card.section_id) === String(sectionId)
+            );
+
+            if (!isDuplicate) {
+                const updatedCards = [cardData, ...currentCards];
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCards));
+                onSuccess(updatedCards); 
+            } else {
+                onSuccess(currentCards);
+            }
+
+            onClose();
+        } catch (error) {
+            console.error("Save error:", error);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const filteredCourses = lists.courses.filter(c => {
@@ -269,7 +312,7 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
                             <SelectList
                                 items={filteredCourses}
                                 isLoading={loading.courses}
-                                value={selection.course?._id || selection.course?.id || selection.course?.course_id}
+                                value={getID(selection.course)}
                                 onChange={(item) => handleChange('course', item)}
                                 renderLabel={(c) => (
                                     <>
@@ -288,13 +331,12 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
                             <SelectList
                                 items={lists.depts}
                                 isLoading={loading.depts}
-                                value={selection.dept?._id || selection.dept?.id || selection.dept?.dept_id}
+                                value={getID(selection.dept)}
                                 onChange={(item) => handleChange('dept', item)}
                                 emptyText="Select a course first"
                                 renderLabel={(d) => (
                                     <>
                                         <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">
-                                            {/* Mapping for dept_code from your logs */}
                                             {d.dept_code || d.code || d.dept_abbr || d.abbreviation || 'DEPT'}
                                         </span>
                                         <span className="text-[11px] font-black text-gray-800 uppercase italic truncate">
@@ -313,7 +355,7 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
                             <SelectList
                                 items={lists.programs}
                                 isLoading={loading.programs}
-                                value={selection.program?._id || selection.program?.id || selection.program?.program_id}
+                                value={getID(selection.program)}
                                 onChange={(item) => handleChange('program', item)}
                                 emptyText="Select a department first"
                                 renderLabel={(p) => (
@@ -337,7 +379,7 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
                             <SelectList
                                 items={lists.sections}
                                 isLoading={loading.sections}
-                                value={selection.section?._id || selection.section?.id || selection.section?.section_id}
+                                value={getID(selection.section)}
                                 onChange={(item) => handleChange('section', item)}
                                 emptyText="Select a program first"
                                 renderLabel={(s) => (
@@ -367,7 +409,7 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
                                     <>
                                         <span className="text-slate-300 text-[10px]">→</span>
                                         <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[9px] font-black border border-indigo-100">
-                                            {selection.dept.dept_code || selection.dept.code || selection.dept.dept_abbr || selection.dept.abbreviation || 'DEPT'}
+                                            {selection.dept.dept_code || selection.dept.code || 'DEPT'}
                                         </span>
                                     </>
                                 )}

@@ -47,7 +47,9 @@ const StudentDashboard = () => {
   // --- HANDLERS ---
   const handleConfirmLogout = () => {
     sessionStorage.clear();
-    localStorage.clear();
+   localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');
     navigate('/login', { replace: true });
   };
 

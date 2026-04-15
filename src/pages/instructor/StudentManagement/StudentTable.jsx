@@ -1,325 +1,296 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { authAPI } from '../../../services/APIservice';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
+// UI Components & Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 const SkeletonRow = () => (
-  <tr>
-    {[1, 2, 3, 4, 5].map(i => (
-      <td key={i} className="px-6 py-4">
-        <div className="h-4 bg-gray-100 rounded-lg animate-pulse" />
-      </td>
-    ))}
-  </tr>
+    <tr className="animate-pulse border-b border-gray-50">
+        {[1, 2, 3, 4, 5, 6].map(i => (
+            <td key={i} className="px-6 py-6"><div className="h-3 bg-gray-100 rounded shadow-sm" /></td>
+        ))}
+    </tr>
 );
 
 const StatusBadge = ({ status }) => {
-  const s = (status || 'active').toLowerCase();
-  const styles = {
-    active:   'bg-[#dcfce7] text-[#16a34a]',
-    inactive: 'bg-gray-100 text-gray-500',
-    pending:  'bg-amber-50 text-amber-600',
-  };
-  return (
-    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${styles[s] || styles.active}`}>
-      {status || 'Active'}
-    </span>
-  );
+    const s = (status || 'active').toLowerCase();
+    const isAtRisk = s === 'at risk' || s === 'at-risk';
+    
+    return (
+        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${
+            isAtRisk ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'
+        }`}>
+            {status || 'Active'}
+        </span>
+    );
 };
 
-const ProgressBar = ({ value = 0 }) => (
-  <div className="flex items-center gap-3 min-w-[140px]">
-    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-      <div
-        className="h-full bg-[#22C55E] rounded-full transition-all duration-700"
-        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
-      />
-    </div>
-    <span className="text-xs font-black text-gray-600 w-9 text-right">{value}%</span>
-  </div>
-);
-
 // ─────────────────────────────────────────────────────────────────────────────
-// StudentTable
+// Main Component: StudentTable
 // ─────────────────────────────────────────────────────────────────────────────
-const StudentTable = ({ sectionId, sectionName, sectionCode, joinCode }) => {
-  const [students,     setStudents]     = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState('');
-  const [addingStudent, setAddingStudent] = useState(false);
-  const [newStudentForm, setNewStudentForm] = useState({ name: '', email: '', student_id: '' });
-  const [showAddForm,  setShowAddForm]  = useState(false);
+const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
+    const [students, setStudents] = useState([]);
+    const [pendingRequests, setPendingRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [error, setError] = useState('');
 
-  const displayCode = joinCode || sectionCode || '';
+    // ── Data Fetching Logic ────────────────────────────────────────────────
+    const fetchData = useCallback(async () => {
+        if (!sectionId) return;
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            
+            const studentRes = await authAPI.getStudentsBySection(sectionId, token);
+            if (studentRes.ok) {
+                const sData = await studentRes.json();
+                setStudents(sData.data || sData || []);
+            }
 
-  // ── Fetch students ─────────────────────────────────────────────────────
-  const fetchStudents = useCallback(async () => {
-    if (!sectionId) return;
-    setLoading(true);
-    setError('');
-    try {
-      const token = localStorage.getItem('token');
-      const res   = await authAPI.getStudentsBySection(sectionId, token);
-      if (res.ok) {
-        const data = await res.json();
-        // Handle various response shapes
-        const list = Array.isArray(data)
-          ? data
-          : (data.students || data.data || data.roster || []);
-        setStudents(list);
-      } else if (res.status === 404) {
-        setStudents([]);
-      } else {
-        setError('Failed to load students.');
-      }
-    } catch (e) {
-      setError('Network error loading students.');
-    } finally {
-      setLoading(false);
-    }
-  }, [sectionId]);
+            const pendingRes = await authAPI.getPendingRequestsBySection(sectionId, token);
+            if (pendingRes.ok) {
+                const pData = await pendingRes.json();
+                setPendingRequests(pData.data || pData || []);
+            }
+        } catch (err) {
+            setError('Failed to sync data.');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    }, [sectionId]);
 
-  useEffect(() => { fetchStudents(); }, [fetchStudents]);
+    useEffect(() => { fetchData(); }, [fetchData]);
 
-  // ── Export CSV ─────────────────────────────────────────────────────────
-  const handleExportCSV = () => {
-    if (!students.length) return;
-    const headers = ['Student ID', 'Full Name', 'Email', 'Status', 'Course Progress'];
-    const rows = students.map(s => [
-      s.student_id || s.id || '',
-      `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.full_name || s.name || '',
-      s.email || '',
-      s.status || 'Active',
-      `${s.course_progress || s.progress || 0}%`,
-    ]);
-    const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `${sectionName || 'section'}-students.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+    const handleAction = async (requestId, status) => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await authAPI.updateRequestStatus(requestId, { status }, token);
+            if (res.ok) {
+                fetchData();
+            }
+        } catch (err) {
+            console.error("Error updating request:", err);
+        }
+    };
 
-  // ── Add Student ────────────────────────────────────────────────────────
-  const handleAddStudent = async (e) => {
-    e.preventDefault();
-    setAddingStudent(true);
-    try {
-      const token = localStorage.getItem('token');
-      // This endpoint shape may differ — adjust to your API
-      const res = await authAPI.addStudentToSection(sectionId, newStudentForm, token);
-      if (res.ok) {
-        setShowAddForm(false);
-        setNewStudentForm({ name: '', email: '', student_id: '' });
-        fetchStudents();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setError(err.message || 'Failed to add student.');
-      }
-    } catch {
-      setError('Network error adding student.');
-    } finally {
-      setAddingStudent(false);
-    }
-  };
+    const filteredStudents = useMemo(() => {
+        return students.filter(s => {
+            const fullName = (s.full_name || `${s.first_name} ${s.last_name}` || '').toLowerCase();
+            const email = (s.email || '').toLowerCase();
+            return fullName.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
+        });
+    }, [students, searchTerm]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  return (
-    <div>
-      {/* Section title + actions row */}
-      <div className="px-8 pt-8 pb-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <button
-            type="button"
-            onClick={() => {/* handled by SectionDashboard's onBack */}}
-            className="text-[10px] font-black text-[#22C55E] uppercase tracking-widest hover:underline mb-2 block"
-            // Note: back navigation is in SectionDashboard
-          >
-            ← Back to Sections
-          </button>
-          <h3 className="text-2xl font-black uppercase italic tracking-tight text-gray-900">
-            Section {sectionName}
-          </h3>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
-            Student Roster &amp; Performance Monitoring
-          </p>
-          {displayCode && (
-            <div className="mt-2 inline-flex items-center gap-2 bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl px-3 py-1.5">
-              <span className="text-[9px] font-black text-[#16a34a] uppercase tracking-widest">Join Code:</span>
-              <span className="text-sm font-black text-[#15803d] tracking-widest">{displayCode}</span>
-              <button
-                type="button"
-                onClick={() => navigator.clipboard?.writeText(displayCode)}
-                className="text-[9px] font-black text-[#22C55E] hover:text-[#16a34a] uppercase tracking-widest ml-1 transition-colors"
-                title="Copy code"
-              >
-                Copy
-              </button>
+    return (
+        <div className="flex flex-col h-full bg-white relative overflow-hidden">
+            
+            {/* ── HEADER AREA ── */}
+            <div className="px-10 pt-10 pb-8 bg-white border-b border-gray-50">
+                <div className="flex justify-between items-center mb-10">
+                    <div className="flex items-center gap-6">
+                        <button 
+                            onClick={onBack}
+                            className="h-10 w-10 flex items-center justify-center rounded-xl bg-gray-50 text-gray-400 hover:text-[#22C55E] hover:bg-green-50 transition-all border border-gray-100"
+                        >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-black text-[#22C55E] uppercase tracking-[0.2em]">
+                                    BACHELOR OF SCIENCE IN ACCOUNTANCY
+                                </span>
+                            </div>
+                            <h2 className="text-3xl font-black uppercase text-gray-900 tracking-tighter leading-none">
+                                {sectionName}
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                        <div className="flex flex-col items-end px-6 py-2 bg-green-50/50 border border-green-100 rounded-2xl">
+                             <span className="text-[9px] font-black text-green-600 uppercase tracking-widest">Section Code</span>
+                             <span className="text-sm font-black text-gray-800 tracking-widest">{sectionCode}</span>
+                        </div>
+                        <button 
+                            onClick={() => setIsModalOpen(true)}
+                            className="px-6 py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#22C55E] transition-all flex items-center gap-3 relative"
+                        >
+                            View Requests
+                            {pendingRequests.length > 0 && (
+                                <span className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black border-4 border-white animate-bounce">
+                                    {pendingRequests.length}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="relative group max-w-2xl">
+                    <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-300 group-focus-within:text-[#22C55E] transition-colors" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <input 
+                        type="text" 
+                        placeholder="SEARCH BY NAME, ID, OR EMAIL..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-14 pr-8 py-5 bg-gray-50 border-none rounded-[1.5rem] text-[11px] font-bold uppercase tracking-widest focus:ring-4 focus:ring-[#22C55E]/5 transition-all outline-none text-gray-800"
+                    />
+                </div>
             </div>
-          )}
-        </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            disabled={!students.length}
-            className="px-5 py-3 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowAddForm(v => !v)}
-            className="px-5 py-3 bg-[#22C55E] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#16a34a] transition-all active:scale-95 shadow-lg shadow-green-100"
-          >
-            + Add Student
-          </button>
-        </div>
-      </div>
+            {/* ── STUDENT TABLE ── */}
+            <div className="flex-1 overflow-auto px-10 py-6">
+                <table className="w-full text-left">
+                    <thead>
+                        <tr className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-b border-gray-100">
+                            <th className="px-6 py-5">Student Name</th>
+                            <th className="px-6 py-5">Gbox Account</th>
+                            <th className="px-6 py-5">Progress</th>
+                            <th className="px-6 py-5">Status</th>
+                            <th className="px-6 py-5">Last Active</th>
+                            <th className="px-6 py-5 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                        {loading ? (
+                            Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
+                        ) : filteredStudents.length > 0 ? (
+                            filteredStudents.map((student) => (
+                                <tr key={student.id} className="group hover:bg-[#F8FAFC] transition-all">
+                                    <td className="px-6 py-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-10 w-10 rounded-full bg-[#22C55E] flex items-center justify-center text-white text-[10px] font-black">
+                                                {student.full_name?.substring(0, 2).toUpperCase() || 'ST'}
+                                            </div>
+                                            <span className="text-sm font-black text-gray-800 uppercase italic tracking-tight group-hover:text-[#22C55E] transition-colors">
+                                                {student.full_name}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-6">
+                                        <span className="text-[11px] font-bold text-gray-500 lowercase">{student.email}</span>
+                                    </td>
+                                    <td className="px-6 py-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                <div 
+                                                    className="h-full bg-[#22C55E] rounded-full transition-all duration-1000"
+                                                    style={{ width: `${student.progress || 0}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-[10px] font-black text-gray-400">{student.progress || 0}%</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-6">
+                                        <StatusBadge status={student.status} />
+                                    </td>
+                                    <td className="px-6 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                        {student.last_active || 'Never'}
+                                    </td>
+                                    <td className="px-6 py-6 text-right">
+                                        <button className="px-5 py-2.5 bg-green-600 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-black transition-all shadow-lg shadow-green-100">
+                                            View Details
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={6} className="py-32 text-center opacity-30 grayscale">
+                                    <div className="text-6xl mb-4">🔍</div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.3em]">No students enrolled</p>
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
 
-      {/* Add student inline form */}
-      {showAddForm && (
-        <form
-          onSubmit={handleAddStudent}
-          className="mx-8 mb-4 p-4 bg-[#f0fdf4] border border-[#bbf7d0] rounded-2xl flex flex-wrap gap-3 items-end animate-in slide-in-from-top-2 duration-200"
-        >
-          <div className="flex-1 min-w-[160px]">
-            <label className="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Student ID</label>
-            <input
-              required
-              value={newStudentForm.student_id}
-              onChange={e => setNewStudentForm(p => ({ ...p, student_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 outline-none focus:border-[#22C55E]"
-              placeholder="2021-0001"
-            />
-          </div>
-          <div className="flex-1 min-w-[160px]">
-            <label className="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Full Name</label>
-            <input
-              required
-              value={newStudentForm.name}
-              onChange={e => setNewStudentForm(p => ({ ...p, name: e.target.value }))}
-              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 outline-none focus:border-[#22C55E]"
-              placeholder="Juan Dela Cruz"
-            />
-          </div>
-          <div className="flex-1 min-w-[180px]">
-            <label className="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Email</label>
-            <input
-              type="email"
-              required
-              value={newStudentForm.email}
-              onChange={e => setNewStudentForm(p => ({ ...p, email: e.target.value }))}
-              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 outline-none focus:border-[#22C55E]"
-              placeholder="student@univ.edu.ph"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" disabled={addingStudent}
-              className="px-5 py-2 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-800 transition-all disabled:opacity-50">
-              {addingStudent ? 'Adding…' : 'Add'}
-            </button>
-            <button type="button" onClick={() => setShowAddForm(false)}
-              className="px-4 py-2 bg-white text-gray-500 text-[10px] font-black uppercase tracking-widest rounded-xl border border-gray-200 hover:bg-gray-50 transition-all">
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
+            {/* ── UPDATED: SLIDE-OVER REQUESTS PANEL ── */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-[100] flex justify-end">
+                    {/* Backdrop */}
+                    <div 
+                        className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-300" 
+                        onClick={() => setIsModalOpen(false)} 
+                    />
+                    
+                    {/* Slide Content */}
+                    <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
+                        <div className="p-10 border-b border-gray-50 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-3xl font-black italic uppercase text-gray-900 tracking-tighter">Join Requests</h3>
+                                <p className="text-[10px] font-black text-[#22C55E] uppercase tracking-widest mt-1">Verification Needed</p>
+                            </div>
+                            <button 
+                                onClick={() => setIsModalOpen(false)} 
+                                className="h-12 w-12 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-black transition-all"
+                            >
+                                ✕
+                            </button>
+                        </div>
 
-      {/* Error */}
-      {error && (
-        <div className="mx-8 mb-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-xs font-bold text-red-600 uppercase tracking-wide">
-          ⚠ {error}
-        </div>
-      )}
+                        <div className="flex-1 overflow-y-auto p-10 space-y-6">
+                            {pendingRequests.length > 0 ? (
+                                pendingRequests.map((req) => (
+                                    <div key={req.id} className="group p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-green-100 hover:bg-green-50/30 transition-all">
+                                        <div className="mb-4">
+                                            <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Student Name</span>
+                                            <h4 className="text-lg font-black text-gray-800 uppercase italic tracking-tight group-hover:text-[#22C55E]">
+                                                {req.full_name}
+                                            </h4>
+                                        </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-50">
-              {['Student ID', 'Full Name', 'Status', 'Course Progress', 'Actions'].map(h => (
-                <th key={h} className="px-6 py-4 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {loading ? (
-              Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} />)
-            ) : students.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-16 text-center">
-                  {/* Empty state */}
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="text-5xl opacity-20">👥</div>
-                    <p className="text-sm font-black text-gray-400 uppercase tracking-tight">
-                      No Students Joined Yet
-                    </p>
-                    {displayCode && (
-                      <p className="text-xs font-bold text-gray-400">
-                        Share Section Code:{' '}
-                        <span className="font-black text-[#22C55E] tracking-widest">{displayCode}</span>
-                      </p>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              students.map((s, i) => {
-                const fullName = `${s.first_name || ''} ${s.last_name || ''}`.trim()
-                  || s.full_name || s.name || '—';
-                const progress = s.course_progress ?? s.progress ?? 0;
-                return (
-                  <tr key={s.student_id || s.id || i} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 text-xs font-black text-gray-500">
-                      {s.student_id || s.id || '—'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-black text-gray-800 uppercase tracking-tight">{fullName}</p>
-                      {s.email && (
-                        <p className="text-[10px] font-medium text-gray-400 mt-0.5">{s.email}</p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={s.status} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <ProgressBar value={progress} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        type="button"
-                        className="text-[10px] font-black text-gray-400 hover:text-gray-700 uppercase tracking-widest transition-colors"
-                        onClick={() => {/* TODO: navigate to student profile */}}
-                      >
-                        View Profile
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
+                                        <div className="mb-6">
+                                            <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Gbox Account</span>
+                                            <p className="text-xs font-bold text-gray-500 lowercase">{req.email}</p>
+                                        </div>
+
+                                        <div className="flex gap-3">
+                                            <button 
+                                                onClick={() => handleAction(req.id, 'approve')}
+                                                className="flex-1 py-4 bg-[#22C55E] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-green-100"
+                                            >
+                                                Confirm
+                                            </button>
+                                            <button 
+                                                onClick={() => handleAction(req.id, 'deny')}
+                                                className="px-6 py-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all"
+                                            >
+                                                Deny
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-center opacity-30 grayscale">
+                                    <div className="text-5xl mb-4">✅</div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.3em]">No Pending Joiners</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-10 border-t border-gray-50 bg-gray-50/50">
+                            <button 
+                                onClick={() => setIsModalOpen(false)}
+                                className="w-full py-4 border-2 border-dashed border-gray-200 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:border-gray-300 hover:text-gray-600 transition-all"
+                            >
+                                Close Panel
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Footer count */}
-      {!loading && students.length > 0 && (
-        <div className="px-8 py-4 border-t border-gray-50">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            {students.length} student{students.length !== 1 ? 's' : ''} in this section
-          </p>
         </div>
-      )}
-    </div>
-  );
+    );
 };
 
 export default StudentTable;

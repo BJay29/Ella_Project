@@ -13,7 +13,9 @@ const AdminDashboard = () => {
   const [active, setActive] = useState("dashboard");
 
   const handleLogout = () => {
-    localStorage.clear();
+   localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');   
     navigate("/login", { replace: true });
   };
 
