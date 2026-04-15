@@ -363,6 +363,19 @@ export const authAPI = {
         );
     },
 
+      getSections: async (courseId, deptId, programId, token) => {
+        validateParams({ courseId, deptId, programId });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections`,
+
+            {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+
+            }
+        );
+ },
+
     createSection: async (courseId, deptId, programId, sectionData, token) => {
         validateParams({ courseId, deptId, programId });
         return await fetchWithTimeout(

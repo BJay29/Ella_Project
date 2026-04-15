@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authAPI } from '../../../services/APIservice';
 
-// SectionForm now receives courseId, deptId, programId — all needed for update/delete
+// SectionForm receives courseId, deptId, programId — all needed for CRUD operations
 const SectionForm = ({ courseId, deptId, programId, onNext }) => {
     const [sections, setSections] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -23,17 +23,36 @@ const SectionForm = ({ courseId, deptId, programId, onNext }) => {
         return section?.section_id ?? section?.id ?? section?._id ?? null;
     };
 
-    // ── Fetch sections ────────────────────────────────────────────────────
+    // ── Fetch sections (FIXED: Uses the 3 required IDs) ────────────────────
     const fetchSections = async () => {
-        if (!courseId || !deptId || !programId) return;
+        // Stop if any parent ID is missing
+        if (!courseId || !deptId || !programId) {
+            console.warn("Fetch blocked: Missing parent IDs", { courseId, deptId, programId });
+            return;
+        }
+
         setLoading(true);
         try {
-            const token    = localStorage.getItem('token');
+            const token = localStorage.getItem('token');
+            // Pinapasa ang courseId, deptId, at programId sa API call
             const response = await authAPI.getSections(courseId, deptId, programId, token);
+            
             if (response.ok) {
-                const data = await response.json();
-                setSections(Array.isArray(data) ? data : (data.sections || []));
+                const result = await response.json();
+                
+                // Flexible mapping para sa iba't ibang backend response structures
+                let finalData = [];
+                if (Array.isArray(result)) {
+                    finalData = result;
+                } else if (result.sections) {
+                    finalData = result.sections;
+                } else if (result.data) {
+                    finalData = Array.isArray(result.data) ? result.data : (result.data.sections || []);
+                }
+                
+                setSections(finalData);
             } else {
+                console.error("Fetch Error Status:", response.status);
                 setSections([]);
             }
         } catch (err) {
@@ -44,8 +63,9 @@ const SectionForm = ({ courseId, deptId, programId, onNext }) => {
         }
     };
 
+    // Re-fetch tuwing nagbabago ang selection sa taas (Course/Dept/Program)
     useEffect(() => {
-        if (courseId && deptId && programId) fetchSections();
+        fetchSections();
     }, [courseId, deptId, programId]);
 
     // ── Create / Update ───────────────────────────────────────────────────
@@ -57,11 +77,12 @@ const SectionForm = ({ courseId, deptId, programId, onNext }) => {
             let response;
 
             if (editingId) {
-                // ✅ FIXED: pass all 5 IDs: courseId, deptId, programId, sectionId, formData, token
+                // ✅ Update: courseId, deptId, programId, sectionId, formData, token
                 response = await authAPI.updateSection(
                     courseId, deptId, programId, editingId, formData, token
                 );
             } else {
+                // ✅ Create: courseId, deptId, programId, formData, token
                 response = await authAPI.createSection(
                     courseId, deptId, programId, formData, token
                 );
@@ -69,13 +90,15 @@ const SectionForm = ({ courseId, deptId, programId, onNext }) => {
 
             if (response.ok) {
                 const result = await response.json();
-                // Show generated join code after creation
-                if (!editingId && result.section_code) {
-                    setGeneratedCode(result.section_code);
+                // Kunin ang generated code kung bagong gawa
+                const newCode = result.section_code || result.data?.section_code;
+                
+                if (!editingId && newCode) {
+                    setGeneratedCode(newCode);
                 } else {
                     closeModal();
                 }
-                fetchSections();
+                fetchSections(); // Refresh UI
             } else {
                 const errorData = await response.json().catch(() => ({}));
                 alert(errorData.message || "Failed to save section.");
@@ -103,10 +126,11 @@ const SectionForm = ({ courseId, deptId, programId, onNext }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            // ✅ FIXED: pass all 4 IDs: courseId, deptId, programId, sectionId, token
+            // ✅ Delete: courseId, deptId, programId, sectionId, token
             const response = await authAPI.deleteSection(
                 courseId, deptId, programId, sectionId, token
             );
+            
             if (response.ok) {
                 await fetchSections();
                 setIsDeleteModalOpen(false);
@@ -349,7 +373,7 @@ const SectionForm = ({ courseId, deptId, programId, onNext }) => {
 
             {/* --- DELETE CONFIRMATION MODAL --- */}
             {isDeleteModalOpen && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left">
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left text-gray-800">
                     <div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
                         <div className="bg-red-500 p-6 text-white text-center">
                             <div className="text-3xl mb-2">⚠️</div>
