@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import StudentTable from './StudentTable';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -9,15 +9,29 @@ import StudentTable from './StudentTable';
 //   onBack      – callback to return to the card list
 // ─────────────────────────────────────────────────────────────────────────────
 const SectionDashboard = ({ sectionData, onBack }) => {
-    if (!sectionData) return null;
+    // ── Pre-render Check ──
+    if (!sectionData) {
+        console.error("SectionDashboard Error: No sectionData provided.");
+        return null;
+    }
 
     // ── Normalize field names — Consistent with Management.js logic ──────────
-    const sectionId   = sectionData.id           || sectionData.section_id || sectionData._id;
-    const sectionName = sectionData.section_name || sectionData.name       || sectionData.section;
-    const sectionCode = sectionData.section_code || sectionData.join_code   || sectionData.code;
-    const courseName  = sectionData.course_name  || sectionData.subject     || sectionData.course;
-    const deptAbbr    = sectionData.dept_abbr    || sectionData.dept        || sectionData.department_abbr;
-    const programAbbr = sectionData.program_abbr || sectionData.program     || sectionData.program_name;
+    // Idinagdag natin ang fallback checks para masiguro na hindi mag-uundefined ang sectionId
+    const sectionId   = sectionData.id || sectionData.section_id || sectionData._id || sectionData.sectionId;
+    const sectionName = sectionData.section_name || sectionData.name || sectionData.section || '—';
+    const sectionCode = sectionData.section_code || sectionData.join_code || sectionData.code || '—';
+    const courseName  = sectionData.course_name || sectionData.subject || sectionData.course || '—';
+    const deptAbbr    = sectionData.dept_abbr || sectionData.dept || sectionData.department_abbr || '—';
+    const programAbbr = sectionData.program_abbr || sectionData.program || sectionData.program_name || '—';
+
+    // ── Debugging Log ──
+    // Makakatulong ito para makita sa console kung bakit "Missing param: sectionId" ang error
+    useEffect(() => {
+        console.log("SectionDashboard Mounted with ID:", sectionId);
+        if (!sectionId) {
+            console.warn("Warning: sectionId is missing! Check your sectionData object keys.", sectionData);
+        }
+    }, [sectionId, sectionData]);
 
     return (
         <div className="animate-in fade-in slide-in-from-right-4 duration-500">
@@ -37,6 +51,8 @@ const SectionDashboard = ({ sectionData, onBack }) => {
                     sectionCode={sectionCode}
                     joinCode={sectionCode}
                     courseName={courseName}
+                    deptAbbr={deptAbbr}
+                    programAbbr={programAbbr}
                     onBack={onBack} 
                 />
             </div>

@@ -28,15 +28,15 @@ const StatusBadge = ({ status }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component: StudentTable
 // ─────────────────────────────────────────────────────────────────────────────
-const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
-    const [students, setStudents] = useState([]);
+const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAbbr, onBack }) => {
+    const [students, setStudents] = useState([]); // Placeholder muna ito hangga't wala pang getStudentsBySection
     const [pendingRequests, setPendingRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [error, setError] = useState('');
 
-    // ✅ Helper to clean token (Prevents 401 due to "undefined" or extra quotes)
+    // ✅ Helper to clean token
     const getCleanToken = useCallback(() => {
         const token = localStorage.getItem('token');
         if (!token || token === 'undefined' || token === 'null') return null;
@@ -45,7 +45,6 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
 
     // ── Data Fetching Logic ────────────────────────────────────────────────
     const fetchData = useCallback(async () => {
-        // Kunin ang section details mula sa localStorage o props
         const storedSection = localStorage.getItem('selectedSection');
         const activeSection = storedSection ? JSON.parse(storedSection) : null;
         
@@ -53,8 +52,8 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
         const sId = activeSection?.section_id || activeSection?.id || sectionId;
 
         if (!sId) {
-            console.error("No active section ID found for fetching students");
-            setError('Section ID is missing. Please go back and select a section.');
+            console.error("No active section ID found");
+            setError('Section ID is missing. Please go back.');
             setLoading(false);
             return;
         }
@@ -70,24 +69,20 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
                 return;
             }
 
-            // 1. Fetch Official Enrolled Students
-            const studentRes = await authAPI.getStudentsBySection(sId, token);
-            
-            if (studentRes.ok) {
-                const sData = await studentRes.json();
-                // Handle different data structures (array or object with data property)
-                setStudents(Array.isArray(sData) ? sData : (sData.data || []));
-            } else if (studentRes.status === 401) {
-                setError('Unauthorized access. Please re-login.');
-            }
-
-            // 2. Fetch Pending Join Requests
+            // 1. Fetch Pending Join Requests (Ito lang muna ang active)
             const pendingRes = await authAPI.getPendingStudents(sId, token);
             
             if (pendingRes.ok) {
                 const pData = await pendingRes.json();
                 setPendingRequests(Array.isArray(pData) ? pData : (pData.data || []));
+            } else {
+                const errData = await pendingRes.json().catch(() => ({}));
+                console.error("Pending Students Error:", errData);
             }
+
+            // NOTE: getStudentsBySection is temporarily removed as per request.
+            // setStudents([]); 
+
         } catch (err) {
             setError('Failed to sync data with the server.');
             console.error("FetchData Error:", err);
@@ -100,7 +95,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
         fetchData(); 
     }, [fetchData]);
 
-    // ── Handle Action (Approve/Reject using PATCH) ────────────────────────
+    // ── Handle Action (Approve/Reject) ────────────────────────────────────
     const handleAction = async (requestId, action) => {
         const storedSection = localStorage.getItem('selectedSection');
         const activeSection = storedSection ? JSON.parse(storedSection) : null;
@@ -117,28 +112,17 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
         
         try {
             const token = getCleanToken();
-
-            const res = await authAPI.approveRejectStudent(
-                sId,
-                requestId, // student_section_id (ss_id)
-                statusMapping,
-                token
-            );
+            const res = await authAPI.approveRejectStudent(sId, requestId, statusMapping, token);
 
             if (res.ok) {
-                // Refresh listahan para lumipat ang student from Pending to Official list
-                fetchData();
-                // Kung naging empty ang pending requests, pwede ring i-close ang modal
-                if (pendingRequests.length <= 1 && action === 'approve') {
-                   // Optional: setIsModalOpen(false);
-                }
+                fetchData(); // Refresh requests list
             } else {
                 const errData = await res.json().catch(() => ({}));
                 alert(`Error: ${errData.message || res.statusText}`);
             }
         } catch (err) {
             console.error("HandleAction Error:", err);
-            alert("An error occurred. Please try again.");
+            alert("An error occurred.");
         }
     };
 
@@ -146,12 +130,10 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
         return students.filter(s => {
             const fullName = (s.full_name || `${s.first_name || ''} ${s.last_name || ''}` || '').toLowerCase();
             const email = (s.email || '').toLowerCase();
-            const studentId = (s.student_id || s.id || '').toString().toLowerCase();
+            const sIdStr = (s.student_id || s.id || '').toString().toLowerCase();
             const search = searchTerm.toLowerCase();
             
-            return fullName.includes(search) || 
-                   email.includes(search) ||
-                   studentId.includes(search);
+            return fullName.includes(search) || email.includes(search) || sIdStr.includes(search);
         });
     }, [students, searchTerm]);
 
@@ -173,7 +155,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
                         <div>
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="text-[10px] font-black text-[#22C55E] uppercase tracking-[0.2em]">
-                                    Academic Management
+                                    {deptAbbr || "Academic"} Management — {programAbbr || "Course"}
                                 </span>
                             </div>
                             <h2 className="text-3xl font-black uppercase text-gray-900 tracking-tighter leading-none">
@@ -217,7 +199,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
                 </div>
             </div>
 
-            {/* ── STUDENT TABLE ── */}
+            {/* ── STUDENT TABLE (Official List) ── */}
             <div className="flex-1 overflow-auto px-10 py-6">
                 {error && (
                     <div className="mb-4 p-4 bg-red-50 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-red-100">
@@ -240,19 +222,19 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
                             Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
                         ) : filteredStudents.length > 0 ? (
                             filteredStudents.map((student) => (
-                                <tr key={student.ss_id || student.id || student.student_id} className="group hover:bg-[#F8FAFC] transition-all">
+                                <tr key={student.ss_id || student.id} className="group hover:bg-[#F8FAFC] transition-all">
                                     <td className="px-6 py-6">
                                         <div className="flex items-center gap-4">
                                             <div className="h-10 w-10 rounded-full bg-[#22C55E] flex items-center justify-center text-white text-[10px] font-black">
-                                                {(student.full_name || student.name || 'ST').substring(0, 2).toUpperCase()}
+                                                {(student.full_name || 'ST').substring(0, 2).toUpperCase()}
                                             </div>
                                             <span className="text-sm font-black text-gray-800 uppercase italic tracking-tight group-hover:text-[#22C55E] transition-colors">
-                                                {student.full_name || student.name}
+                                                {student.full_name}
                                             </span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-6">
-                                        <span className="text-[11px] font-bold text-gray-500 lowercase">{student.email || 'N/A'}</span>
+                                        <span className="text-[11px] font-bold text-gray-500 lowercase">{student.email}</span>
                                     </td>
                                     <td className="px-6 py-6">
                                         <div className="flex items-center gap-3">
@@ -282,7 +264,9 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
                             <tr>
                                 <td colSpan={6} className="py-32 text-center opacity-30 grayscale">
                                     <div className="text-6xl mb-4">🔍</div>
-                                    <p className="text-[10px] font-black uppercase tracking-[0.3em]">No students enrolled</p>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.3em]">
+                                        {loading ? "Syncing data..." : "No official students found"}
+                                    </p>
                                 </td>
                             </tr>
                         )}
@@ -297,7 +281,6 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
                         className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-300" 
                         onClick={() => setIsModalOpen(false)} 
                     />
-                    
                     <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
                         <div className="p-10 border-b border-gray-50 flex justify-between items-center">
                             <div>
@@ -322,12 +305,10 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
                                                 {req.full_name || req.name}
                                             </h4>
                                         </div>
-
                                         <div className="mb-6">
                                             <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Gbox Account</span>
                                             <p className="text-xs font-bold text-gray-500 lowercase">{req.email || 'No email provided'}</p>
                                         </div>
-
                                         <div className="flex gap-3">
                                             <button 
                                                 onClick={() => handleAction(req.ss_id || req.id, 'approve')}
