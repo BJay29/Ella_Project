@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../../../services/APIservice';
 
 const PendingApproval = ({ onBack }) => {
@@ -6,15 +6,16 @@ const PendingApproval = ({ onBack }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // ✅ Helper to clean token (Prevents 401 Unauthorized due to extra quotes)
-    const getCleanToken = () => {
+    // ✅ Helper to clean token (Prevents 401 Unauthorized due to extra quotes or "undefined" string)
+    const getCleanToken = useCallback(() => {
         const token = localStorage.getItem('token');
-        if (!token) return null;
+        if (!token || token === 'undefined' || token === 'null') return null;
+        // Inaalis ang extra quotes na madalas nase-save ng JSON.stringify
         return token.replace(/['"]+/g, '').trim();
-    };
+    }, []);
 
-    // ── Fetch Pending Requests (Updated to Simplified Instructor API) ──────────
-    const fetchRequests = async () => {
+    // ── Fetch Pending Requests ──────────────────────────────────────────────
+    const fetchRequests = useCallback(async () => {
         setLoading(true);
         setError('');
         try {
@@ -34,18 +35,18 @@ const PendingApproval = ({ onBack }) => {
                 return;
             }
 
-            // Sabay-sabay na i-fetch ang bawat section gamit ang NEW API path
+            // Sabay-sabay na i-fetch ang bawat section gamit ang tamang API path
             const fetchPromises = storedSections.map(async (section) => {
                 try {
-                    // Sa bagong API, section_id na lang ang kailangan natin
-                    const sId = section.section_id || section.id;
+                    // Siguraduhing may valid ID bago tumawag sa API
+                    const sId = section.section_id || section.id || section._id;
 
                     if (!sId) {
                         console.warn("Skipping section due to missing ID:", section);
                         return [];
                     }
 
-                    // ✅ Gamit ang bagong path: /api/instructor/sections/${sId}/students/pending
+                    // ✅ Gamit ang path sa image 0b95b0: /api/instructor/sections/${sId}/students/pending
                     const res = await authAPI.getPendingStudents(sId, token);
 
                     if (res.ok) {
@@ -54,14 +55,14 @@ const PendingApproval = ({ onBack }) => {
                         
                         return studentList.map(student => ({
                             ...student,
-                            // Itatago natin ang section_id dito para sa handleAction mamaya
+                            // Itatago ang section_id para sa handleAction mamaya
                             parentSectionId: sId,
-                            section_name: section.section_name || section.section_code || 'Unnamed Section'
+                            section_display_name: section.section_name || section.section_code || 'Unnamed Section'
                         }));
                     }
                     return [];
                 } catch (err) {
-                    console.error(`Error fetching section ${section.section_id}:`, err);
+                    console.error(`Error fetching section:`, err);
                     return [];
                 }
             });
@@ -71,31 +72,36 @@ const PendingApproval = ({ onBack }) => {
             setRequests(combinedRequests);
 
         } catch (err) {
+            console.error("Fetch error:", err);
             setError('Network error. Please try again later.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [getCleanToken]);
 
     useEffect(() => {
         fetchRequests();
-    }, []);
+    }, [fetchRequests]);
 
-    // ── Handle Action (Updated to PATCH and Simplified API) ───────────────────
+    // ── Handle Action (Approve or Reject) ───────────────────────────────────
     const handleAction = async (item, action) => {
         const statusMapping = action === 'approve' ? 'approved' : 'rejected';
+        const confirmMsg = `Are you sure you want to ${action} this student?`;
         
+        if (!window.confirm(confirmMsg)) return;
+
         try {
             const token = getCleanToken();
             const sId = item.parentSectionId;
+            // ssId can be .ss_id (from student_sections table) or just .id
             const ssId = item.ss_id || item.id;
 
             if (!sId || !ssId) {
-                alert("Critical Error: Missing IDs for processing.");
+                alert("Critical Error: Missing IDs (Section or Student-Section ID) for processing.");
                 return;
             }
 
-            // ✅ Gamit ang bagong path: PATCH /api/instructor/sections/${sId}/students/${ssId}
+            // ✅ Gamit ang path sa image 0b95b0: PATCH /api/instructor/sections/${sId}/students/${ssId}
             const res = await authAPI.approveRejectStudent(
                 sId,
                 ssId,
@@ -111,7 +117,7 @@ const PendingApproval = ({ onBack }) => {
                 alert(`Failed to ${action} request: ${errData.message || res.statusText}`);
             }
         } catch (err) {
-            console.error(err);
+            console.error("Action error:", err);
             alert("An error occurred during the process.");
         }
     };
@@ -201,7 +207,7 @@ const PendingApproval = ({ onBack }) => {
 
                                         <td className="px-8 py-6 align-top pt-8">
                                             <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[9px] font-black uppercase tracking-tighter">
-                                                {item.section_name || 'N/A'}
+                                                {item.section_display_name || 'N/A'}
                                             </span>
                                         </td>
                                     </tr>

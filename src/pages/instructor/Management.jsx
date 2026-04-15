@@ -7,7 +7,7 @@ const Management = ({ onShowPending }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     
     const STORAGE_KEY = 'instructor_handled_sections';
-    const SELECTED_SECTION_KEY = 'selectedSection'; // Key na ginagamit ng StudentTable
+    const SELECTED_SECTION_KEY = 'selectedSection'; // Key na ginagamit ng StudentTable at SectionDashboard
 
     const [mySections, setMySections] = useState(() => {
         try {
@@ -48,9 +48,9 @@ const Management = ({ onShowPending }) => {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [fetchMySections]);
 
-    // ── Bagong Function: Pag-click sa Manage Students ──
+    // ── Handle Manage Students (View Switcher) ──
     const handleManageStudents = (item) => {
-        // I-save sa localStorage para mabasa ng StudentTable fetcher
+        // I-save ang buong object sa localStorage para sa StudentTable / API calls
         localStorage.setItem(SELECTED_SECTION_KEY, JSON.stringify(item));
         
         setActiveSection(item); 
@@ -66,8 +66,12 @@ const Management = ({ onShowPending }) => {
         
         setMySections(updatedCards);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCards));
-        // Linisin din ang selected kung ito yung tinanggal
-        localStorage.removeItem(SELECTED_SECTION_KEY);
+        
+        // Linisin ang selected kung ito yung tinanggal
+        const currentSelected = JSON.parse(localStorage.getItem(SELECTED_SECTION_KEY));
+        if (currentSelected && String(getSectionId(currentSelected)) === String(sectionId)) {
+            localStorage.removeItem(SELECTED_SECTION_KEY);
+        }
     };
 
     const handleAddSuccess = (updatedListOrNewItem) => {
@@ -135,6 +139,12 @@ const Management = ({ onShowPending }) => {
                             <div key={i} className="h-[220px] bg-gray-100 animate-pulse rounded-[2.5rem]" />
                         ))}
 
+                        {!isLoading && mySections.length === 0 && (
+                            <div className="col-span-full py-20 text-center bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-200">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No courses handled yet. Click "Handle Section" to start.</p>
+                            </div>
+                        )}
+
                         {!isLoading && mySections.map((item, idx) => {
                             const sectionId   = getSectionId(item);
                             const courseName  = item.course_name  || item.subject     || '—';
@@ -196,7 +206,12 @@ const Management = ({ onShowPending }) => {
                 <div className="animate-in fade-in slide-in-from-right-4 duration-500">
                     <SectionDashboard
                         sectionData={activeSection}
-                        onBack={() => { setView('list'); setActiveSection(null); }}
+                        onBack={() => { 
+                            setView('list'); 
+                            setActiveSection(null); 
+                            // Opsyonal: linisin ang selection sa pag-back
+                            // localStorage.removeItem(SELECTED_SECTION_KEY);
+                        }}
                     />
                 </div>
             )}
