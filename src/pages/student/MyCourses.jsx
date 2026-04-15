@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNotification } from '../../context/useNotification';
+import { authAPI } from '../../services/APIservice'; // Inimport ang authAPI base sa structure mo
 
 const API_BASE = import.meta.env?.VITE_API_URL || 'https://ellaquest-backend.onrender.com';
 const getToken = () => sessionStorage.getItem('token') || localStorage.getItem('token');
@@ -11,19 +12,19 @@ const avatarLetter = (str = '') => {
 };
 
 const normalise = (raw) => ({
-  ss_id:        raw.ss_id        || raw.id        || raw.enrollment_id || Math.random(),
-  section_id:   raw.section_id   || raw.id,
-  course_id:    raw.course_id,
-  course_name:  raw.course_name  || raw.title     || raw.course_title  || 'Course',
-  section_name: raw.section_name || raw.name      || raw.section_title || 'Section',
-  section_code: raw.section_code,
-  instructor:   raw.instructor_name || raw.instructor || raw.teacher_name || raw.prof || '',
-  school_year:  raw.school_year,
-  semester:     raw.semester,
-  schedule:     raw.schedule     || raw.time || '',
-  capacity:     raw.capacity,
-  enrolled:     raw.enrolled     || raw.student_count,
-  status:       raw.status       || 'pending',
+  ss_id:         raw.ss_id        || raw.id        || raw.enrollment_id || Math.random(),
+  section_id:    raw.section_id   || raw.id,
+  course_id:     raw.course_id,
+  course_name:   raw.course_name  || raw.title     || raw.course_title  || 'Course',
+  section_name:  raw.section_name || raw.name      || raw.section_title || 'Section',
+  section_code:  raw.section_code,
+  instructor:    raw.instructor_name || raw.instructor || raw.teacher_name || raw.prof || '',
+  school_year:   raw.school_year,
+  semester:      raw.semester,
+  schedule:      raw.schedule     || raw.time || '',
+  capacity:      raw.capacity,
+  enrolled:      raw.enrolled     || raw.student_count,
+  status:        raw.status       || 'pending',
 });
 
 const StatusBadge = ({ status }) => {
@@ -156,22 +157,21 @@ const MyCourses = () => {
   const [joinStatus, setJoinStatus] = useState('idle');
   const [joinMessage, setJoinMessage] = useState('');
 
-  // ── FETCH: Gamit ang bagong API /api/section/student/my-section ──
+  // ── FETCH: Gamit ang centralized authAPI ──
   const fetchEnrollments = useCallback(async () => {
     const token = getToken();
     if (!token) { setError('Not logged in.'); setLoading(false); return; }
     setLoading(true); setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/section/student/my-section`, { 
-        headers: { Authorization: `Bearer ${token}` } 
-      });
+      // ✅ In-update para gamitin ang authAPI.getMySections na binigay mo
+      const res = await authAPI.getStudentSection(token);
       
       if (res.status === 404 || res.status === 204) { setEnrollments([]); return; }
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       
       const data = await res.json();
       
-      // I-handle ang iba't ibang possible return shapes
+      // Handle the various response shapes flexibly
       let raw = Array.isArray(data) ? data : (data.sections || data.enrollments || (data.section ? [data.section] : []));
       
       setEnrollments(raw.map(normalise));
@@ -182,7 +182,7 @@ const MyCourses = () => {
 
   useEffect(() => { fetchEnrollments(); }, [fetchEnrollments]);
 
-  // ── JOIN: Gamit ang bagong API /api/student/student/join-section ──
+  // ── JOIN: Gamit ang centralized authAPI ──
   const handleJoin = async () => {
     const code = sectionCode.trim().toUpperCase();
     const token = getToken();
@@ -191,15 +191,9 @@ const MyCourses = () => {
     
     setJoinStatus('loading');
     try {
-      const res = await fetch(`${API_BASE}/api/student/student/join-section`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${token}` 
-        },
-        // In-update sa 'sectionId' base sa iyong API service snippet
-        body: JSON.stringify({ sectionId: code }), 
-      });
+      // ✅ In-update para gamitin ang authAPI.joinSection na binigay mo
+      // Kinukuha nito ang token at object na { sectionId: code }
+      const res = await authAPI.joinSection(token, { sectionId: code });
       
       const data = await res.json().catch(() => ({}));
       
@@ -207,7 +201,7 @@ const MyCourses = () => {
         setJoinStatus('success');
         setJoinMessage(data.message || 'Request sent!');
         setSectionCode('');
-        fetchEnrollments(); // I-refresh ang listahan
+        fetchEnrollments(); // I-refresh ang listahan matapos sumali
         if (notificationsEnabled) addJoinNotification(code, data.section_name || code, data.course_name || '');
       } else {
         setJoinStatus('error');
