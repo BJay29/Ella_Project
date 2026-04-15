@@ -156,12 +156,12 @@ export const authAPI = {
         });
     },
 
-    getInstructorSections: async (token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
-    },
+    // getInstructorSections: async (token) => {
+    //     return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections`, {
+    //         method: 'GET',
+    //         headers: { 'Authorization': `Bearer ${token}` },
+    //     });
+    // },
 
     getStudentsBySection: async (sectionId, token) => {
         validateParams({ sectionId });
