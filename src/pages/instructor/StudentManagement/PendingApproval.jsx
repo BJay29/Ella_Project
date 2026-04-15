@@ -6,13 +6,26 @@ const PendingApproval = ({ onBack }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // ── Fetch Pending Requests (Centralized/Looping) ───────────────────────
+    // ✅ Helper to clean token (Prevents 401 Unauthorized due to extra quotes)
+    const getCleanToken = () => {
+        const token = localStorage.getItem('token');
+        if (!token) return null;
+        return token.replace(/['"]+/g, '').trim();
+    };
+
+    // ── Fetch Pending Requests (Updated to Simplified Instructor API) ──────────
     const fetchRequests = async () => {
         setLoading(true);
         setError('');
         try {
-            const token = localStorage.getItem('token');
-            // Kunin ang lahat ng sections na sinave ng instructor sa cards
+            const token = getCleanToken();
+            if (!token) {
+                setError('Authentication required. Please login again.');
+                setLoading(false);
+                return;
+            }
+
+            // Kunin ang lahat ng sections na sinave ng instructor
             const storedSections = JSON.parse(localStorage.getItem('mySections')) || [];
             
             if (storedSections.length === 0) {
@@ -21,29 +34,29 @@ const PendingApproval = ({ onBack }) => {
                 return;
             }
 
-            // Sabay-sabay na i-fetch ang bawat section
+            // Sabay-sabay na i-fetch ang bawat section gamit ang NEW API path
             const fetchPromises = storedSections.map(async (section) => {
                 try {
-                    const res = await authAPI.getPendingStudents(
-                        section.course_id,
-                        section.dept_id,
-                        section.program_id,
-                        section.section_id,
-                        token
-                    );
+                    // Sa bagong API, section_id na lang ang kailangan natin
+                    const sId = section.section_id || section.id;
+
+                    if (!sId) {
+                        console.warn("Skipping section due to missing ID:", section);
+                        return [];
+                    }
+
+                    // ✅ Gamit ang bagong path: /api/instructor/sections/${sId}/students/pending
+                    const res = await authAPI.getPendingStudents(sId, token);
+
                     if (res.ok) {
                         const data = await res.json();
-                        // Isama ang section info sa bawat student object para sa mapping
-                        return (data.data || data || []).map(student => ({
+                        const studentList = Array.isArray(data) ? data : (data.data || []);
+                        
+                        return studentList.map(student => ({
                             ...student,
-                            // Itatabi natin ang IDs para sa approval action mamaya
-                            parentSectionIds: {
-                                course_id: section.course_id,
-                                dept_id: section.dept_id,
-                                program_id: section.program_id,
-                                section_id: section.section_id
-                            },
-                            section_name: section.section_name || section.section_code
+                            // Itatago natin ang section_id dito para sa handleAction mamaya
+                            parentSectionId: sId,
+                            section_name: section.section_name || section.section_code || 'Unnamed Section'
                         }));
                     }
                     return [];
@@ -54,7 +67,6 @@ const PendingApproval = ({ onBack }) => {
             });
 
             const results = await Promise.all(fetchPromises);
-            // Pagsamahin lahat ng arrays (Flatten)
             const combinedRequests = results.flat();
             setRequests(combinedRequests);
 
@@ -69,23 +81,23 @@ const PendingApproval = ({ onBack }) => {
         fetchRequests();
     }, []);
 
-    // ── Handle Action (Approve/Deny) ───────────────────────────────────────
+    // ── Handle Action (Updated to PATCH and Simplified API) ───────────────────
     const handleAction = async (item, action) => {
-        // action parameter here is expected as 'approve' or 'deny' 
-        // derived from your UI buttons. We map it to 'approved' or 'rejected'.
         const statusMapping = action === 'approve' ? 'approved' : 'rejected';
         
         try {
-            const token = localStorage.getItem('token');
-            // Ginagamit ang IDs na sinave natin sa student object during fetch
-            const { course_id, dept_id, program_id, section_id } = item.parentSectionIds;
+            const token = getCleanToken();
+            const sId = item.parentSectionId;
             const ssId = item.ss_id || item.id;
 
+            if (!sId || !ssId) {
+                alert("Critical Error: Missing IDs for processing.");
+                return;
+            }
+
+            // ✅ Gamit ang bagong path: PATCH /api/instructor/sections/${sId}/students/${ssId}
             const res = await authAPI.approveRejectStudent(
-                course_id,
-                dept_id,
-                program_id,
-                section_id,
+                sId,
                 ssId,
                 statusMapping,
                 token
@@ -95,7 +107,8 @@ const PendingApproval = ({ onBack }) => {
                 // I-refresh ang listahan para mawala ang na-process na student
                 fetchRequests();
             } else {
-                alert(`Failed to ${action} request.`);
+                const errData = await res.json().catch(() => ({}));
+                alert(`Failed to ${action} request: ${errData.message || res.statusText}`);
             }
         } catch (err) {
             console.error(err);
@@ -155,7 +168,6 @@ const PendingApproval = ({ onBack }) => {
                             ) : requests.length > 0 ? (
                                 requests.map((item) => (
                                     <tr key={item.ss_id || item.id} className="hover:bg-gray-50/50 transition-colors group">
-                                        {/* Name with Avatar & Sub-Actions */}
                                         <td className="px-8 py-6">
                                             <div className="flex items-center gap-4">
                                                 <div className="h-12 w-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center font-black text-sm group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-sm">
@@ -165,7 +177,6 @@ const PendingApproval = ({ onBack }) => {
                                                     <span className="text-sm font-black text-gray-800 uppercase italic">
                                                         {item.full_name || item.name || 'Unknown Student'}
                                                     </span>
-                                                    {/* INLINE ACTIONS BELOW NAME */}
                                                     <div className="flex items-center gap-2">
                                                         <button 
                                                             onClick={() => handleAction(item, 'approve')}
@@ -184,12 +195,10 @@ const PendingApproval = ({ onBack }) => {
                                             </div>
                                         </td>
                                         
-                                        {/* Gbox / Email */}
                                         <td className="px-8 py-6 text-sm font-bold text-gray-500 lowercase italic align-top pt-8">
                                             {item.email || 'no-email@univ.edu.ph'}
                                         </td>
 
-                                        {/* Section */}
                                         <td className="px-8 py-6 align-top pt-8">
                                             <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[9px] font-black uppercase tracking-tighter">
                                                 {item.section_name || 'N/A'}

@@ -36,37 +36,44 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [error, setError] = useState('');
 
-    // ── Data Fetching Logic ────────────────────────────────────────────────
+    // ✅ Helper to clean token
+    const getCleanToken = () => {
+        const token = localStorage.getItem('token');
+        return token ? token.replace(/['"]+/g, '').trim() : null;
+    };
+
+    // ── Data Fetching Logic (Updated for Instructor API) ───────────────────
     const fetchData = useCallback(async () => {
-        // Kukunin natin ang IDs mula sa localStorage (selectedSection card)
         const activeSection = JSON.parse(localStorage.getItem('selectedSection'));
-        if (!activeSection) return;
+        // Fallback sa sectionId prop kung wala sa localStorage
+        const sId = activeSection?.section_id || activeSection?.id || sectionId;
+
+        if (!sId) {
+            console.error("No active section ID found");
+            return;
+        }
 
         setLoading(true);
+        setError('');
+        
         try {
-            const token = localStorage.getItem('token');
+            const token = getCleanToken();
+            if (!token) {
+                setError('Session expired. Please login again.');
+                return;
+            }
+
+            // 1. Fetch Official Enrolled Students (Using simplified path)
+            const studentRes = await authAPI.getStudentsBySection(sId, token);
             
-            // 1. Fetch Official Enrolled Students
-            const studentRes = await authAPI.getStudentsBySection(
-                activeSection.course_id,
-                activeSection.dept_id,
-                activeSection.program_id,
-                activeSection.section_id,
-                token
-            );
             if (studentRes.ok) {
                 const sData = await studentRes.json();
                 setStudents(sData.data || sData || []);
             }
 
-            // 2. Fetch Pending Join Requests (Dito gagamitin ang getPendingStudents)
-            const pendingRes = await authAPI.getPendingStudents(
-                activeSection.course_id,
-                activeSection.dept_id,
-                activeSection.program_id,
-                activeSection.section_id,
-                token
-            );
+            // 2. Fetch Pending Join Requests (Using simplified path)
+            const pendingRes = await authAPI.getPendingStudents(sId, token);
+            
             if (pendingRes.ok) {
                 const pData = await pendingRes.json();
                 setPendingRequests(pData.data || pData || []);
@@ -77,23 +84,27 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [sectionId]);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => { 
+        fetchData(); 
+    }, [fetchData]);
 
-    // ── Updated: Handle Action (Approve/Reject) ───────────────────────────
+    // ── Updated: Handle Action (Approve/Reject using PATCH) ────────────────
     const handleAction = async (requestId, action) => {
         const activeSection = JSON.parse(localStorage.getItem('selectedSection'));
+        const sId = activeSection?.section_id || activeSection?.id || sectionId;
+        
+        if (!sId) return;
+
         const statusMapping = action === 'approve' ? 'approved' : 'rejected';
         
         try {
-            const token = localStorage.getItem('token');
+            const token = getCleanToken();
+
             const res = await authAPI.approveRejectStudent(
-                activeSection.course_id,
-                activeSection.dept_id,
-                activeSection.program_id,
-                activeSection.section_id,
-                requestId, // Ito yung ss_id o id ng student request
+                sId,
+                requestId, // ss_id
                 statusMapping,
                 token
             );
@@ -102,10 +113,12 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
                 // Refresh data para lumipat ang student from Pending to Official list
                 fetchData();
             } else {
-                alert(`Failed to ${action} request.`);
+                const errData = await res.json().catch(() => ({}));
+                alert(`Failed to ${action} request: ${errData.message || res.statusText}`);
             }
         } catch (err) {
             console.error("Error updating request:", err);
+            alert("An error occurred. Please try again.");
         }
     };
 
@@ -113,7 +126,10 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
         return students.filter(s => {
             const fullName = (s.full_name || `${s.first_name} ${s.last_name}` || '').toLowerCase();
             const email = (s.email || '').toLowerCase();
-            return fullName.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
+            const studentId = (s.student_id || s.id || '').toString().toLowerCase();
+            return fullName.includes(searchTerm.toLowerCase()) || 
+                   email.includes(searchTerm.toLowerCase()) ||
+                   studentId.includes(searchTerm.toLowerCase());
         });
     }, [students, searchTerm]);
 
@@ -181,6 +197,11 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, onBack }) => {
 
             {/* ── STUDENT TABLE ── */}
             <div className="flex-1 overflow-auto px-10 py-6">
+                {error && (
+                    <div className="mb-4 p-4 bg-red-50 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-red-100">
+                        ⚠️ {error}
+                    </div>
+                )}
                 <table className="w-full text-left">
                     <thead>
                         <tr className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-b border-gray-100">

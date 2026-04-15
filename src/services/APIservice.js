@@ -172,29 +172,33 @@ export const authAPI = {
     },
 
     // Get Pending Students for a Specific Section
-    getPendingStudents: async (courseId, deptId, programId, sectionId, token) => {
-        validateParams({ courseId, deptId, programId, sectionId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections/${sectionId}/students/pending`,
-            {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            }
-        );
-    },
-
-    // Approve or Reject Student Admission
-    approveRejectStudent: async (courseId, deptId, programId, sectionId, ssId, status, token) => {
-        validateParams({ courseId, deptId, programId, sectionId, ssId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections/${sectionId}/students/${ssId}`,
-            {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status }),
-            }
-        );
-    },
+  getPendingStudents: async (sectionId, token) => {
+    return await fetchWithTimeout(
+        `${BASE_URL}/api/instructor/sections/${sectionId}/students/pending`,
+        {
+            method: 'PATCH',
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },  
+        }
+    );
+},
+    
+// Approve or Reject Student Admission
+approveRejectStudent: async (sectionId, ssId, status, token) => {
+  return await fetchWithTimeout(
+        `${BASE_URL}/api/instructor/sections/${sectionId}/students/${ssId}`,
+        {
+            method: 'PATCH',
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({ status }),
+        }
+    );
+},
 
     // ─────────────────────────────────────────────────────────────────────────
     // QUESTS (Instructor)
