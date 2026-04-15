@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNotification } from '../../context/useNotification';
-import { authAPI } from '../../services/APIservice'; // Inimport ang authAPI base sa structure mo
+import { authAPI } from '../../services/APIservice';
 
-const API_BASE = import.meta.env?.VITE_API_URL || 'https://ellaquest-backend.onrender.com';
 const getToken = () => sessionStorage.getItem('token') || localStorage.getItem('token');
 
 const avatarLetter = (str = '') => {
@@ -12,33 +11,40 @@ const avatarLetter = (str = '') => {
 };
 
 const normalise = (raw) => ({
-  ss_id:         raw.ss_id        || raw.id        || raw.enrollment_id || Math.random(),
-  section_id:    raw.section_id   || raw.id,
-  course_id:     raw.course_id,
-  course_name:   raw.course_name  || raw.title     || raw.course_title  || 'Course',
-  section_name:  raw.section_name || raw.name      || raw.section_title || 'Section',
-  section_code:  raw.section_code,
-  instructor:    raw.instructor_name || raw.instructor || raw.teacher_name || raw.prof || '',
-  school_year:   raw.school_year,
-  semester:      raw.semester,
-  schedule:      raw.schedule     || raw.time || '',
-  capacity:      raw.capacity,
-  enrolled:      raw.enrolled     || raw.student_count,
-  status:        raw.status       || 'pending',
+  ss_id:        raw.ss_id         || raw.id             || raw.enrollment_id || Math.random(),
+  section_id:   raw.section_id    || raw.id,
+  course_id:    raw.course_id,
+  course_name:  raw.course_name   || raw.title          || raw.course_title  || 'Course',
+  section_name: raw.section_name  || raw.name           || raw.section_title || 'Section',
+  section_code: raw.section_code,
+  instructor:   raw.instructor_name || raw.instructor   || raw.teacher_name  || raw.prof || '',
+  school_year:  raw.school_year,
+  semester:     raw.semester,
+  schedule:     raw.schedule      || raw.time           || '',
+  capacity:     raw.capacity,
+  enrolled:     raw.enrolled      || raw.student_count,
+  status:       raw.status        || 'pending',
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
   const s = status?.toLowerCase();
-  if (s === 'approved' || s === 'active') return <span className="text-xs font-bold text-green-600 dark:text-green-400">✅ Enrolled</span>;
-  if (s === 'pending')  return <span className="text-xs font-bold text-yellow-600 dark:text-yellow-400">⏳ Pending Approval</span>;
-  if (s === 'rejected') return <span className="text-xs font-bold text-red-500">✕ Rejected</span>;
+  if (s === 'approved' || s === 'active')
+    return <span className="text-xs font-bold text-green-600 dark:text-green-400">✅ Enrolled</span>;
+  if (s === 'pending')
+    return <span className="text-xs font-bold text-yellow-600 dark:text-yellow-400">⏳ Pending Approval</span>;
+  if (s === 'rejected')
+    return <span className="text-xs font-bold text-red-500">✕ Rejected</span>;
   return null;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
 const EnrollmentCard = ({ enroll }) => {
   const s = enroll.status?.toLowerCase();
-  const avatarBg = (s === 'approved' || s === 'active') ? 'bg-[#4CAF50]' : s === 'rejected' ? 'bg-red-400' : 'bg-yellow-400';
-  
+  const avatarBg =
+    s === 'approved' || s === 'active' ? 'bg-[#4CAF50]' :
+    s === 'rejected' ? 'bg-red-400' : 'bg-yellow-400';
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden mb-4 transition-colors">
       <div className="p-6">
@@ -76,9 +82,13 @@ const EnrollmentCard = ({ enroll }) => {
               <div>
                 <p className="font-bold text-sm text-gray-800 dark:text-white">{enroll.section_name}</p>
                 <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap">
-                  {enroll.section_code && <span className="font-bold tracking-widest text-[#4CAF50]">{enroll.section_code}</span>}
+                  {enroll.section_code && (
+                    <span className="font-bold tracking-widest text-[#4CAF50]">{enroll.section_code}</span>
+                  )}
                   {enroll.schedule && <span>· 🕐 {enroll.schedule}</span>}
-                  {enroll.enrolled != null && enroll.capacity != null && <span>· 👥 {enroll.enrolled}/{enroll.capacity}</span>}
+                  {enroll.enrolled != null && enroll.capacity != null && (
+                    <span>· 👥 {enroll.enrolled}/{enroll.capacity}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -99,182 +109,264 @@ const EnrollmentCard = ({ enroll }) => {
   );
 };
 
-const JoinModal = ({ sectionCode, setSectionCode, joinStatus, setJoinStatus, joinMessage, setJoinMessage, onJoin, onClose }) => (
+// ─────────────────────────────────────────────────────────────────────────────
+const JoinModal = ({
+  sectionCode, setSectionCode,
+  joinStatus, setJoinStatus,
+  joinMessage, setJoinMessage,
+  onJoin, onClose
+}) => (
   <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden transition-colors">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
         <h2 className="text-base font-bold text-gray-800 dark:text-white">🎯 Join a Section</h2>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl font-bold leading-none">×</button>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl font-bold leading-none"
+        >×</button>
       </div>
+
       <div className="px-6 py-5">
-        <label className="block text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">Enter Section Code</label>
+        <label className="block text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">
+          Enter Section Code
+        </label>
         <input
           type="text"
           value={sectionCode}
-          onChange={(e) => { setSectionCode(e.target.value); setJoinStatus('idle'); setJoinMessage(''); }}
+          onChange={(e) => {
+            setSectionCode(e.target.value);
+            setJoinStatus('idle');
+            setJoinMessage('');
+          }}
           onKeyDown={(e) => e.key === 'Enter' && onJoin()}
           className="w-full py-3 px-4 rounded-lg outline-none border-2 border-gray-200 dark:border-gray-600 focus:border-[#4CAF50] transition-colors text-gray-800 dark:text-white font-bold tracking-widest text-base uppercase bg-gray-50 dark:bg-gray-700"
-          placeholder="e.g. A3F9B2" maxLength={6}
-          disabled={joinStatus === 'loading' || joinStatus === 'success'} autoFocus
+          placeholder="e.g. A3F9B2"
+          maxLength={10}
+          disabled={joinStatus === 'loading' || joinStatus === 'success'}
+          autoFocus
         />
-        <p className="text-[11px] text-gray-400 mt-1 mb-3">Ask your instructor for the 6-character section code.</p>
-        
+        <p className="text-[11px] text-gray-400 mt-1 mb-3">
+          Ask your instructor for the section code.
+        </p>
+
         {joinStatus === 'error' && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-xs font-semibold rounded-lg px-4 py-2.5 mb-3 flex items-center gap-2">
             ❌ {joinMessage}
           </div>
         )}
         {joinStatus === 'success' && (
-          <div className="space-y-2 mb-3">
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-300 text-xs font-semibold rounded-lg px-4 py-2.5 flex items-center gap-2">
-              ✅ Request Sent Successfully!
-            </div>
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-300 text-xs font-semibold rounded-lg px-4 py-2.5 mb-3 flex items-center gap-2">
+            ✅ Request Sent Successfully!
           </div>
         )}
       </div>
+
       <div className="flex gap-3 px-6 pb-5">
-        <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+        <button
+          onClick={onClose}
+          className="flex-1 py-2.5 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          Cancel
+        </button>
         {joinStatus !== 'success' ? (
-          <button onClick={onJoin} disabled={joinStatus === 'loading'}
-            className="flex-1 py-2.5 rounded-lg bg-[#4CAF50] text-white font-bold text-sm hover:bg-[#43A047] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-            {joinStatus === 'loading' ? <><span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full inline-block" /> Joining…</> : 'Join'}
+          <button
+            onClick={onJoin}
+            disabled={joinStatus === 'loading'}
+            className="flex-1 py-2.5 rounded-lg bg-[#4CAF50] text-white font-bold text-sm hover:bg-[#43A047] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {joinStatus === 'loading' ? (
+              <>
+                <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full inline-block" />
+                Joining…
+              </>
+            ) : 'Join'}
           </button>
         ) : (
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-lg bg-[#4CAF50] text-white font-bold text-sm hover:bg-[#43A047] transition-colors">Done</button>
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-lg bg-[#4CAF50] text-white font-bold text-sm hover:bg-[#43A047] transition-colors"
+          >
+            Done
+          </button>
         )}
       </div>
     </div>
   </div>
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MyCourses
+// ─────────────────────────────────────────────────────────────────────────────
 const MyCourses = () => {
   const { addJoinNotification, notificationsEnabled } = useNotification();
   const [enrollments, setEnrollments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [showModal, setShowModal] = useState(false);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState('');
+  const [showModal,   setShowModal]   = useState(false);
   const [sectionCode, setSectionCode] = useState('');
-  const [joinStatus, setJoinStatus] = useState('idle');
+  const [joinStatus,  setJoinStatus]  = useState('idle');
   const [joinMessage, setJoinMessage] = useState('');
 
-  // ── FETCH: Gamit ang centralized authAPI ──
+  // ── Fetch enrolled sections ──────────────────────────────────────────────
   const fetchEnrollments = useCallback(async () => {
     const token = getToken();
     if (!token) { setError('Not logged in.'); setLoading(false); return; }
-    setLoading(true); setError('');
+    setLoading(true);
+    setError('');
     try {
-      // ✅ In-update para gamitin ang authAPI.getMySections na binigay mo
       const res = await authAPI.getStudentSection(token);
-      
       if (res.status === 404 || res.status === 204) { setEnrollments([]); return; }
       if (!res.ok) throw new Error(`Server error ${res.status}`);
-      
       const data = await res.json();
-      
-      // Handle the various response shapes flexibly
-      let raw = Array.isArray(data) ? data : (data.sections || data.enrollments || (data.section ? [data.section] : []));
-      
+      const raw  = Array.isArray(data)
+        ? data
+        : (data.sections || data.enrollments || (data.section ? [data.section] : []));
       setEnrollments(raw.map(normalise));
     } catch (err) {
       setError(err.message || 'Connection error.');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchEnrollments(); }, [fetchEnrollments]);
 
-  // ── JOIN: Gamit ang centralized authAPI ──
+  // ── Join section ─────────────────────────────────────────────────────────
   const handleJoin = async () => {
-    const code = sectionCode.trim().toUpperCase();
+    // ✅ FIXED: was `sectionId` (undefined). Now correctly uses `code`
+    const code  = sectionCode.trim().toUpperCase();
     const token = getToken();
-    if (!code)  { setJoinStatus('error'); setJoinMessage('Please enter a section code.'); return; }
-    if (!token) { setJoinStatus('error'); setJoinMessage('You are not logged in.'); return; }
-    
+
+    if (!code) {
+      setJoinStatus('error');
+      setJoinMessage('Please enter a section code.');
+      return;
+    }
+
+    if (!token) {
+      setJoinStatus('error');
+      setJoinMessage('You are not logged in. Please log in and try again.');
+      return;
+    }
+
     setJoinStatus('loading');
+
     try {
-      // ✅ In-update para gamitin ang authAPI.joinSection na binigay mo
-      // Kinukuha nito ang token at object na { sectionId: code }
-      const res = await authAPI.joinSection(token, { sectionId: code });
-      
+      // ✅ FIXED: pass `code` (the actual section code string), not `sectionId`
+      const res  = await authAPI.joinSection(token, { section_code: code });
       const data = await res.json().catch(() => ({}));
-      
+
       if (res.ok) {
         setJoinStatus('success');
         setJoinMessage(data.message || 'Request sent!');
         setSectionCode('');
-        fetchEnrollments(); // I-refresh ang listahan matapos sumali
-        if (notificationsEnabled) addJoinNotification(code, data.section_name || code, data.course_name || '');
+        fetchEnrollments();
+
+        if (notificationsEnabled) {
+          addJoinNotification(
+            code,
+            data.section_name || code,
+            data.course_name  || ''
+          );
+        }
       } else {
         setJoinStatus('error');
-        setJoinMessage(data.message || data.detail || `Could not join section.`);
+        // ✅ Show the actual backend error message so user knows what went wrong
+        setJoinMessage(data.message || data.error || 'Could not join section. Please check the code and try again.');
       }
-    } catch { 
-      setJoinStatus('error'); 
-      setJoinMessage('Network error.'); 
+    } catch {
+      setJoinStatus('error');
+      setJoinMessage('Network error. Please check your connection.');
     }
   };
 
-  const closeModal = () => { 
-    setShowModal(false); 
-    setJoinStatus('idle'); 
-    setJoinMessage(''); 
-    setSectionCode(''); 
+  const closeModal = () => {
+    setShowModal(false);
+    setJoinStatus('idle');
+    setJoinMessage('');
+    setSectionCode('');
   };
 
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">📚 My Courses</h2>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Your enrolled courses and sections for this semester.</p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+            📚 My Courses
+          </h2>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+            Your enrolled courses and sections for this semester.
+          </p>
         </div>
-        <button onClick={() => setShowModal(true)} className="bg-[#4CAF50] text-white text-sm font-bold px-4 py-2 rounded-full hover:bg-[#43A047] transition-colors shadow-sm">
+        <button
+          onClick={() => setShowModal(true)}
+          className="bg-[#4CAF50] text-white text-sm font-bold px-4 py-2 rounded-full hover:bg-[#43A047] transition-colors shadow-sm"
+        >
           + Join Course / Section
         </button>
       </div>
 
+      {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin w-8 h-8 border-4 border-[#4CAF50] border-t-transparent rounded-full" />
         </div>
       )}
 
+      {/* Error */}
       {!loading && error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-sm font-semibold rounded-2xl px-6 py-4 mb-6 flex items-center gap-2">
-          ❌ {error} <button onClick={fetchEnrollments} className="ml-auto text-xs underline">Retry</button>
+          ❌ {error}
+          <button onClick={fetchEnrollments} className="ml-auto text-xs underline">Retry</button>
         </div>
       )}
 
+      {/* Empty state */}
       {!loading && !error && enrollments.length === 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-16 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 text-center">
           <span className="text-5xl mb-4">🏫</span>
           <p className="font-bold text-base">No courses yet</p>
-          <p className="text-sm mt-1 max-w-xs">Join a course using a section code from your instructor.</p>
-          <button onClick={() => setShowModal(true)} className="mt-5 bg-[#4CAF50] text-white text-sm font-bold px-6 py-2 rounded-full hover:bg-[#43A047] transition-colors">
+          <p className="text-sm mt-1 max-w-xs">
+            Join a course using a section code from your instructor.
+          </p>
+          <button
+            onClick={() => setShowModal(true)}
+            className="mt-5 bg-[#4CAF50] text-white text-sm font-bold px-6 py-2 rounded-full hover:bg-[#43A047] transition-colors"
+          >
             + Join Course / Section
           </button>
         </div>
       )}
 
+      {/* Enrollment cards */}
       {!loading && !error && enrollments.map((enroll, idx) => (
         <EnrollmentCard key={enroll.ss_id ?? idx} enroll={enroll} />
       ))}
 
+      {/* Refresh */}
       {!loading && enrollments.length > 0 && (
         <div className="flex justify-center mt-2 mb-4">
-          <button onClick={fetchEnrollments} className="text-sm font-bold text-[#4CAF50] hover:underline flex items-center gap-1">🔄 Refresh Status</button>
+          <button
+            onClick={fetchEnrollments}
+            className="text-sm font-bold text-[#4CAF50] hover:underline flex items-center gap-1"
+          >
+            🔄 Refresh Status
+          </button>
         </div>
       )}
 
+      {/* Join Modal */}
       {showModal && (
-        <JoinModal 
-          sectionCode={sectionCode} 
-          setSectionCode={setSectionCode} 
-          joinStatus={joinStatus} 
-          setJoinStatus={setJoinStatus} 
-          joinMessage={joinMessage} 
-          setJoinMessage={setJoinMessage} 
-          onJoin={handleJoin} 
-          onClose={closeModal} 
+        <JoinModal
+          sectionCode={sectionCode}
+          setSectionCode={setSectionCode}
+          joinStatus={joinStatus}
+          setJoinStatus={setJoinStatus}
+          joinMessage={joinMessage}
+          setJoinMessage={setJoinMessage}
+          onJoin={handleJoin}
+          onClose={closeModal}
         />
       )}
     </div>

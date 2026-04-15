@@ -76,16 +76,20 @@ export const authAPI = {
     // ─────────────────────────────────────────────────────────────────────────
     // STUDENT ACTIONS (Join Section & Dashboard)
     // ─────────────────────────────────────────────────────────────────────────
-
-    joinSection: async (sectionId, token) => {
-        validateParams({ sectionId });
-        return await fetchWithTimeout(`${BASE_URL}/api/student/student/join-section`, {
+    joinSection: async (token, { section_code }) => {
+    validateParams({ section_code });
+    return await fetchWithTimeout(
+        `${BASE_URL}/api/student/student/join-section`,
+        {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sectionId }),
-        });
-    },
-
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ section_code }),
+        }
+    );
+},
     getStudentSection: async (token) => {
         return await fetchWithTimeout(`${BASE_URL}/api/section/student/my-section`, {
             method: 'GET',
