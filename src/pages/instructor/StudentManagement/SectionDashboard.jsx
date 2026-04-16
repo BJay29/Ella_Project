@@ -16,7 +16,7 @@ const SectionDashboard = ({ sectionData, onBack }) => {
     }
 
     // ── Normalize field names — Consistent with Management.js logic ──────────
-    // Idinagdag natin ang fallback checks para masiguro na hindi mag-uundefined ang sectionId
+    // Sinisiguro natin na makuha ang tamang keys mula sa sectionData object
     const sectionId   = sectionData.id || sectionData.section_id || sectionData._id || sectionData.sectionId;
     const sectionName = sectionData.section_name || sectionData.name || sectionData.section || '—';
     const sectionCode = sectionData.section_code || sectionData.join_code || sectionData.code || '—';
@@ -25,7 +25,6 @@ const SectionDashboard = ({ sectionData, onBack }) => {
     const programAbbr = sectionData.program_abbr || sectionData.program || sectionData.program_name || '—';
 
     // ── Debugging Log ──
-    // Makakatulong ito para makita sa console kung bakit "Missing param: sectionId" ang error
     useEffect(() => {
         console.log("SectionDashboard Mounted with ID:", sectionId);
         if (!sectionId) {
@@ -36,14 +35,13 @@ const SectionDashboard = ({ sectionData, onBack }) => {
     return (
         <div className="animate-in fade-in slide-in-from-right-4 duration-500">
             {/* Container para sa Student List. 
-                Inalis natin ang hiwalay na Header dito dahil ang StudentTable 
-                na ang may hawak ng Search, Back button, at Section Title 
-                para sa mas cohesive na Dashboard look.
+                Ang StudentTable ang main engine dito na nag-fefetch ng students
+                base sa sectionId na ipinasa natin.
             */}
             <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden min-h-[70vh]">
-                {/* Pass normalized data + onBack callback.
-                    Ang onBack ay kailangan ipasa para yung "Back to Sections" button 
-                    sa loob ng StudentTable ay gumana.
+                {/* Mahalaga: Ang StudentTable ang mag-handle ng 'View Requests' button.
+                    Dahil doon nifefetch ang student list, doon din natin gagawin ang 
+                    filtering para sa mga students na may status === 'PENDING'.
                 */}
                 <StudentTable
                     sectionId={sectionId}

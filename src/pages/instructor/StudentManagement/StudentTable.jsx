@@ -15,10 +15,13 @@ const SkeletonRow = () => (
 const StatusBadge = ({ status }) => {
     const s = (status || 'active').toLowerCase();
     const isAtRisk = s === 'at risk' || s === 'at-risk';
+    const isPending = s === 'pending';
     
     return (
         <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${
-            isAtRisk ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'
+            isAtRisk ? 'bg-red-50 text-red-500' : 
+            isPending ? 'bg-yellow-50 text-yellow-600' :
+            'bg-green-50 text-green-600'
         }`}>
             {status || 'Active'}
         </span>
@@ -29,7 +32,7 @@ const StatusBadge = ({ status }) => {
 // Main Component: StudentTable
 // ─────────────────────────────────────────────────────────────────────────────
 const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAbbr, onBack }) => {
-    const [students, setStudents] = useState([]); // Placeholder muna ito hangga't wala pang getStudentsBySection
+    const [students, setStudents] = useState([]); 
     const [pendingRequests, setPendingRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -44,54 +47,53 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
     }, []);
 
     // ── Data Fetching Logic ────────────────────────────────────────────────
-    const fetchData = useCallback(async () => {
-        const storedSection = localStorage.getItem('selectedSection');
-        const activeSection = storedSection ? JSON.parse(storedSection) : null;
-        
-        // Priority: LocalStorage ID -> Prop ID
-        const sId = activeSection?.section_id || activeSection?.id || sectionId;
+   // ── Data Fetching Logic (Updated for strict flow) ──────────────────────────
+const fetchData = useCallback(async () => {
+    const storedSection = localStorage.getItem('selectedSection');
+    const activeSection = storedSection ? JSON.parse(storedSection) : null;
+    const sId = sectionId || activeSection?.section_id || activeSection?.id;
 
-        if (!sId) {
-            console.error("No active section ID found");
-            setError('Section ID is missing. Please go back.');
-            setLoading(false);
-            return;
+    if (!sId) {
+        setLoading(false);
+        return;
+    }
+
+    setLoading(true);
+    try {
+        const token = getCleanToken();
+        const [detailsRes, pendingRes] = await Promise.all([
+            authAPI.getSectionDetails(sId, token),
+            authAPI.getPendingStudents(sId, token)
+        ]);
+
+        // FIX PARA SA PENDING REQUESTS
+        if (pendingRes.ok) {
+            const pData = await pendingRes.json();
+            // Dito natin kukunin ang 'pending_students' base sa nakita sa console
+            const pendingList = pData.pending_students || (Array.isArray(pData) ? pData : []);
+            setPendingRequests(pendingList);
         }
 
-        setLoading(true);
-        setError('');
-        
-        try {
-            const token = getCleanToken();
-            if (!token) {
-                setError('Session expired. Please login again.');
-                setLoading(false);
-                return;
-            }
-
-            // 1. Fetch Pending Join Requests (Ito lang muna ang active)
-            const pendingRes = await authAPI.getPendingStudents(sId, token);
+        // FIX PARA SA OFFICIAL LIST (Approved Only)
+        if (detailsRes.ok) {
+            const sData = await detailsRes.json();
+            // Base sa console: sData.students ang tamang path
+            const allStudents = sData.students || [];
             
-            if (pendingRes.ok) {
-                const pData = await pendingRes.json();
-                setPendingRequests(Array.isArray(pData) ? pData : (pData.data || []));
-            } else {
-                const errData = await pendingRes.json().catch(() => ({}));
-                console.error("Pending Students Error:", errData);
-            }
-
-            // NOTE: getStudentsBySection is temporarily removed as per request.
-            // setStudents([]); 
-
-        } catch (err) {
-            setError('Failed to sync data with the server.');
-            console.error("FetchData Error:", err);
-        } finally {
-            setLoading(false);
+            // I-filter para 'approved' lang ang nasa main table
+            const approvedOnly = allStudents.filter(s => s.status?.toLowerCase() === 'approved');
+            setStudents(approvedOnly);
         }
-    }, [sectionId, getCleanToken]);
 
-    useEffect(() => { 
+    } catch (err) {
+        console.error("Fetch Error:", err);
+        setError('Failed to sync data.');
+    } finally {
+        setLoading(false);
+    }
+}, [sectionId, getCleanToken]);
+  
+useEffect(() => { 
         fetchData(); 
     }, [fetchData]);
 
@@ -115,7 +117,10 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
             const res = await authAPI.approveRejectStudent(sId, requestId, statusMapping, token);
 
             if (res.ok) {
-                fetchData(); // Refresh requests list
+                // Refresh records para mawala sa modal at lumipat sa approved table
+                await fetchData(); 
+                // Kung wala nang pending, pwede mo ring i-close ang modal (optional)
+                // if (pendingRequests.length <= 1) setIsModalOpen(false);
             } else {
                 const errData = await res.json().catch(() => ({}));
                 alert(`Error: ${errData.message || res.statusText}`);
@@ -265,7 +270,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                                 <td colSpan={6} className="py-32 text-center opacity-30 grayscale">
                                     <div className="text-6xl mb-4">🔍</div>
                                     <p className="text-[10px] font-black uppercase tracking-[0.3em]">
-                                        {loading ? "Syncing data..." : "No official students found"}
+                                        {loading ? "Syncing data..." : "No approved students found"}
                                     </p>
                                 </td>
                             </tr>

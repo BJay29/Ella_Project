@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import Management from './Management';
-import PendingApproval from './StudentManagement/PendingApproval';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
@@ -103,7 +102,6 @@ const NavTab = ({ active, label, onClick, icon }) => (
 const InstructorDashboard = () => {
     const [activeTab, setActiveTab] = useState('courses');
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-    const [showPending, setShowPending] = useState(false);
     
     const userName = localStorage.getItem('userName') || localStorage.getItem('userEmail') || 'Instructor';
     const userInitials = userName.split(' ').map(w => w[0]?.toUpperCase() || '').slice(0, 2).join('') || 'IN';
@@ -117,17 +115,6 @@ const InstructorDashboard = () => {
         sessionStorage.clear();
         window.location.href = '/login';
     };
-
-    // ── RENDER PENDING VIEW ──────────────────────────────────────────────
-    if (showPending) {
-        return (
-            <div className="min-h-screen bg-[#F3F4F6] font-sans">
-                <TopNav onLogoutClick={() => setIsLogoutModalOpen(true)} userName={userName} userInitials={userInitials} />
-                <PendingApproval onBack={() => setShowPending(false)} />
-                <LogoutModal isOpen={isLogoutModalOpen} onClose={() => setIsLogoutModalOpen(false)} onConfirm={handleLogoutConfirm} />
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen bg-[#F3F4F6] font-sans pb-10">
@@ -185,8 +172,8 @@ const InstructorDashboard = () => {
                 <main className="max-w-[1600px] mx-auto">
                     {activeTab === 'courses' && (
                         <div className="w-full animate-in fade-in slide-in-from-bottom-3 duration-500">
-                            {/* Ipinasa ang setShowPending prop para magamit sa loob ng Management component */}
-                            <Management onShowPending={() => setShowPending(true)} />
+                            {/* Management handles all section and student logic including approvals */}
+                            <Management />
                         </div>
                     )}
 

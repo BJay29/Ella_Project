@@ -163,6 +163,21 @@ export const authAPI = {
         });
     },
 
+    // Get Section Details / Approved Students
+// Works for both Instructor (to see students) and Student (to see section info)
+getSectionDetails: async (sectionId, token) => {
+    return await fetchWithTimeout(
+        `${BASE_URL}/api/instructor/sections/${sectionId}`,
+        {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+        }
+    );
+},
+
     // Get Pending Students for a Specific Section
   getPendingStudents: async (sectionId, token) => {
     return await fetchWithTimeout(

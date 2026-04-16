@@ -11,19 +11,19 @@ const avatarLetter = (str = '') => {
 };
 
 const normalise = (raw) => ({
-  ss_id:        raw.ss_id         || raw.id             || raw.enrollment_id || Math.random(),
-  section_id:   raw.section_id    || raw.id,
-  course_id:    raw.course_id,
-  course_name:  raw.course_name   || raw.title          || raw.course_title  || 'Course',
-  section_name: raw.section_name  || raw.name           || raw.section_title || 'Section',
-  section_code: raw.section_code,
-  instructor:   raw.instructor_name || raw.instructor   || raw.teacher_name  || raw.prof || '',
-  school_year:  raw.school_year,
-  semester:     raw.semester,
-  schedule:     raw.schedule      || raw.time           || '',
-  capacity:     raw.capacity,
-  enrolled:     raw.enrolled      || raw.student_count,
-  status:       raw.status        || 'pending',
+  ss_id:         raw.ss_id         || raw.id             || raw.enrollment_id || Math.random(),
+  section_id:    raw.section_id    || raw.id,
+  course_id:     raw.course_id,
+  course_name:   raw.course_name   || raw.title          || raw.course_title  || 'Course',
+  section_name:  raw.section_name  || raw.name           || raw.section_title || 'Section',
+  section_code:  raw.section_code,
+  instructor:    raw.instructor_name || raw.instructor   || raw.teacher_name  || raw.prof || '',
+  school_year:   raw.school_year,
+  semester:      raw.semester,
+  schedule:      raw.schedule      || raw.time           || '',
+  capacity:      raw.capacity,
+  enrolled:      raw.enrolled      || raw.student_count,
+  status:        raw.status        || 'pending',
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -200,11 +200,11 @@ const JoinModal = ({
 const MyCourses = () => {
   const { addJoinNotification, notificationsEnabled } = useNotification();
   const [enrollments, setEnrollments] = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState('');
-  const [showModal,   setShowModal]   = useState(false);
+  const [loading,      setLoading]     = useState(true);
+  const [error,        setError]       = useState('');
+  const [showModal,    setShowModal]   = useState(false);
   const [sectionCode, setSectionCode] = useState('');
-  const [joinStatus,  setJoinStatus]  = useState('idle');
+  const [joinStatus,   setJoinStatus]  = useState('idle');
   const [joinMessage, setJoinMessage] = useState('');
 
   // ── Fetch enrolled sections ──────────────────────────────────────────────
@@ -233,7 +233,6 @@ const MyCourses = () => {
 
   // ── Join section ─────────────────────────────────────────────────────────
   const handleJoin = async () => {
-    // ✅ FIXED: was `sectionId` (undefined). Now correctly uses `code`
     const code  = sectionCode.trim().toUpperCase();
     const token = getToken();
 
@@ -252,7 +251,6 @@ const MyCourses = () => {
     setJoinStatus('loading');
 
     try {
-      // ✅ FIXED: pass `code` (the actual section code string), not `sectionId`
       const res  = await authAPI.joinSection(token, { section_code: code });
       const data = await res.json().catch(() => ({}));
 
@@ -271,7 +269,6 @@ const MyCourses = () => {
         }
       } else {
         setJoinStatus('error');
-        // ✅ Show the actual backend error message so user knows what went wrong
         setJoinMessage(data.message || data.error || 'Could not join section. Please check the code and try again.');
       }
     } catch {
@@ -318,7 +315,7 @@ const MyCourses = () => {
       {!loading && error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-sm font-semibold rounded-2xl px-6 py-4 mb-6 flex items-center gap-2">
           ❌ {error}
-          <button onClick={fetchEnrollments} className="ml-auto text-xs underline">Retry</button>
+          <button onClick={fetchEnrollments} className="ml-auto text-xs underline text-red-700 dark:text-red-300">Retry</button>
         </div>
       )}
 

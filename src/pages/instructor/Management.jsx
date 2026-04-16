@@ -113,17 +113,6 @@ const Management = ({ onShowPending }) => {
                         {/* Button Group */}
                         <div className="flex items-center gap-3">
                             <button
-                                onClick={onShowPending}
-                                className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-3 group border border-white/10 shadow-xl"
-                            >
-                                <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                                </span>
-                                Pending Requests
-                            </button>
-
-                            <button
                                 onClick={() => setIsModalOpen(true)}
                                 className="bg-[#22C55E] hover:bg-green-600 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-green-100 transition-all active:scale-95 flex items-center gap-2"
                             >
@@ -209,8 +198,6 @@ const Management = ({ onShowPending }) => {
                         onBack={() => { 
                             setView('list'); 
                             setActiveSection(null); 
-                            // Opsyonal: linisin ang selection sa pag-back
-                            // localStorage.removeItem(SELECTED_SECTION_KEY);
                         }}
                     />
                 </div>
