@@ -93,7 +93,7 @@ export const authAPI = {
 
     // Kunin lahat ng section na sinalihan ng student
   getMySection: async (token) => {
-        return await fetch(`${BASE_URL}/api/student/my-section`, {
+        return await fetch(`${BASE_URL}/api/student/student/my-section`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -103,7 +103,7 @@ export const authAPI = {
     },
 
     getMySectionById: async (sectionId, token) => {
-        return await fetch(`${BASE_URL}/api/student/my-section/${sectionId}`, {
+        return await fetch(`${BASE_URL}/api/student/student/my-section/${sectionId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
