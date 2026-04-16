@@ -77,7 +77,7 @@ export const authAPI = {
     // STUDENT ACTIONS (Join Section & Dashboard)
     // ─────────────────────────────────────────────────────────────────────────
     joinSection: async (token, { section_code }) => {
-    validateParams({ section_code });
+       validateParams({ section_code });
     return await fetchWithTimeout(
         `${BASE_URL}/api/student/student/join-section`,
         {
@@ -90,12 +90,28 @@ export const authAPI = {
         }
     );
 },
-    getStudentSection: async (token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/section/student/my-section`, {
+
+    // Kunin lahat ng section na sinalihan ng student
+  getMySection: async (token) => {
+        return await fetch(`${BASE_URL}/api/student/my-section`, {
             method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` },
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        }); 
+    },
+
+    getMySectionById: async (sectionId, token) => {
+        return await fetch(`${BASE_URL}/api/student/my-section/${sectionId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
         });
     },
+
 
     // ─────────────────────────────────────────────────────────────────────────
     // INSTRUCTOR SECTION SELECTION (Modal: Course → Dept → Program → Section)
