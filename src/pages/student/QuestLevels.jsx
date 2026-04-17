@@ -15,19 +15,22 @@ const QuestLevels = () => {
             try {
                 setLoading(true);
                 const token = localStorage.getItem('token');
-                const response = await authAPI.studentOpenQuest(questId, token);
+                
+                // UPDATE: Gagamit na tayo ng getQuestLevels base sa bagong API structure
+                const response = await authAPI.getQuestLevels(questId, token);
                 
                 if (!response.ok) throw new Error(`Error: ${response.status}`);
 
                 const data = await response.json();
                 
-                // DEBUG: Dito natin masisiguro kung nasaan ang title at IDs
+                // DEBUG: Para makita ang structure ng bagong API response
                 console.log("DEBUG: Full API Response Structure:", data);
 
                 setQuestData(data);
                 
-                // Kinukuha ang levels array
-                const extractedLevels = data.levels || [];
+                // Kinukuha ang levels array. Depende sa backend, pwedeng `data` mismo ang array 
+                // o nasa loob ng `data.levels`. Nilagyan natin ng check para sa dalawa.
+                const extractedLevels = Array.isArray(data) ? data : (data.levels || []);
                 setLevels(extractedLevels);
                 
             } catch (error) {
@@ -40,7 +43,7 @@ const QuestLevels = () => {
         if (questId) fetchQuestProgress();
     }, [questId]);
 
-    // UPDATE: Ngayon ay tumatanggap na rin ito ng specificId (activityId o quizId)
+    // UPDATE: Tumatanggap ng specificId (activityId o quizId) para sa navigation
     const handlePlay = (levelId, mode, specificId) => {
         if (!specificId) {
             console.error(`Missing ${mode} ID for this level.`, {levelId, mode, specificId});
@@ -48,7 +51,7 @@ const QuestLevels = () => {
             return;
         }
 
-        // FIXED URL: Tugma na ito sa Route sa App.js: /student/quest/:questId/level/:levelId/play/:typeId
+        // FIXED URL: Tugma sa Route: /student/quest/:questId/level/:levelId/play/:typeId
         navigate(`/student/quest/${questId}/level/${levelId}/play/${specificId}?mode=${mode}`);
     };
 
@@ -74,8 +77,8 @@ const QuestLevels = () => {
                 <div className="flex flex-col gap-1">
                     <span className="text-indigo-500 font-black tracking-[0.2em] text-xs uppercase">Adventure Mode</span>
                     <h1 className="text-4xl md:text-5xl font-black tracking-tight">
-                        {/* Ipinapakita ang Quest Title */}
-                        {questData?.quest?.quest_title || questData?.quest?.quest_type || questData?.quest_title || 'Quest Missions'}
+                        {/* Ipinapakita ang Quest Title mula sa data */}
+                        {questData?.quest?.quest_title || questData?.quest_title || questData?.title || 'Quest Missions'}
                     </h1>
                     <p className="text-gray-400 mt-2">Complete the initial training activity to unlock the Final Quiz.</p>
                 </div>
@@ -90,13 +93,12 @@ const QuestLevels = () => {
                 ) : (
                     levels.map((level, index) => {
                         // Logic para sa status ng buttons
-                        const isQuizUnlocked = level.activity_completed || level.is_activity_finished || level.level_status === 'activity_done';
+                        const isQuizUnlocked = level.activity_completed || level.is_activity_finished || level.level_status === 'activity_done' || level.progress_percentage >= 50;
                         const isLevelLocked = level.is_locked; 
 
-                        // --- IMPROVED ID EXTRACTION BASE SA CONSOLE LOG ---
-                        const currentLevelId = level.quest_level_id || level.id;
+                        // ID EXTRACTION
+                        const currentLevelId = level.quest_level_id || level.id || level._id;
                         
-                        // Sinisiguro natin na makuha ang ID kahit array o object ang format ng backend
                         const activityId = 
                             level.quest_activities?.[0]?.quest_activity_id || 
                             level.activity?.quest_activity_id || 
@@ -114,7 +116,6 @@ const QuestLevels = () => {
                             level.level_title || 
                             level.title || 
                             level.level_details?.level_title || 
-                            questData?.quest?.level_title || 
                             `Mission ${level.level_number || index + 1}`;
 
                         return (

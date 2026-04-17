@@ -53,6 +53,7 @@ const MyQuests = () => {
 
         const data = await response.json(); 
         
+        // Sinisiguro na array ang makuha para sa mapping
         setQuests(Array.isArray(data) ? data : (data.quests || []));
       } catch (error) {
         console.error("Error fetching quests:", error);
@@ -66,13 +67,14 @@ const MyQuests = () => {
   // Filter logic gamit ang live data
   const filtered = quests.filter((q) => {
     const qType = q.quest_type || "";
-    const qTitle = q.title || "";
+    const qTitle = q.title || q.quest_title || "";
     
     const matchesFilter = activeFilter === 'All Quests' || qType.toUpperCase() === activeFilter.toUpperCase();
     const matchesSearch = qTitle.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
+  // PINANATILI AT INAYOS: handleStartQuest na may getQuestDetails validation
   const handleStartQuest = async (questId) => {
     if (!questId) {
       console.error("Quest ID is missing!");
@@ -81,19 +83,25 @@ const MyQuests = () => {
     }
 
     try {
-    
         const token = localStorage.getItem('token');
-        const res = await authAPI.getQuestDetails(questId, token);
+        console.log("Verifying Quest ID:", questId);
         
-        if(res.ok) {
-            // Dito pupunta sa Level List ng specific quest
+        // 1. I-verify ang Quest Details
+        const resDetail = await authAPI.getQuestDetails(questId, token);
+        
+        if(resDetail.ok) {
+            // 2. Pagkatapos ng verification, dumeretso sa levels navigation
+            console.log("Verification successful, navigating...");
             navigate(`/student/quest/${questId}/levels`);
         } else {
-            alert("This quest is no longer available.");
+            // Kung ang server ay nagbalik ng error (halimbawa: Draft status o 404)
+            console.error("Quest verification failed with status:", resDetail.status);
+            alert("This quest is no longer available or not yet published.");
         }
     } catch (error) {
         console.error("Error verifying quest:", error);
-        // Fallback navigate kung sakaling may error sa detail check
+        // Fallback: Kung nag-crash ang API detail check pero may valid ID tayo, 
+        // ituloy pa rin ang navigate para hindi ma-stuck ang user.
         navigate(`/student/quest/${questId}/levels`);
     }
   };
@@ -145,8 +153,9 @@ const MyQuests = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((quest, index) => {
-            // Kinukuha ang ID mula sa database (pwedeng _id o quest_id)
-            const qId = quest.quest_id || quest._id || quest.id;
+            // Kinukuha ang ID sa iba't ibang posibleng format ng backend
+            const qId = quest.quest_id || quest.id || quest._id;
+            
             const badge  = typeBadgeColors[quest.quest_type?.toUpperCase()] || 'bg-gray-100 text-gray-600';
             const btnCls = buttonColors[quest.quest_type?.toUpperCase()]    || 'bg-gray-800 hover:bg-gray-900';
             const emoji  = questEmojis[quest.quest_type?.toUpperCase()]      || '📝';
@@ -166,8 +175,12 @@ const MyQuests = () => {
                   </span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-800 dark:text-white text-base leading-tight">{quest.title}</h3>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 leading-snug line-clamp-2">{quest.description}</p>
+                  <h3 className="font-bold text-gray-800 dark:text-white text-base leading-tight">
+                    {quest.title || quest.quest_title}
+                  </h3>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 leading-snug line-clamp-2">
+                    {quest.description || quest.quest_description || 'Embark on this mission to improve your skills.'}
+                  </p>
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-1">

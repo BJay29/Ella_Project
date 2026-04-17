@@ -753,6 +753,22 @@ getQuestDetails: async (questId, token) => {
             throw error;
         }
     },
+
+getQuestLevels: async (questId, token) => {
+        try {
+            const response = await fetch(`${BASE_URL}/api/quests/${questId}/levels`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            return response;
+        } catch (error) {
+            console.error("Error in getQuestLevels:", error);
+            throw error;
+        }
+    },
 };
 
 
