@@ -86,9 +86,16 @@ function App() {
         <Route path="/student/dashboard" element={
           <ProtectedRoute allowedRole="student"><StudentDashboard /></ProtectedRoute>
         } />
+        
+        {/* FIXED: Idinagdag ang tamang path para sa levels na may parameter */}
+        <Route path="/student/quest/:questId/levels" element={
+          <ProtectedRoute allowedRole="student"><QuestLevels /></ProtectedRoute>
+        } />
+
         <Route path="/student/quests" element={
           <ProtectedRoute allowedRole="student"><QuestLevels /></ProtectedRoute>
         } />
+
         <Route path="/student/quest/:questId/level/:levelId/play/:typeId" element={
           <ProtectedRoute allowedRole="student"><GameEngine /></ProtectedRoute>
         } />

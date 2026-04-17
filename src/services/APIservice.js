@@ -756,7 +756,8 @@ getQuestDetails: async (questId, token) => {
 
 getQuestLevels: async (questId, token) => {
         try {
-            const response = await fetch(`${BASE_URL}/api/quests/${questId}/levels`, {
+            // Updated API endpoint to /api/student/my-quests/:quest_id/levels
+            const response = await fetch(`${BASE_URL}/api/student/my-quests/${questId}/levels`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,

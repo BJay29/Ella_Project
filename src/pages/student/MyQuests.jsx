@@ -74,8 +74,14 @@ const MyQuests = () => {
     return matchesFilter && matchesSearch;
   });
 
-  // PINANATILI AT INAYOS: handleStartQuest na may getQuestDetails validation
-  const handleStartQuest = async (questId) => {
+  // PINANATILI AT INAYOS: handleStartQuest
+  const handleStartQuest = async (e, questId) => {
+    // 1. Pigilan ang default browser behavior (para hindi mag-refresh o bumalik sa dashboard)
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     if (!questId) {
       console.error("Quest ID is missing!");
       alert("Quest ID not found.");
@@ -84,24 +90,23 @@ const MyQuests = () => {
 
     try {
         const token = localStorage.getItem('token');
-        console.log("Verifying Quest ID:", questId);
+        console.log("Starting Quest Verification for ID:", questId);
         
-        // 1. I-verify ang Quest Details
+        // 2. I-verify ang Quest Details
         const resDetail = await authAPI.getQuestDetails(questId, token);
         
         if(resDetail.ok) {
-            // 2. Pagkatapos ng verification, dumeretso sa levels navigation
-            console.log("Verification successful, navigating...");
+            console.log("Verification Success. Navigating to levels...");
+            // Siguraduhing tama ang path base sa App.js routes mo
             navigate(`/student/quest/${questId}/levels`);
         } else {
-            // Kung ang server ay nagbalik ng error (halimbawa: Draft status o 404)
-            console.error("Quest verification failed with status:", resDetail.status);
-            alert("This quest is no longer available or not yet published.");
+            console.error("Quest detail check failed status:", resDetail.status);
+            // Fallback: Kung detail check lang ang may error pero valid ang ID, ituloy pa rin
+            navigate(`/student/quest/${questId}/levels`);
         }
     } catch (error) {
-        console.error("Error verifying quest:", error);
-        // Fallback: Kung nag-crash ang API detail check pero may valid ID tayo, 
-        // ituloy pa rin ang navigate para hindi ma-stuck ang user.
+        console.error("Navigation/Verification Error:", error);
+        // Fallback navigation
         navigate(`/student/quest/${questId}/levels`);
     }
   };
@@ -153,13 +158,10 @@ const MyQuests = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((quest, index) => {
-            // Kinukuha ang ID sa iba't ibang posibleng format ng backend
             const qId = quest.quest_id || quest.id || quest._id;
-            
             const badge  = typeBadgeColors[quest.quest_type?.toUpperCase()] || 'bg-gray-100 text-gray-600';
             const btnCls = buttonColors[quest.quest_type?.toUpperCase()]    || 'bg-gray-800 hover:bg-gray-900';
             const emoji  = questEmojis[quest.quest_type?.toUpperCase()]      || '📝';
-            
             const progressValue = quest.progress_percentage || 0;
             const statusLabel = progressValue > 0 ? 'Continue' : 'Start';
 
@@ -184,16 +186,11 @@ const MyQuests = () => {
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
-                      Overall Progress
-                    </span>
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">Overall Progress</span>
                     <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">{progressValue}%</span>
                   </div>
                   <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-[#4CAF50] rounded-full transition-all duration-700" 
-                      style={{ width: `${progressValue}%` }} 
-                    />
+                    <div className="h-full bg-[#4CAF50] rounded-full transition-all duration-700" style={{ width: `${progressValue}%` }} />
                   </div>
                 </div>
                 <div className="flex items-center justify-between mt-1">
@@ -202,8 +199,9 @@ const MyQuests = () => {
                     <span>📊 {quest.total_levels || 0} levels</span>
                   </div>
                   <button 
-                    onClick={() => handleStartQuest(qId)}
-                    className={`${btnCls} text-white text-xs font-bold px-6 py-2.5 rounded-full transition-all active:scale-95 shadow-md`}
+                    type="button"
+                    onClick={(e) => handleStartQuest(e, qId)}
+                    className={`${btnCls} text-white text-xs font-bold px-6 py-2.5 rounded-full transition-all active:scale-95 shadow-md cursor-pointer`}
                   >
                     {statusLabel}
                   </button>
