@@ -79,7 +79,7 @@ export const authAPI = {
     joinSection: async (token, { section_code }) => {
        validateParams({ section_code });
     return await fetchWithTimeout(
-        `${BASE_URL}/api/student/student/join-section`,
+        `${BASE_URL}/api/student/join-section`,
         {
             method: 'POST',
             headers: {
@@ -93,7 +93,7 @@ export const authAPI = {
 
     // Kunin lahat ng section na sinalihan ng student
   getMySection: async (token) => {
-        return await fetch(`${BASE_URL}/api/student/student/my-section`, {
+        return await fetch(`${BASE_URL}/api/student/my-section`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -103,7 +103,7 @@ export const authAPI = {
     },
 
     getMySectionById: async (sectionId, token) => {
-        return await fetch(`${BASE_URL}/api/student/student/my-section/${sectionId}`, {
+        return await fetch(`${BASE_URL}/api/student/my-section/${sectionId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -502,27 +502,27 @@ getDepartmentsByCourse: async (courseId, token) => {
     toggleQuestPublish: async (questId, token) => {
         validateParams({ questId });
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/publish`, {
-            method: 'PUT',
+            method: 'PATCH',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
         });
     },
 
-   assignQuestToSection: async (courseId, deptId, programId, sectionId, questId, token) => {
+assignQuestToSection: async (questId, sectionIds, token) => {
     try {
         const response = await fetch(
-            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections/${sectionId}/quests/${questId}/assign`,
+            `${BASE_URL}/api/quests/${questId}/assign`,
             {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`,
                 },
-                body: JSON.stringify({ quest_id: questId }), 
+                body: JSON.stringify({ section_ids: sectionIds }),
             }
         );
         return response;
     } catch (error) {
-        console.error("API Error:", error);
+        console.error('API Error:', error);
         throw error;
     }
 },
@@ -719,4 +719,43 @@ getDepartmentsByCourse: async (courseId, token) => {
             { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }
         );
     },
+
+ // Get Quest to Student myquest page //
+
+ getMyQuests: async (token) => {
+        try {
+            const response = await fetch(`${BASE_URL}/api/student/my-quests`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            return response;
+        } catch (error) {
+            console.error("Error in getMyQuests:", error);
+            throw error;
+        }
+    },
+
+getQuestDetails: async (questId, token) => {
+        try {
+            const response = await fetch(`${BASE_URL}/api/student/my-quests/${questId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            return response;
+        } catch (error) {
+            console.error("Error in getQuestDetails:", error);
+            throw error;
+        }
+    },
 };
+
+
+
+
+
