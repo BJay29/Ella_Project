@@ -223,6 +223,45 @@ approveRejectStudent: async (sectionId, ssId, status, token) => {
     );
 },
 
+//_____________________________________________________________
+// Assign Quest Course-Dept-Program-Section modal in CM 
+//_______________________________________________________________
+getAllCoursesAssign: async (token) => {
+        return await fetch(`${BASE_URL}/api/curriculum-manager/courses`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+    },
+
+getDepartmentsByCourse: async (courseId, token) => {
+        return await fetch(`${BASE_URL}/api/curriculum-manager/courses/${courseId}/departments`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+    },
+
+ getProgramsByDept: async (deptId, token) => {
+        validateParams({ deptId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+    },
+
+   getSectionsByProgramId: async (programId, token) => {
+        validateParams({ programId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/programs/${programId}/sections`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+    },
+
     // ─────────────────────────────────────────────────────────────────────────
     // QUESTS (Instructor)
     // ─────────────────────────────────────────────────────────────────────────
@@ -275,13 +314,7 @@ approveRejectStudent: async (sectionId, ssId, status, token) => {
     // DEPARTMENTS
     // ─────────────────────────────────────────────────────────────────────────
 
-    getDepartmentsForAssign: async (token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
-    },
-
+ 
     getDepartments: async (courseId, token) => {
         validateParams({ courseId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments`, {
@@ -319,14 +352,6 @@ approveRejectStudent: async (sectionId, ssId, status, token) => {
     // ─────────────────────────────────────────────────────────────────────────
     // PROGRAMS
     // ─────────────────────────────────────────────────────────────────────────
-
-    getProgramsByDept: async (deptId, token) => {
-        validateParams({ deptId });
-        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
-    },
 
     getPrograms: async (courseId, deptId, token) => {
         validateParams({ courseId, deptId });
@@ -374,14 +399,6 @@ approveRejectStudent: async (sectionId, ssId, status, token) => {
     // ─────────────────────────────────────────────────────────────────────────
     // SECTIONS
     // ─────────────────────────────────────────────────────────────────────────
-
-    getSectionsByProgramId: async (programId, token) => {
-        validateParams({ programId });
-        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/programs/${programId}/sections`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
-    },
 
     getSectionsByProgram: async (courseId, deptId, programId, token) => {
         validateParams({ courseId, deptId, programId });
@@ -490,15 +507,25 @@ approveRejectStudent: async (sectionId, ssId, status, token) => {
         });
     },
 
-    assignQuestToSections: async (questId, sectionIds, token) => {
-        validateParams({ questId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/assign`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sectionIds })
-        });
-    },
-
+   assignQuestToSection: async (courseId, deptId, programId, sectionId, questId, token) => {
+    try {
+        const response = await fetch(
+            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections/${sectionId}/quests/${questId}/assign`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ quest_id: questId }), 
+            }
+        );
+        return response;
+    } catch (error) {
+        console.error("API Error:", error);
+        throw error;
+    }
+},
     getLevelsByQuest: async (questId, token) => {
         validateParams({ questId });
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels`, {
