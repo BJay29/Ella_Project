@@ -96,10 +96,9 @@ function App() {
           <ProtectedRoute allowedRole="student"><QuestLevels /></ProtectedRoute>
         } />
 
-        <Route path="/student/quest/:questId/level/:levelId/play/:typeId" element={
-          <ProtectedRoute allowedRole="student"><GameEngine /></ProtectedRoute>
-        } />
-
+<Route path="/student/quest/:questId/level/:quest_level_id/play/:content_id" element={
+  <ProtectedRoute allowedRole="student"><GameEngine /></ProtectedRoute>
+} />
         {/* ── Admin ── */}
         <Route path="/admin/dashboard" element={
           <ProtectedRoute allowedRole="admin"><AdminDashboard /></ProtectedRoute>

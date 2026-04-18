@@ -543,18 +543,18 @@ assignQuestToSection: async (questId, sectionIds, token) => {
         });
     },
 
-    updateLevel: async (questId, levelId, payload, token) => {
-        validateParams({ questId, levelId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}`, {
+    updateLevel: async (questId, quest_level_id, payload, token) => {
+        validateParams({ questId, quest_level_id });
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}`, {
             method: 'PUT',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
     },
 
-    deleteLevel: async (questId, levelId, token) => {
-        validateParams({ questId, levelId });
-        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${levelId}`, {
+    deleteLevel: async (questId, quest_level_id, token) => {
+        validateParams({ questId, quest_level_id });
+        return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
