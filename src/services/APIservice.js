@@ -74,32 +74,31 @@ export const authAPI = {
     },
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STUDENT ACTIONS (Join Section & Dashboard)
+    // STUDENT ACTIONS
     // ─────────────────────────────────────────────────────────────────────────
     joinSection: async (token, { section_code }) => {
-       validateParams({ section_code });
-    return await fetchWithTimeout(
-        `${BASE_URL}/api/student/join-section`,
-        {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ section_code }),
-        }
-    );
-},
+        validateParams({ section_code });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/student/join-section`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ section_code }),
+            }
+        );
+    },
 
-    // Kunin lahat ng section na sinalihan ng student
-  getMySection: async (token) => {
+    getMySection: async (token) => {
         return await fetch(`${BASE_URL}/api/student/my-section`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
-        }); 
+        });
     },
 
     getMySectionById: async (sectionId, token) => {
@@ -112,9 +111,8 @@ export const authAPI = {
         });
     },
 
-
     // ─────────────────────────────────────────────────────────────────────────
-    // INSTRUCTOR SECTION SELECTION (Modal: Course → Dept → Program → Section)
+    // INSTRUCTOR SECTION SELECTION
     // ─────────────────────────────────────────────────────────────────────────
 
     getInstructorCourses: async (token) => {
@@ -179,54 +177,50 @@ export const authAPI = {
         });
     },
 
-    // Get Section Details / Approved Students
-// Works for both Instructor (to see students) and Student (to see section info)
-getSectionDetails: async (sectionId, token) => {
-    return await fetchWithTimeout(
-        `${BASE_URL}/api/instructor/sections/${sectionId}`,
-        {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-        }
-    );
-},
+    getSectionDetails: async (sectionId, token) => {
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/instructor/sections/${sectionId}`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+            }
+        );
+    },
 
-    // Get Pending Students for a Specific Section
-  getPendingStudents: async (sectionId, token) => {
-    return await fetchWithTimeout(
-        `${BASE_URL}/api/instructor/sections/${sectionId}/students/pending`,
-        {
-            method: 'GET',
-            headers: { 
-                'Authorization': `Bearer ${token}`, 
-                'Content-Type': 'application/json' 
-            },  
-        }
-    );
-},
-    
-// Approve or Reject Student Admission
-approveRejectStudent: async (sectionId, ssId, status, token) => {
-  return await fetchWithTimeout(
-        `${BASE_URL}/api/instructor/sections/${sectionId}/students/${ssId}`,
-        {
-            method: 'PATCH',
-            headers: { 
-                'Authorization': `Bearer ${token}`, 
-                'Content-Type': 'application/json' 
-            },
-            body: JSON.stringify({ status }),
-        }
-    );
-},
+    getPendingStudents: async (sectionId, token) => {
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/instructor/sections/${sectionId}/students/pending`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+            }
+        );
+    },
 
-//_____________________________________________________________
-// Assign Quest Course-Dept-Program-Section modal in CM 
-//_______________________________________________________________
-getAllCoursesAssign: async (token) => {
+    approveRejectStudent: async (sectionId, ssId, status, token) => {
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/instructor/sections/${sectionId}/students/${ssId}`,
+            {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status }),
+            }
+        );
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CM ASSIGN QUEST MODAL
+    // ─────────────────────────────────────────────────────────────────────────
+    getAllCoursesAssign: async (token) => {
         return await fetch(`${BASE_URL}/api/curriculum-manager/courses`, {
             method: 'GET',
             headers: {
@@ -236,7 +230,7 @@ getAllCoursesAssign: async (token) => {
         });
     },
 
-getDepartmentsByCourse: async (courseId, token) => {
+    getDepartmentsByCourse: async (courseId, token) => {
         return await fetch(`${BASE_URL}/api/curriculum-manager/courses/${courseId}/departments`, {
             method: 'GET',
             headers: {
@@ -246,7 +240,7 @@ getDepartmentsByCourse: async (courseId, token) => {
         });
     },
 
- getProgramsByDept: async (deptId, token) => {
+    getProgramsByDept: async (deptId, token) => {
         validateParams({ deptId });
         return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs`, {
             method: 'GET',
@@ -254,7 +248,7 @@ getDepartmentsByCourse: async (courseId, token) => {
         });
     },
 
-   getSectionsByProgramId: async (programId, token) => {
+    getSectionsByProgramId: async (programId, token) => {
         validateParams({ programId });
         return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/programs/${programId}/sections`, {
             method: 'GET',
@@ -314,7 +308,6 @@ getDepartmentsByCourse: async (courseId, token) => {
     // DEPARTMENTS
     // ─────────────────────────────────────────────────────────────────────────
 
- 
     getDepartments: async (courseId, token) => {
         validateParams({ courseId });
         return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments`, {
@@ -411,18 +404,16 @@ getDepartmentsByCourse: async (courseId, token) => {
         );
     },
 
-      getSections: async (courseId, deptId, programId, token) => {
+    getSections: async (courseId, deptId, programId, token) => {
         validateParams({ courseId, deptId, programId });
         return await fetchWithTimeout(
             `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections`,
-
             {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-
             }
         );
- },
+    },
 
     createSection: async (courseId, deptId, programId, sectionData, token) => {
         validateParams({ courseId, deptId, programId });
@@ -507,25 +498,26 @@ getDepartmentsByCourse: async (courseId, token) => {
         });
     },
 
-assignQuestToSection: async (questId, sectionIds, token) => {
-    try {
-        const response = await fetch(
-            `${BASE_URL}/api/quests/${questId}/assign`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({ section_ids: sectionIds }),
-            }
-        );
-        return response;
-    } catch (error) {
-        console.error('API Error:', error);
-        throw error;
-    }
-},
+    assignQuestToSection: async (questId, sectionIds, token) => {
+        try {
+            const response = await fetch(
+                `${BASE_URL}/api/quests/${questId}/assign`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ section_ids: sectionIds }),
+                }
+            );
+            return response;
+        } catch (error) {
+            console.error('API Error:', error);
+            throw error;
+        }
+    },
+
     getLevelsByQuest: async (questId, token) => {
         validateParams({ questId });
         return await fetchWithTimeout(`${BASE_URL}/api/quests/${questId}/levels`, {
@@ -560,7 +552,8 @@ assignQuestToSection: async (questId, sectionIds, token) => {
         });
     },
 
-    getActivities: async (questId, quest_level_id, token) => {
+    // CM Activity CRUD
+    getActivitiesCM: async (questId, quest_level_id, token) => {
         validateParams({ questId, quest_level_id });
         return await fetchWithTimeout(
             `${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities`,
@@ -640,7 +633,8 @@ assignQuestToSection: async (questId, sectionIds, token) => {
         );
     },
 
-    getQuizzes: async (questId, quest_level_id, token) => {
+    // CM Quiz CRUD
+    getQuizzesCM: async (questId, quest_level_id, token) => {
         validateParams({ questId, quest_level_id });
         return await fetchWithTimeout(
             `${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes`,
@@ -680,14 +674,6 @@ assignQuestToSection: async (questId, sectionIds, token) => {
         );
     },
 
-    getQuizQuestions: async (questId, quest_level_id, quizId, token) => {
-        validateParams({ questId, quest_level_id, quizId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions`,
-            { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
-        );
-    },
-
     addQuizQuestion: async (questId, quest_level_id, quizId, data, token) => {
         validateParams({ questId, quest_level_id, quizId });
         return await fetchWithTimeout(
@@ -720,146 +706,150 @@ assignQuestToSection: async (questId, sectionIds, token) => {
         );
     },
 
- // Get Quest to Student myquest page //
+    // ─────────────────────────────────────────────────────────────────────────
+    // STUDENT QUEST PAGES
+    // ─────────────────────────────────────────────────────────────────────────
 
- getMyQuests: async (token) => {
+    getMyQuests: async (token) => {
         try {
-            const response = await fetch(`${BASE_URL}/api/student/my-quests`, {
+            return await fetch(`${BASE_URL}/api/student/my-quests`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             });
-            return response;
         } catch (error) {
-            console.error("Error in getMyQuests:", error);
+            console.error('Error in getMyQuests:', error);
             throw error;
         }
     },
 
-getQuestDetails: async (questId, token) => {
+    getQuestDetails: async (questId, token) => {
         try {
-            const response = await fetch(`${BASE_URL}/api/student/my-quests/${questId}`, {
+            return await fetch(`${BASE_URL}/api/student/my-quests/${questId}`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             });
-            return response;
         } catch (error) {
-            console.error("Error in getQuestDetails:", error);
+            console.error('Error in getQuestDetails:', error);
             throw error;
         }
     },
 
-getQuestLevels: async (questId, token) => {
+  getQuestLevels: async (questId, token) => {
         try {
-            // Updated API endpoint to /api/student/my-quests/:quest_id/levels
-            const response = await fetch(`${BASE_URL}/api/student/my-quests/${questId}/levels`, {
+            // Siguraduhing backticks (`) ang gamit at hindi single quotes (')
+            return await fetch(`${BASE_URL}/api/student/my-quests/${questId}/levels`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
+                headers: { 
+                    'Authorization': `Bearer ${token}`, 
+                    'Content-Type': 'application/json' 
                 },
             });
-            return response;
         } catch (error) {
-            console.error("Error in getQuestLevels:", error);
+            console.error('Error in getQuestLevels:', error);
             throw error;
         }
     },
-// --- ACTIVITY ENDPOINTS ---
+    // ─────────────────────────────────────────────────────────────────────────
+    // STUDENT GAME — ACTIVITY
+    // New flat routes from backend image:
+    //   GET  /student/levels/:quest_level_id/activity         → get activity info
+    //   GET  /student/activity/:activity_id/next-question     → next question
+    //   POST /student/activity/:activity_id/questions/:question_id/answer → submit
+    //   POST /student/activity/:activity_id/finish            → finish
+    // ─────────────────────────────────────────────────────────────────────────
 
-    // Kunin ang listahan ng activities
-    getActivities: async (questId, quest_level_id, token) => {
-        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+    // Get activity info for a level (used by QuestLevels modal)
+    getActivities: async (quest_level_id, token) => {
+        validateParams({ quest_level_id });
+        return await fetch(
+            `${BASE_URL}/api/student/levels/${quest_level_id}/activity`,
+            { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } }
+        );
     },
 
-    // Kunin ang activity questions
-    getActivityQuestions: async (questId, quest_level_id, activityId, token) => {
-        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+    // Get next question for an activity session
+    getNextActivityQuestion: async (activityId, token) => {
+        validateParams({ activityId });
+        return await fetch(
+            `${BASE_URL}/api/student/activity/${activityId}/next-question`,
+            { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } }
+        );
     },
 
-    // Kunin ang susunod na question sa activity
-    getNextActivityQuestion: async (questId, quest_level_id, activityId, token) => {
-        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/next-question`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+    // Submit answer for an activity question
+    submitActivityAnswer: async (activityId, questionId, answerData, token) => {
+        validateParams({ activityId, questionId });
+        return await fetch(
+            `${BASE_URL}/api/student/activity/${activityId}/questions/${questionId}/answer`,
+            {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(answerData)
+            }
+        );
     },
 
-    // Submit ng sagot para sa activity question
-    submitActivityAnswer: async (questId, quest_level_id, activityId, questionId, answerData, token) => {
-        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions/${questionId}/answer`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(answerData)
-        });
+    // Finish activity session
+    finishActivity: async (activityId, token) => {
+        validateParams({ activityId });
+        return await fetch(
+            `${BASE_URL}/api/student/activity/${activityId}/finish`,
+            {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            }
+        );
     },
 
-    // Tapusin ang activity
-    finishActivity: async (questId, quest_level_id, activityId, token) => {
-        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/finish`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+    // ─────────────────────────────────────────────────────────────────────────
+    // STUDENT GAME — QUIZ
+    // New flat routes from backend image:
+    //   GET  /student/levels/:quest_level_id/quiz              → get quiz info
+    //   GET  /student/quiz/:quiz_id/next-question              → next question
+    //   POST /student/quiz/:quiz_id/questions/:question_id/answer → submit
+    //   POST /student/quiz/:quiz_id/finish                     → finish
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Get quiz info for a level (used by QuestLevels modal)
+    getQuizzes: async (quest_level_id, token) => {
+        validateParams({ quest_level_id });
+        return await fetch(
+            `${BASE_URL}/api/student/levels/${quest_level_id}/quiz`,
+            { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } }
+        );
     },
 
-
-// --- QUIZ ENDPOINTS ---
-  
-getQuizzes: async (questId, quest_level_id, token) => {
-        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-        });
+    // Get next question for a quiz session
+    getNextQuizQuestion: async (quizId, token) => {
+        validateParams({ quizId });
+        return await fetch(
+            `${BASE_URL}/api/student/quiz/${quizId}/next-question`,
+            { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } }
+        );
     },
 
-    // Kunin ang mga questions ng isang quiz
-    getQuizQuestions: async (questId, quest_level_id, quizId, token) => {
-        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+    // Submit answer for a quiz question
+    submitQuizAnswer: async (quizId, questionId, answerData, token) => {
+        validateParams({ quizId, questionId });
+        return await fetch(
+            `${BASE_URL}/api/student/quiz/${quizId}/questions/${questionId}/answer`,
+            {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(answerData)
+            }
+        );
     },
 
-    // Kunin ang susunod na question (Next Question)
-    getNextQuizQuestion: async (questId, quest_level_id, quizId, token) => {
-        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/next-question`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+    // Finish quiz session
+    finishQuiz: async (quizId, token) => {
+        validateParams({ quizId });
+        return await fetch(
+            `${BASE_URL}/api/student/quiz/${quizId}/finish`,
+            {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            }
+        );
     },
-
-    // Submit ng sagot para sa quiz question
-    submitQuizAnswer: async (questId, quest_level_id, quizId, questionId, answerData, token) => {
-        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions/${questionId}/answer`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(answerData)
-        });
-    },
-
-    // Tapusin ang quiz
-    finishQuiz: async (questId, quest_level_id, quizId, token) => {
-        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/finish`, {
-            method: 'POST', // O POST depende sa backend mo
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-    },
-
 };
-
-
-
-
-
-

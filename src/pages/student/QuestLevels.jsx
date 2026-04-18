@@ -4,17 +4,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { authAPI } from '../../services/APIservice';
 
 const QuestLevels = () => {
+    // Kinukuha natin ang questId mula sa URL params base sa definition sa App.js
     const { questId } = useParams();
     const navigate = useNavigate();
     
-    const [questData,     setQuestData]     = useState(null);
-    const [levels,        setLevels]        = useState([]);
-    const [loading,       setLoading]       = useState(true);
-    const [currentIndex,  setCurrentIndex]  = useState(0);
-    const [isModalOpen,   setIsModalOpen]   = useState(false);
-    const [selectedMission, setSelectedMission] = useState(null);
-    const [isCountingDown, setIsCountingDown] = useState(false);
-    const [countdown,     setCountdown]     = useState(3);
+    const [questData,          setQuestData]          = useState(null);
+    const [levels,             setLevels]             = useState([]);
+    const [loading,            setLoading]            = useState(true);
+    const [currentIndex,       setCurrentIndex]       = useState(0);
+    const [isModalOpen,        setIsModalOpen]        = useState(false);
+    const [selectedMission,    setSelectedMission]    = useState(null);
+    const [isCountingDown,     setIsCountingDown]     = useState(false);
+    const [countdown,          setCountdown]          = useState(3);
     const [prefetchedGameData, setPrefetchedGameData] = useState(null);
 
     // ── Fetch quest levels ─────────────────────────────────────────────────
@@ -23,22 +24,27 @@ const QuestLevels = () => {
             try {
                 setLoading(true);
                 const token = localStorage.getItem('token');
+                
+                // Ginamit ang questId para sa API: /my-quests/:questId/levels
                 const response = await authAPI.getQuestLevels(questId, token);
                 if (!response.ok) throw new Error(`Error: ${response.status}`);
                 const data = await response.json();
 
                 setQuestData(data);
+                
+                // Inaayos ang pagkuha ng levels depende sa structure ng response
                 const rawLevels = data.levels || (Array.isArray(data) ? data : []);
 
                 const mappedLevels = rawLevels.map((level, index) => ({
                     ...level,
-                    // ✅ Always normalise to quest_level_id
+                    // Siguraduhing may quest_level_id para sa unique key at tracking
                     quest_level_id: level.quest_level_id || level.id,
                     display_title:  level.level_title || `Level ${level.level_number || index + 1}`,
                 }));
 
                 setLevels(mappedLevels);
-
+                
+                // Hanapin ang unang hindi pa tapos na level para doon i-focus ang carousel
                 const firstIncomplete = mappedLevels.findIndex(l => !l.is_completed && !l.is_locked);
                 setCurrentIndex(firstIncomplete !== -1 ? firstIncomplete : Math.max(0, mappedLevels.length - 1));
             } catch (error) {
@@ -47,7 +53,7 @@ const QuestLevels = () => {
                 setLoading(false);
             }
         };
-
+        
         if (questId) fetchQuestProgress();
     }, [questId]);
 
@@ -56,24 +62,22 @@ const QuestLevels = () => {
     // ── Open mission briefing modal ────────────────────────────────────────
     const openMissionModal = async (level, mode) => {
         try {
-            const token          = localStorage.getItem('token');
-            // ✅ Always use quest_level_id — never levelId
+            const token = localStorage.getItem('token');
+            // FIX: Ginamit ang quest_level_id consistently
             const quest_level_id = level.quest_level_id;
 
             if (!quest_level_id) {
-                alert('Error: Level ID is missing. Please try again.');
+                alert('Error: Level ID is missing.');
                 return;
             }
 
-            // ✅ Separate API calls per mode
             const response = mode === 'activity'
-                ? await authAPI.getActivities(questId, quest_level_id, token)
-                : await authAPI.getQuizzes(questId, quest_level_id, token);
+                ? await authAPI.getActivities(quest_level_id, token)
+                : await authAPI.getQuizzes(quest_level_id, token);
 
             if (!response.ok) throw new Error('Content not found');
             const data = await response.json();
 
-            // ✅ Separate content extraction per mode
             let content;
             if (mode === 'activity') {
                 content = data?.activity || (Array.isArray(data) ? data[0] : data);
@@ -86,22 +90,19 @@ const QuestLevels = () => {
                 return;
             }
 
-            // ✅ Separate contentId extraction per mode
             const content_id = mode === 'activity'
                 ? (content.activity_id || content.id)
                 : (content.quiz_id     || content.id);
 
             if (!content_id) {
-                alert(`Error: ${mode} ID is missing from server response.`);
+                alert(`Error: ${mode} ID missing from server response.`);
                 return;
             }
 
-            console.log(`[openMissionModal] mode=${mode} quest_level_id=${quest_level_id} content_id=${content_id}`);
-
             setSelectedMission({
-                quest_level_id,           // ✅ stored as quest_level_id
+                quest_level_id: quest_level_id, // FIX: Consistently named quest_level_id
                 mode,
-                content_id,                // ✅ the activity_id or quiz_id
+                content_id,
                 title:          content.activity_title || content.title || content.quiz_title || 'Untitled Mission',
                 difficulty:     content.difficulty || level.difficulty || 'Normal',
                 passingScore:   content.passing_score  || 0,
@@ -115,83 +116,63 @@ const QuestLevels = () => {
         }
     };
 
-    // ── confirmStart: pre-fetch during countdown ───────────────────────────
+    // ── confirmStart: pre-fetch first question during countdown ───────────
     const confirmStart = async () => {
         setIsModalOpen(false);
         setIsCountingDown(true);
         setCountdown(3);
         setPrefetchedGameData(null);
 
-        const { quest_level_id, mode, content_id } = selectedMission;
+        const { mode, content_id } = selectedMission;
         const token = localStorage.getItem('token');
 
-        console.log(`[confirmStart] quest_level_id=${quest_level_id} mode=${mode} content_id=${content_id}`);
-
         try {
-            // ✅ Parallel fetch: total questions list + first question
-            // Both use the exact quest_level_id and contentId from selectedMission
-            const [questionsRes, firstQuestionRes] = await Promise.all([
-                mode === 'activity'
-                    ? authAPI.getActivityQuestions(questId, quest_level_id, content_id, token)
-                    : authAPI.getQuizQuestions(questId, quest_level_id, content_id, token),
-                mode === 'activity'
-                    ? authAPI.getNextActivityQuestion(questId, quest_level_id, content_id, token)
-                    : authAPI.getNextQuizQuestion(questId, quest_level_id, content_id, token),
-            ]);
+            const firstQuestionRes = mode === 'activity'
+                ? await authAPI.getNextActivityQuestion(content_id, token)
+                : await authAPI.getNextQuizQuestion(content_id, token);
 
+            let firstQuestion  = null;
+            let answeredCount  = 0;
             let totalQuestions = selectedMission.totalQuestions || 0;
-            if (questionsRes.ok) {
-                const qData = await questionsRes.json();
-                totalQuestions = Array.isArray(qData) ? qData.length : (qData.total || totalQuestions);
-            }
 
-            let firstQuestion = null;
-            let answeredCount = 0;
             if (firstQuestionRes.status === 200) {
-                const fqData     = await firstQuestionRes.json();
-                firstQuestion    = fqData.question || fqData.data || fqData;
-                answeredCount    = fqData.answered_count ?? 0;
-                // ✅ Also grab total from first-question response if available
+                const fqData   = await firstQuestionRes.json();
+                firstQuestion  = fqData.question || fqData.data || fqData;
+                answeredCount  = fqData.answered_count ?? 0;
                 if (fqData.total_questions) totalQuestions = fqData.total_questions;
             }
 
             setPrefetchedGameData({ firstQuestion, totalQuestions, answeredCount });
-            console.log(`[confirmStart] prefetch done totalQuestions=${totalQuestions}`, firstQuestion);
         } catch (err) {
             console.error('Pre-fetch error:', err);
             setPrefetchedGameData({ firstQuestion: null, totalQuestions: 0, answeredCount: 0 });
         }
     };
 
-    // ── Countdown → navigate to GameEngine ────────────────────────────────
+    // ── Countdown → navigate ───────────────────────────────────────────────
     useEffect(() => {
         let timer;
         if (isCountingDown && countdown > 0) {
             timer = setInterval(() => setCountdown(p => p - 1), 1000);
         } else if (isCountingDown && countdown === 0 && selectedMission) {
+            // FIX: Ginamit ang quest_level_id para sa navigation
             const { quest_level_id, mode, content_id } = selectedMission;
+            
+            // Siguraduhin na may questId para sa URL construction
+            const currentQuestId = questData?.quest?.quest_id || questData?.quest_id || questId;
 
-            // ✅ Route: /student/quest/:questId/level/:quest_level_id/play/:contentId?mode=activity|quiz
-            // GameEngine reads these exact param names via useParams()
-            const path = `/student/quest/${questId}/level/${quest_level_id}/play/${content_id}?mode=${mode}`;
-
-            console.log(`[countdown] Navigating to: ${path}`);
-            console.log(`[countdown] prefetchedGameData:`, prefetchedGameData);
-
+            const path = `/student/quest/${currentQuestId}/level/${quest_level_id}/play/${content_id}?mode=${mode}`;
+            
             navigate(path, {
-                state: {
-                    skipLoading: true,
-                    prefetched:  prefetchedGameData || null,
-                },
+                state: { skipLoading: true, prefetched: prefetchedGameData || null },
             });
         }
         return () => clearInterval(timer);
-    }, [isCountingDown, countdown, navigate, questId, selectedMission, prefetchedGameData]);
+    }, [isCountingDown, countdown, navigate, questId, selectedMission, prefetchedGameData, questData]);
 
     const nextLevel = () => currentIndex < levels.length - 1 && setCurrentIndex(currentIndex + 1);
     const prevLevel = () => currentIndex > 0 && setCurrentIndex(currentIndex - 1);
 
-    // ── Loading screen ─────────────────────────────────────────────────────
     if (loading) return (
         <div className="min-h-screen bg-[#020617] flex items-center justify-center text-white italic">
             <div className="flex flex-col items-center gap-4">
@@ -204,10 +185,9 @@ const QuestLevels = () => {
         </div>
     );
 
-    // ── Main render ────────────────────────────────────────────────────────
     return (
         <div className="min-h-screen bg-[#020617] text-white font-sans relative overflow-hidden flex flex-col">
-            {/* Background */}
+            {/* Background Effects */}
             <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-indigo-600/10 rounded-full blur-[120px] animate-pulse" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/10 rounded-full blur-[120px] animate-pulse delay-1000" />
@@ -216,7 +196,6 @@ const QuestLevels = () => {
                     style={{ backgroundImage: `linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px)`, backgroundSize: '40px 40px' }} />
             </div>
 
-            {/* Nav */}
             <nav className="relative w-full px-4 py-4 flex items-center border-b border-white/5 bg-black/40 backdrop-blur-xl sticky top-0 z-50">
                 <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-4">
@@ -232,7 +211,6 @@ const QuestLevels = () => {
                 </div>
             </nav>
 
-            {/* Levels carousel */}
             <div className="relative flex-1 flex flex-col items-center justify-center p-6 z-10">
                 <div className="text-center mb-10">
                     <div className="flex items-center justify-center gap-2 mb-2">
@@ -245,8 +223,8 @@ const QuestLevels = () => {
                     </h1>
                 </div>
 
+                {/* Levels Carousel */}
                 <div className="relative w-full max-w-5xl h-[500px] flex items-center justify-center">
-                    {/* Arrows */}
                     <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 z-50 pointer-events-none">
                         <button onClick={prevLevel} className={`pointer-events-auto w-14 h-14 rounded-full bg-black/50 border border-white/10 flex items-center justify-center hover:bg-indigo-600 transition-all shadow-2xl backdrop-blur-md ${currentIndex === 0 ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100'}`}>
                             <span className="text-2xl">←</span>
@@ -293,25 +271,19 @@ const QuestLevels = () => {
                                                 <div className={`h-20 w-20 rounded-2xl flex items-center justify-center font-black text-3xl shadow-xl transition-transform duration-700 ${isCenter ? 'bg-indigo-600 rotate-0 shadow-indigo-500/40' : 'bg-gray-800 rotate-12'}`}>
                                                     {level.level_number || index + 1}
                                                 </div>
-
                                                 <div>
-                                                    <h3 className="text-3xl font-black tracking-tight uppercase italic mb-2 line-clamp-2">
-                                                        {level.display_title}
-                                                    </h3>
+                                                    <h3 className="text-3xl font-black tracking-tight uppercase italic mb-2 line-clamp-2">{level.display_title}</h3>
                                                     <span className="text-white/40 text-[10px] uppercase font-bold tracking-widest">
                                                         {level.is_completed ? 'Sector Secured' : 'Awaiting Mission Launch'}
                                                     </span>
                                                 </div>
-
                                                 {isLevelLocked && (
                                                     <div className="py-2 px-4 bg-red-500/10 border border-red-500/30 rounded-full flex items-center gap-2">
                                                         <span className="text-[10px] font-black uppercase tracking-widest">Locked</span>
                                                         <span className="text-sm">🔒</span>
                                                     </div>
                                                 )}
-
                                                 <div className="w-full space-y-4 mt-2">
-                                                    {/* Activity button */}
                                                     <button
                                                         disabled={isLevelLocked || !isCenter}
                                                         onClick={() => openMissionModal(level, 'activity')}
@@ -323,8 +295,6 @@ const QuestLevels = () => {
                                                     >
                                                         {level.activity_passed ? '✓ Review Activity' : 'Activity'}
                                                     </button>
-
-                                                    {/* Quiz button */}
                                                     <button
                                                         disabled={!isQuizUnlocked || isLevelLocked || !isCenter}
                                                         onClick={() => openMissionModal(level, 'quiz')}
@@ -346,31 +316,20 @@ const QuestLevels = () => {
                     </div>
                 </div>
 
-                {/* Dots */}
                 <div className="flex gap-3 mt-12 mb-8">
                     {levels.map((_, i) => (
-                        <button
-                            key={i}
-                            onClick={() => setCurrentIndex(i)}
-                            className={`h-2 rounded-full transition-all duration-500 cursor-pointer ${
-                                i === currentIndex
-                                    ? 'w-10 bg-indigo-500 shadow-[0_0_10px_rgba(79,70,229,0.6)]'
-                                    : 'w-2 bg-white/20 hover:bg-white/40'
-                            }`}
-                        />
+                        <button key={i} onClick={() => setCurrentIndex(i)}
+                            className={`h-2 rounded-full transition-all duration-500 cursor-pointer ${i === currentIndex ? 'w-10 bg-indigo-500 shadow-[0_0_10px_rgba(79,70,229,0.6)]' : 'w-2 bg-white/20 hover:bg-white/40'}`} />
                     ))}
                 </div>
             </div>
 
-            {/* Mission briefing modal */}
+            {/* Mission Briefing Modal */}
             <AnimatePresence>
                 {isModalOpen && selectedMission && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/90 backdrop-blur-md"
-                            onClick={() => setIsModalOpen(false)}
-                        />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setIsModalOpen(false)} />
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -378,16 +337,14 @@ const QuestLevels = () => {
                             className="relative bg-[#0f172a] border-2 border-indigo-500/30 p-10 rounded-[3rem] shadow-[0_0_80px_rgba(79,70,229,0.2)] max-w-md w-full text-center"
                         >
                             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
-
                             <p className="text-indigo-400 font-black tracking-[0.4em] uppercase text-[10px] mb-4">Mission</p>
                             <h2 className="text-3xl font-black text-white mb-6 uppercase italic leading-tight">{selectedMission.title}</h2>
-
                             <div className="grid grid-cols-2 gap-4 mb-8">
                                 {[
-                                    { label: 'Difficulty',     value: selectedMission.difficulty,     color: 'text-indigo-400' },
-                                    { label: 'Passing Score',  value: `${selectedMission.passingScore}%`, color: 'text-emerald-400' },
-                                    { label: 'Questions',      value: selectedMission.totalQuestions,  color: 'text-white' },
-                                    { label: 'Attempts',       value: selectedMission.attempts,        color: selectedMission.mode === 'activity' ? 'text-blue-400' : 'text-amber-400' },
+                                    { label: 'Difficulty',     value: selectedMission.difficulty,          color: 'text-indigo-400' },
+                                    { label: 'Passing Score', value: `${selectedMission.passingScore}%`,  color: 'text-emerald-400' },
+                                    { label: 'Questions',     value: selectedMission.totalQuestions,      color: 'text-white' },
+                                    { label: 'Attempts',       value: selectedMission.attempts,            color: selectedMission.mode === 'activity' ? 'text-blue-400' : 'text-amber-400' },
                                 ].map(({ label, value, color }) => (
                                     <div key={label} className="bg-white/5 p-4 rounded-2xl border border-white/5">
                                         <p className="text-[10px] text-white/40 uppercase font-bold mb-1">{label}</p>
@@ -395,7 +352,6 @@ const QuestLevels = () => {
                                     </div>
                                 ))}
                             </div>
-
                             <div className="space-y-4">
                                 <button onClick={confirmStart} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-500 transition-all active:scale-95 uppercase italic shadow-[0_0_20px_rgba(79,70,229,0.4)]">
                                     Start
@@ -409,21 +365,14 @@ const QuestLevels = () => {
                 )}
             </AnimatePresence>
 
-            {/* Countdown overlay */}
+            {/* Countdown Overlay */}
             <AnimatePresence>
                 {isCountingDown && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[200] flex items-center justify-center bg-[#020617]"
-                    >
-                        <motion.div
-                            key={countdown}
-                            initial={{ scale: 0.5, opacity: 0 }}
-                            animate={{ scale: 1.5, opacity: 1 }}
-                            exit={{ scale: 2, opacity: 0 }}
-                            transition={{ duration: 0.5 }}
-                            className="text-8xl font-black italic text-indigo-500"
-                        >
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[200] flex items-center justify-center bg-[#020617]">
+                        <motion.div key={countdown}
+                            initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1.5, opacity: 1 }} exit={{ scale: 2, opacity: 0 }}
+                            transition={{ duration: 0.5 }} className="text-8xl font-black italic text-indigo-500">
                             {countdown > 0 ? countdown : 'GO!'}
                         </motion.div>
                         <div className="absolute inset-0 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30" />
