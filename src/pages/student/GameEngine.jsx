@@ -9,12 +9,18 @@ const CalculatingScreen = () => (
     <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center text-white fixed inset-0 z-50">
         <div className="relative mb-8">
             <div className="w-24 h-24 rounded-full border-t-4 border-b-4 border-indigo-500 animate-spin" />
-            <div className="absolute inset-0 w-24 h-24 rounded-full border-r-4 border-l-4 border-purple-500/40 animate-spin"
-                 style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
+            <div
+                className="absolute inset-0 w-24 h-24 rounded-full border-r-4 border-l-4 border-purple-500/40 animate-spin"
+                style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}
+            />
             <div className="absolute inset-0 flex items-center justify-center text-3xl">⚡</div>
         </div>
-        <p className="font-black tracking-[0.4em] uppercase text-indigo-400 animate-pulse text-sm">Calculating Results...</p>
-        <p className="text-white/30 text-xs font-bold mt-2 tracking-widest uppercase">Processing Mission Data</p>
+        <p className="font-black tracking-[0.4em] uppercase text-indigo-400 animate-pulse text-sm">
+            Calculating Results...
+        </p>
+        <p className="text-white/30 text-xs font-bold mt-2 tracking-widest uppercase">
+            Processing Mission Data
+        </p>
     </div>
 );
 
@@ -23,18 +29,26 @@ const CalculatingScreen = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 const ResultsScreen = ({ summary, mode, questId, onTryAgain, onBack, navigate }) => {
     const isPassed = summary.passed || summary.status === 'passed' || summary.is_passed;
-    const score    = summary.score         ?? 0;
-    const correct  = summary.correct_count ?? summary.correct   ?? 0;
-    const wrong    = summary.wrong_count   ?? summary.incorrect ?? summary.wrong ?? 0;
-    const points   = summary.points_earned ?? 0;
+    const score    = summary.score          ?? 0;
+    const correct  = summary.correct_count  ?? summary.correct   ?? 0;
+    const wrong    = summary.wrong_count    ?? summary.incorrect ?? summary.wrong ?? 0;
+    const points   = summary.points_earned  ?? 0;
 
     return (
         <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 fixed inset-0 z-50">
-            <div className="absolute inset-0 opacity-[0.05] pointer-events-none"
-                style={{ backgroundImage: `linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px)`, backgroundSize: '40px 40px' }} />
+            {/* Grid overlay */}
+            <div
+                className="absolute inset-0 opacity-[0.04] pointer-events-none"
+                style={{
+                    backgroundImage: `linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px)`,
+                    backgroundSize: '40px 40px',
+                }}
+            />
+            {/* Top accent line */}
             <div className={`absolute top-0 left-0 w-full h-1 ${isPassed ? 'bg-emerald-500' : 'bg-rose-500'}`} />
 
             <div className="relative w-full max-w-lg">
+                {/* Status badge */}
                 <div className="flex justify-center mb-6">
                     <div className={`px-6 py-2 rounded-full border-2 text-[10px] font-black uppercase tracking-[0.3em] ${
                         isPassed
@@ -48,7 +62,9 @@ const ResultsScreen = ({ summary, mode, questId, onTryAgain, onBack, navigate })
                 {/* Score ring */}
                 <div className="flex justify-center mb-8">
                     <div className={`w-44 h-44 rounded-full border-[10px] flex flex-col items-center justify-center shadow-2xl ${
-                        isPassed ? 'border-emerald-500 shadow-emerald-500/20' : 'border-rose-500 shadow-rose-500/20'
+                        isPassed
+                            ? 'border-emerald-500 shadow-emerald-500/20'
+                            : 'border-rose-500 shadow-rose-500/20'
                     }`}>
                         <span className={`text-5xl font-black italic ${isPassed ? 'text-emerald-400' : 'text-rose-400'}`}>
                             {score}%
@@ -73,9 +89,11 @@ const ResultsScreen = ({ summary, mode, questId, onTryAgain, onBack, navigate })
                     </div>
                 </div>
 
-                {/* Message */}
+                {/* Pass/Fail message */}
                 <div className={`rounded-2xl border p-4 mb-8 text-center ${
-                    isPassed ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'
+                    isPassed
+                        ? 'bg-emerald-500/10 border-emerald-500/20'
+                        : 'bg-rose-500/10 border-rose-500/20'
                 }`}>
                     <p className={`text-sm font-bold ${isPassed ? 'text-emerald-300' : 'text-rose-300'}`}>
                         {isPassed
@@ -86,7 +104,7 @@ const ResultsScreen = ({ summary, mode, questId, onTryAgain, onBack, navigate })
                     </p>
                 </div>
 
-                {/* Buttons */}
+                {/* Action buttons */}
                 <div className="space-y-3">
                     {isPassed ? (
                         <>
@@ -117,7 +135,7 @@ const ResultsScreen = ({ summary, mode, questId, onTryAgain, onBack, navigate })
                                 onClick={onBack}
                                 className="w-full py-3 text-white/40 hover:text-white font-black text-xs uppercase tracking-widest transition-colors"
                             >
-                                Back to Levels
+                                Exit
                             </button>
                         </>
                     )}
@@ -129,81 +147,77 @@ const ResultsScreen = ({ summary, mode, questId, onTryAgain, onBack, navigate })
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GameEngine
-//
-// Route must be: /student/quest/:questId/level/:quest_level_id/play/:contentId?mode=activity|quiz
-// useParams() reads exactly: questId, quest_level_id, contentId
-// mode from ?mode= query param determines whether contentId is an activityId or quizId
 // ─────────────────────────────────────────────────────────────────────────────
 const GameEngine = () => {
-    // ✅ FIXED: param names match the route exactly
+    // ── Route params — MUST match App.js: /student/quest/:questId/level/:levelId/play/:typeId
     const { questId, quest_level_id, content_id } = useParams();
     const [searchParams] = useSearchParams();
-    const navigate  = useNavigate();
-    const location  = useLocation();
-    const mode      = searchParams.get('mode'); // 'activity' | 'quiz'
+    const navigate = useNavigate();
+    const location = useLocation();
+    const mode     = searchParams.get('mode'); // 'activity' | 'quiz'
 
-    // ✅ FIXED: derive activityId / quizId from contentId based on mode
-    // This ensures both are never undefined simultaneously
-    const activityId = mode === 'activity' ? content_id : undefined;
-    const quizId     = mode === 'quiz'     ? content_id : undefined;
+    // Readable aliases
+    const activityId     = mode === 'activity' ? content_id : undefined;
+    const quizId         = mode === 'quiz'     ? content_id : undefined;
 
+    // Pre-fetched data from QuestLevels countdown
     const prefetched = location.state?.prefetched || null;
 
-    // ── Core state ──────────────────────────────────────────────────────────
-    const [currentQuestion, setCurrentQuestion] = useState(null);
-    const [metadata, setMetadata] = useState({
-        answered_count:  0,
-        total_questions: 0,
-        display_number:  1,
-    });
-    const [selectedAnswer, setSelectedAnswer] = useState(null);
-    const [answerText,     setAnswerText]     = useState('');
-    const [loading,        setLoading]        = useState(!prefetched?.firstQuestion);
-    const [isSubmitting,   setIsSubmitting]   = useState(false);
-    const [errorMessage,   setErrorMessage]   = useState(null);
+    // Guard: all required params present
+    const paramsValid = !!(questId && quest_level_id && content_id && mode);
 
-    // ── Results state ────────────────────────────────────────────────────────
+    // ── Core state ────────────────────────────────────────────────────────────
+    const [currentQuestion, setCurrentQuestion] = useState(null);
+    const [totalQuestions,  setTotalQuestions]  = useState(0);
+    const [selectedAnswer,  setSelectedAnswer]  = useState(null);
+    const [answerText,      setAnswerText]      = useState('');
+    const [loading,         setLoading]         = useState(!prefetched?.firstQuestion);
+    const [isSubmitting,    setIsSubmitting]    = useState(false);
+    const [errorMessage,    setErrorMessage]    = useState(null);
+
+    // ── Results state ─────────────────────────────────────────────────────────
     const [isCalculating, setIsCalculating] = useState(false);
     const [quizSummary,   setQuizSummary]   = useState(null);
 
-    // ── Timer state ──────────────────────────────────────────────────────────
+    // ── Timer state ───────────────────────────────────────────────────────────
     const [timeLeft,            setTimeLeft]            = useState(60);
     const [gameStarted,         setGameStarted]         = useState(!!prefetched?.firstQuestion);
     const [hasStartedCountdown, setHasStartedCountdown] = useState(false);
     const [startingCountdown,   setStartingCountdown]   = useState(3);
-    const timerRef          = useRef(null);
-    const hasFetchedInitial = useRef(false);
 
-    // ── Derived ──────────────────────────────────────────────────────────────
-    const displayNum = metadata.display_number;
-    const totalNum   = metadata.total_questions || 0;
+    // ── Refs ──────────────────────────────────────────────────────────────────
+    const timerRef           = useRef(null);
+    const hasFetchedInitial  = useRef(false);
+
+    // FIX: Track display number in a ref so submit handler always has the
+    // current value without stale closure issues.
+    const displayNumRef   = useRef(prefetched ? (prefetched.answeredCount ?? 0) + 1 : 1);
+    const totalQuestRef   = useRef(prefetched?.totalQuestions ?? 0);
+
+    // Sync refs whenever state-derived values change
+    const displayNum = displayNumRef.current;
+    const totalNum   = totalQuestRef.current || totalQuestions;
+
+    // isLastItem checked via refs inside callbacks — never stale
     const isLastItem = totalNum > 0 && displayNum >= totalNum;
 
-    // ── Guard: validate params before any API call ────────────────────────
-    // This prevents undefined from ever reaching the API URLs
-    const paramsValid = !!(questId && quest_level_id && content_id && mode);
-
-    // ── handleFinish ─────────────────────────────────────────────────────────
+    // ── handleFinish ──────────────────────────────────────────────────────────
     const handleFinish = useCallback(async () => {
         if (timerRef.current) clearInterval(timerRef.current);
         setIsCalculating(true);
         try {
             const token = localStorage.getItem('token');
             let response;
-            // ✅ FIXED: use activityId / quizId derived from contentId above
             if (mode === 'activity') {
                 response = await authAPI.finishActivity(questId, quest_level_id, activityId, token);
             } else {
                 response = await authAPI.finishQuiz(questId, quest_level_id, quizId, token);
             }
-
             if (response.ok) {
                 const result = await response.json();
-                await new Promise(r => setTimeout(r, 1200));
+                await new Promise(r => setTimeout(r, 1400)); // let animation breathe
                 setQuizSummary(result);
             } else {
-                const err = await response.json().catch(() => ({}));
-                console.error('Finish failed:', err);
                 navigate(`/student/quest/${questId}/levels`);
             }
         } catch (err) {
@@ -217,7 +231,7 @@ const GameEngine = () => {
     // ── fetchQuestion ─────────────────────────────────────────────────────────
     const fetchQuestion = useCallback(async (isNext = false) => {
         if (!paramsValid) {
-            setErrorMessage('Missing required parameters. Please go back and try again.');
+            setErrorMessage(`Missing parameters. questId=${questId} quest_level_id=${quest_level_id} content_id=${content_id} mode=${mode}`);
             setLoading(false);
             return;
         }
@@ -225,33 +239,49 @@ const GameEngine = () => {
             setErrorMessage(null);
             const token = localStorage.getItem('token');
             let response;
-
-            // ✅ FIXED: strict separation — activity vs quiz API calls
             if (mode === 'activity') {
                 response = await authAPI.getNextActivityQuestion(questId, quest_level_id, activityId, token);
             } else {
                 response = await authAPI.getNextQuizQuestion(questId, quest_level_id, quizId, token);
             }
 
-            if (response.status === 204) { handleFinish(); return; }
+            if (response.status === 204) {
+    await handleFinish();
+    return;
+}
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
                 setErrorMessage(`Error ${response.status}: ${errData.message || 'Failed to load question.'}`);
+                setLoading(false);
                 return;
             }
 
             const data         = await response.json();
             const questionData = data.question || data.data || data;
 
-            if (questionData && (questionData.question_text || questionData.activity_question || questionData.quiz_question)) {
+            const hasText = questionData && (
+                questionData.question_text    ||
+                questionData.activity_question ||
+                questionData.quiz_question     ||
+                questionData.question
+            );
+
+            if (hasText) {
                 setCurrentQuestion(questionData);
-                setMetadata(prev => ({
-                    answered_count:  data.answered_count  ?? prev.answered_count,
-                    total_questions: data.total_questions  || prev.total_questions,
-                    display_number:  isNext
-                        ? prev.display_number + 1
-                        : (data.answered_count != null ? data.answered_count + 1 : 1),
-                }));
+
+                // Update total from server response if provided
+                if (data.total_questions && data.total_questions > 0) {
+                    totalQuestRef.current = data.total_questions;
+                    setTotalQuestions(data.total_questions);
+                }
+
+                // FIX: Increment displayNum ref directly so submit handler closure
+                // always sees the freshest value
+                if (isNext) {
+                } else if (data.answered_count != null) {
+                    displayNumRef.current = data.answered_count + 1;
+                }
+
                 setSelectedAnswer(null);
                 setAnswerText('');
                 if (timerRef.current) clearInterval(timerRef.current);
@@ -271,84 +301,92 @@ const GameEngine = () => {
         } finally {
             setLoading(false);
         }
-    }, [questId, quest_level_id, activityId, quizId, mode, handleFinish, paramsValid]);
+    }, [questId, quest_level_id, activityId, quizId, mode, handleFinish, paramsValid, questId, quest_level_id, content_id]);
 
     // ── handleSubmitAnswer ────────────────────────────────────────────────────
     const handleSubmitAnswer = useCallback(async (isTimeUp = false) => {
         if (isSubmitting || !currentQuestion) return;
-        if (!paramsValid) {
-            setErrorMessage('Missing parameters — cannot submit.');
+
+        // FIX: Clear timer IMMEDIATELY to prevent double-fire on timeout
+        if (timerRef.current) clearInterval(timerRef.current);
+
+        // FIX: questionId — try all possible field names the backend might use
+        const questionId =
+            currentQuestion.id                         ||
+            currentQuestion.activity_question_id       ||
+            currentQuestion.quiz_question_id           ||
+            currentQuestion.quest_activity_question_id ||
+            currentQuestion.quest_quiz_question_id;
+
+        if (!questionId) {
+            console.error('❌ Missing question ID. Full question object:', currentQuestion);
+            setErrorMessage('Question ID is missing — cannot submit. Please retry.');
             return;
         }
 
+        // FIX: Read isLastItem from refs (never stale)
+       const nextDisplayNum = displayNumRef.current + 1;
+ const currentIsLast =
+    totalQuestRef.current > 0 &&
+    nextDisplayNum > totalQuestRef.current;
+
         try {
             setIsSubmitting(true);
-            if (timerRef.current) clearInterval(timerRef.current);
-
             const token = localStorage.getItem('token');
             const answerData = {
                 answer_id:   isTimeUp ? null : selectedAnswer,
                 answer_text: isTimeUp ? ''   : answerText,
             };
 
-            // ✅ FIXED: extract questionId with all possible field names
-            const questionId =
-                currentQuestion.id                         ||
-                currentQuestion.activity_question_id       ||
-                currentQuestion.quiz_question_id           ||
-                currentQuestion.quest_activity_question_id ||
-                currentQuestion.quest_quiz_question_id;
-
-            if (!questionId) {
-                console.error('Missing question ID in:', currentQuestion);
-                setErrorMessage('Question ID missing — cannot submit answer.');
-                return;
-            }
-
             let response;
-            // ✅ FIXED: strict separation — activity vs quiz submit
             if (mode === 'activity') {
-                response = await authAPI.submitActivityAnswer(questId, quest_level_id, activityId, questionId, answerData, token);
+                response = await authAPI.submitActivityAnswer(
+                    questId, quest_level_id, activityId, questionId, answerData, token
+                );
             } else {
-                response = await authAPI.submitQuizAnswer(questId, quest_level_id, quizId, questionId, answerData, token);
+                response = await authAPI.submitQuizAnswer(
+                    questId, quest_level_id, quizId, questionId, answerData, token
+                );
             }
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.message || 'Submission failed');
+                throw new Error(errData.message || `Submission failed: ${response.status}`);
             }
 
-            // ✅ FIXED: check isLastItem using current metadata snapshot
-            if (isLastItem) {
-                await handleFinish();
-            } else {
-                await fetchQuestion(true);
-            }
+            // FIX: Use ref-based check — always reflects latest question number
+          if (currentIsLast) {
+    await handleFinish();
+} else {
+    displayNumRef.current = nextDisplayNum; // ✅ update BEFORE next fetch
+    await fetchQuestion(true);
+}
         } catch (err) {
             console.error('Submit error:', err);
-            fetchQuestion(false);
+            // Re-enable timer after error so user can retry or time out again
+            setTimeLeft(60);
+            setGameStarted(prev => { /* trigger re-render for timer restart */ return prev; });
         } finally {
             setIsSubmitting(false);
         }
-    }, [isSubmitting, currentQuestion, selectedAnswer, answerText, mode, questId, quest_level_id, activityId, quizId, isLastItem, handleFinish, fetchQuestion, paramsValid]);
+    }, [
+        isSubmitting, currentQuestion, selectedAnswer, answerText,
+        mode, questId, quest_level_id, activityId, quizId,
+        handleFinish, fetchQuestion,
+    ]);
 
-    // ── Init ─────────────────────────────────────────────────────────────────
+    // ── Init ──────────────────────────────────────────────────────────────────
     useEffect(() => {
-        // ✅ Use prefetched data if available — zero loading delay
         if (prefetched?.firstQuestion && !hasFetchedInitial.current) {
             hasFetchedInitial.current = true;
             setCurrentQuestion(prefetched.firstQuestion);
-            setMetadata({
-                answered_count:  prefetched.answeredCount  ?? 0,
-                total_questions: prefetched.totalQuestions ?? 0,
-                display_number:  (prefetched.answeredCount ?? 0) + 1,
-            });
+            totalQuestRef.current  = prefetched.totalQuestions ?? 0;
+            displayNumRef.current  = (prefetched.answeredCount ?? 0) + 1;
+            setTotalQuestions(prefetched.totalQuestions ?? 0);
             setLoading(false);
-            // gameStarted already true from useState initializer
             return;
         }
 
-        // Fallback: fetch from API
         const initializeGame = async () => {
             if (hasFetchedInitial.current) return;
             hasFetchedInitial.current = true;
@@ -361,18 +399,22 @@ const GameEngine = () => {
 
             try {
                 const token = localStorage.getItem('token');
-                // ✅ FIXED: strict separation for total count fetch
+                // FIX: Fetch total count up-front so isLastItem works from Q1
                 if (mode === 'activity') {
                     const r = await authAPI.getActivityQuestions(questId, quest_level_id, activityId, token);
                     if (r.ok) {
                         const d = await r.json();
-                        setMetadata(p => ({ ...p, total_questions: Array.isArray(d) ? d.length : (d.total || 0) }));
+                        const count = Array.isArray(d) ? d.length : (d.total || d.total_questions || 0);
+                        totalQuestRef.current = count;
+                        setTotalQuestions(count);
                     }
                 } else {
                     const r = await authAPI.getQuizQuestions(questId, quest_level_id, quizId, token);
                     if (r.ok) {
                         const d = await r.json();
-                        setMetadata(p => ({ ...p, total_questions: Array.isArray(d) ? d.length : (d.total || 0) }));
+                        const count = Array.isArray(d) ? d.length : (d.total || d.total_questions || 0);
+                        totalQuestRef.current = count;
+                        setTotalQuestions(count);
                     }
                 }
                 fetchQuestion(false);
@@ -384,9 +426,9 @@ const GameEngine = () => {
         };
 
         if (!hasFetchedInitial.current) initializeGame();
-    }, [questId, quest_level_id, activityId, quizId, mode, fetchQuestion, prefetched, paramsValid, content_id]);
+    }, [questId, quest_level_id, content_id, quest_level_id, activityId, quizId, mode, fetchQuestion, prefetched, paramsValid]);
 
-    // ── Fallback countdown (no prefetch path only) ────────────────────────
+    // ── Countdown (no-prefetch path) ──────────────────────────────────────────
     useEffect(() => {
         let iv;
         if (hasStartedCountdown && !gameStarted && !quizSummary) {
@@ -400,23 +442,29 @@ const GameEngine = () => {
         return () => clearInterval(iv);
     }, [hasStartedCountdown, gameStarted, quizSummary]);
 
-    // ── Main timer ────────────────────────────────────────────────────────────
+    // ── Game timer ─────────────────────────────────────────────────────────────
+    // FIX: timer now auto-submits as time-up (isTimeUp=true) when hitting 0,
+    // which marks the question wrong and advances immediately.
     useEffect(() => {
-        if (gameStarted && currentQuestion && !loading && !quizSummary && !isCalculating) {
+        if (gameStarted && currentQuestion && !loading && !quizSummary && !isCalculating && !isSubmitting) {
             timerRef.current = setInterval(() => {
                 setTimeLeft(prev => {
-                    if (prev <= 1) { clearInterval(timerRef.current); handleSubmitAnswer(true); return 0; }
+                    if (prev <= 1) {
+                        clearInterval(timerRef.current);
+                        handleSubmitAnswer(true); // auto-advance, mark wrong
+                        return 0;
+                    }
                     return prev - 1;
                 });
             }, 1000);
         }
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
-    }, [gameStarted, currentQuestion, loading, quizSummary, isCalculating, handleSubmitAnswer]);
+    }, [gameStarted, currentQuestion, loading, quizSummary, isCalculating, isSubmitting, handleSubmitAnswer]);
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     const getQuestionText = () => {
         if (!currentQuestion) return '';
-        return currentQuestion.question_text   ||
+        return currentQuestion.question_text    ||
                currentQuestion.activity_question ||
                currentQuestion.quiz_question    ||
                currentQuestion.question         || '';
@@ -425,30 +473,41 @@ const GameEngine = () => {
     const getChoices = () => {
         if (!currentQuestion) return [];
         let choices =
-            currentQuestion.activity_answers      ||
-            currentQuestion.quiz_answers          ||
-            currentQuestion.answers               ||
-            currentQuestion.choices               ||
+            currentQuestion.activity_answers       ||
+            currentQuestion.quiz_answers           ||
+            currentQuestion.answers                ||
+            currentQuestion.choices                ||
             currentQuestion.quest_activity_answers ||
-            currentQuestion.quest_quiz_answers    || [];
+            currentQuestion.quest_quiz_answers     || [];
 
-        // Sort True/False: True first
+        // Sort True/False: True always first
         if (choices.length === 2) {
             const texts = choices.map(c => (c.answer_text || c.text || '').toLowerCase());
             if (texts.includes('true') && texts.includes('false')) {
-                return [...choices].sort(a => (a.answer_text || a.text || '').toLowerCase() === 'true' ? -1 : 1);
+                return [...choices].sort(a =>
+                    (a.answer_text || a.text || '').toLowerCase() === 'true' ? -1 : 1
+                );
             }
         }
         return choices;
     };
 
-    const isAnswerProvided = currentQuestion?.question_type === 'identification'
+    const isIdentification =
+        currentQuestion?.question_type === 'identification' ||
+        currentQuestion?.question_type === 'fill_in_the_blanks';
+
+    const isAnswerProvided = isIdentification
         ? answerText.trim().length > 0
         : selectedAnswer !== null;
 
-    const submitLabel = isSubmitting ? 'ANALYZING...' : isLastItem ? 'FINISH ✓' : 'SUBMIT ANSWER';
+    // FIX: Button label changes on last question
+    const submitLabel = isSubmitting
+        ? 'ANALYZING...'
+        : isLastItem
+            ? 'FINISH MISSION ✓'
+            : 'SUBMIT ANSWER';
 
-    // ── Render states ─────────────────────────────────────────────────────────
+    // ── Render states ──────────────────────────────────────────────────────────
     if (isCalculating) return <CalculatingScreen />;
 
     if (quizSummary) return (
@@ -472,8 +531,10 @@ const GameEngine = () => {
     if (hasStartedCountdown && !gameStarted && !errorMessage) return (
         <div className="min-h-screen bg-[#020617] flex items-center justify-center fixed inset-0 z-[100]">
             <div className="text-center">
-                <p className="text-indigo-400 font-black tracking-[0.5em] mb-4 uppercase animate-pulse italic">Get Ready</p>
-                <h1 className="text-9xl font-black text-white drop-shadow-[0_0_30px_rgba(99,102,241,0.5)] italic">
+                <p className="text-indigo-400 font-black tracking-[0.5em] mb-6 uppercase animate-pulse italic text-sm">
+                    Get Ready
+                </p>
+                <h1 className="text-[10rem] font-black text-white drop-shadow-[0_0_40px_rgba(99,102,241,0.6)] italic leading-none">
                     {startingCountdown > 0 ? startingCountdown : 'GO!'}
                 </h1>
             </div>
@@ -482,14 +543,23 @@ const GameEngine = () => {
 
     if (errorMessage) return (
         <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 text-white">
-            <div className="bg-gray-800/80 p-8 rounded-3xl shadow-xl border-4 border-rose-500 text-center max-w-md">
-                <h2 className="text-xl font-black mb-4 uppercase italic">Communications Error</h2>
-                <p className="mb-6 opacity-80 font-medium">{errorMessage}</p>
+            <div className="bg-[#0f172a] p-10 rounded-3xl shadow-2xl border border-rose-500/30 text-center max-w-md w-full">
+                <div className="text-5xl mb-4">📡</div>
+                <h2 className="text-xl font-black mb-3 uppercase italic text-rose-400">
+                    Communications Error
+                </h2>
+                <p className="mb-8 text-white/60 font-medium text-sm leading-relaxed">{errorMessage}</p>
                 <div className="flex flex-col gap-3">
-                    <button onClick={() => fetchQuestion(false)} className="px-8 py-3 bg-white text-gray-900 rounded-xl font-black uppercase tracking-wider hover:bg-indigo-500 hover:text-white transition-colors">
+                    <button
+                        onClick={() => { setErrorMessage(null); fetchQuestion(false); }}
+                        className="w-full px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase tracking-wider transition-colors"
+                    >
                         Retry
                     </button>
-                    <button onClick={() => navigate(`/student/quest/${questId}/levels`)} className="px-8 py-3 bg-transparent text-white/40 hover:text-white rounded-xl font-black uppercase tracking-wider transition-colors">
+                    <button
+                        onClick={() => navigate(`/student/quest/${questId}/levels`)}
+                        className="w-full px-8 py-3 text-white/30 hover:text-white rounded-xl font-black uppercase tracking-wider transition-colors text-sm"
+                    >
                         Back to Levels
                     </button>
                 </div>
@@ -497,100 +567,155 @@ const GameEngine = () => {
         </div>
     );
 
-    // ── Main Game UI ──────────────────────────────────────────────────────────
+    // ── MAIN GAME UI ───────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-[#020617] relative overflow-hidden font-sans text-white">
-            {/* Background */}
-            <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-indigo-600/10 rounded-full blur-[120px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/10 rounded-full blur-[120px]" />
-                <div className="absolute inset-0 opacity-[0.05]"
-                    style={{ backgroundImage: `linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px)`, backgroundSize: '40px 40px' }} />
+        <div className="min-h-screen bg-[#020617] relative font-sans text-white flex flex-col">
+
+            {/* ── Ambient background ── */}
+            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/8 rounded-full blur-[140px]" />
+                <div className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[50%] bg-purple-600/8 rounded-full blur-[140px]" />
+                <div
+                    className="absolute inset-0 opacity-[0.03]"
+                    style={{
+                        backgroundImage: `linear-gradient(#6366f1 1px, transparent 1px), linear-gradient(90deg, #6366f1 1px, transparent 1px)`,
+                        backgroundSize: '48px 48px',
+                    }}
+                />
             </div>
 
-            {/* Top bar */}
-            <div className="relative z-10 w-full flex justify-between items-center px-6 pt-6 pb-3">
-                <div className="bg-[#0f172a] border-2 border-indigo-500/30 px-5 py-3 rounded-2xl shadow-xl min-w-[120px] flex flex-col items-center">
-                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Progress</p>
-                    <div className="text-xl font-black italic">
-                        {displayNum} <span className="text-white/30 text-sm">/ {totalNum}</span>
+            {/* ── Top bar ── */}
+            <div className="relative z-10 flex items-center justify-between px-6 pt-5 pb-2 shrink-0">
+                {/* Progress pill */}
+                <div className="flex items-center gap-3 bg-white/5 backdrop-blur-sm border border-white/10 px-5 py-3 rounded-2xl">
+                    <div className="flex flex-col leading-none">
+                        <span className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-0.5">
+                            Question
+                        </span>
+                        <span className="text-xl font-black italic">
+                            {displayNum}
+                            <span className="text-white/25 text-sm font-bold"> / {totalNum || '?'}</span>
+                        </span>
                     </div>
                 </div>
 
-                <h1 className="hidden md:block text-base font-black tracking-[0.2em] text-white/30 uppercase italic">
+                {/* Mode label — center */}
+                <span className="hidden md:block text-[10px] font-black tracking-[0.3em] text-white/20 uppercase italic">
                     {mode === 'activity' ? 'Activity Mission' : 'Quiz Challenge'}
-                </h1>
+                </span>
 
-                {/* Timer — only visible at ≤15s */}
-                <div className={`transition-all duration-500 flex flex-col items-center justify-center w-20 h-20 rounded-full border-4 font-black text-2xl italic shadow-xl ${
-                    timeLeft <= 15
-                        ? 'opacity-100 scale-100 bg-rose-500/20 border-rose-500 text-rose-400 animate-pulse shadow-rose-500/30'
-                        : 'opacity-0 scale-75 pointer-events-none border-transparent'
+                {/* Timer circle — appears prominently only at ≤15s, bar always visible */}
+                <div className={`flex items-center justify-center w-16 h-16 rounded-full border-4 font-black text-lg italic transition-all duration-700 ${
+                    timeLeft <= 10
+                        ? 'bg-rose-500/20 border-rose-500 text-rose-400 animate-pulse scale-110 shadow-[0_0_20px_rgba(244,63,94,0.4)]'
+                        : timeLeft <= 20
+                            ? 'bg-amber-500/15 border-amber-500/60 text-amber-400 scale-105'
+                            : 'bg-white/5 border-white/10 text-white/30 scale-100'
                 }`}>
                     {timeLeft}
                 </div>
             </div>
 
-            {/* Progress line */}
-            <div className="relative z-10 w-full h-1.5 bg-white/5">
+            {/* ── Progress bar (full width, always visible) ── */}
+            <div className="relative z-10 w-full h-1 bg-white/5 shrink-0">
                 <div
                     className={`h-full transition-all duration-1000 ease-linear ${
-                        timeLeft <= 15
-                            ? 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.7)]'
-                            : 'bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]'
+                        timeLeft <= 10
+                            ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]'
+                            : timeLeft <= 20
+                                ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+                                : 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.4)]'
                     }`}
                     style={{ width: `${(timeLeft / 60) * 100}%` }}
                 />
             </div>
 
-            {/* Main content */}
-            <div className="relative z-10 max-w-5xl mx-auto mt-8 px-6 pb-36 flex flex-col gap-6">
-                {/* Question */}
-                <div className="bg-[#0f172a]/90 border-2 border-indigo-500/40 p-10 rounded-[2.5rem] text-center shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur-sm">
-                    <p className="text-indigo-400 font-bold uppercase tracking-[0.3em] text-[10px] mb-4 italic">— Current Objective —</p>
-                    <h2 className="text-2xl md:text-4xl font-black leading-tight uppercase tracking-tight italic text-white">
+            {/* ── Main scrollable area ── */}
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-start px-5 pt-8 pb-36 max-w-4xl mx-auto w-full gap-6">
+
+                {/* ── QUESTION BOX (floating, clean, no heavy border) ── */}
+                <div className="w-full bg-white/[0.06] backdrop-blur-md rounded-[2rem] px-8 py-10 text-center shadow-[0_8px_40px_rgba(0,0,0,0.5)]">
+                    <p className="text-indigo-400/70 font-black uppercase tracking-[0.35em] text-[9px] mb-5 italic">
+                        — Current Objective —
+                    </p>
+                    <h2 className="text-2xl md:text-[2rem] font-black leading-snug uppercase tracking-tight text-white">
                         {getQuestionText()}
                     </h2>
                 </div>
 
-                {/* Choices / Input */}
-                <div className="bg-[#0f172a]/80 border-2 border-indigo-500/20 p-8 rounded-[2.5rem] shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-sm">
-                    {currentQuestion?.question_type === 'identification' ? (
-                        <div className="max-w-2xl mx-auto">
+                {/* ── ANSWER CHOICES (separated, each in its own independent box) ── */}
+               <div className="w-full mt-10">
+                    {isIdentification ? (
+                        /* ── Text input for identification / fill-in-the-blank ── */
+                        <div className="flex flex-col items-center gap-3">
+                            <p className="text-[9px] font-black text-white/25 uppercase tracking-widest italic">
+                                Type your answer below
+                            </p>
                             <input
                                 type="text"
                                 value={answerText}
                                 onChange={e => setAnswerText(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && isAnswerProvided && !isSubmitting && handleSubmitAnswer(false)}
+                                onKeyDown={e =>
+                                    e.key === 'Enter' && isAnswerProvided && !isSubmitting &&
+                                    handleSubmitAnswer(false)
+                                }
                                 placeholder="TYPE YOUR RESPONSE..."
-                                className="w-full bg-[#1e293b] border-4 border-indigo-500/40 p-6 rounded-[2rem] outline-none focus:border-indigo-400 text-2xl font-black text-center transition-all placeholder:text-white/10 uppercase italic"
+                                className="w-full max-w-2xl bg-white/5 border-2 border-indigo-500/30 focus:border-indigo-400 p-6 rounded-[1.5rem] outline-none text-2xl font-black text-center transition-all placeholder:text-white/15 uppercase italic shadow-[0_4px_20px_rgba(0,0,0,0.3)]"
                                 autoFocus
                             />
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        /* ── Multiple choice / True-False ─────────────────────────
+                           Each choice is its own fully independent card.
+                           No unified border grouping them together.
+                        ── */
+                           <div className="grid grid-cols-1 gap-6 mt-6">                           
                             {getChoices().map((choice, idx) => {
-                                const choiceId   = choice.id || choice.quest_activity_answer_id || choice.quest_quiz_answer_id || idx;
+                                const choiceId =
+                                    choice.id                      ||
+                                    choice.quest_activity_answer_id ||
+                                    choice.quest_quiz_answer_id    ||
+                                    idx;
                                 const isSelected = selectedAnswer === choiceId;
+                                const letter     = String.fromCharCode(65 + idx);
+
                                 return (
                                     <button
                                         key={choiceId}
-                                        onClick={() => setSelectedAnswer(choiceId)}
+                                        onClick={() => !isSubmitting && setSelectedAnswer(choiceId)}
                                         disabled={isSubmitting}
-                                        className={`group relative flex items-center p-5 rounded-2xl border-b-[6px] border-x-2 border-t-2 transition-all duration-150 text-left disabled:pointer-events-none ${
-                                            isSelected
-                                                ? 'bg-indigo-600 border-indigo-400 translate-y-1 shadow-none'
-                                                : 'bg-[#1e293b] border-indigo-500/25 hover:bg-[#243147] hover:border-indigo-500/50 shadow-[0_6px_0_0_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-none'
-                                        }`}
+                                        className={`
+                                            group relative flex items-center gap-4px-8 py-7 rounded-3xl text-lg text-left transition-all duration-200
+                                            disabled:pointer-events-none
+                                            ${isSelected
+                                                ? 'bg-indigo-600/90 shadow-[0_6px_24px_rgba(99,102,241,0.35)] translate-y-[-2px]'
+                                                : 'bg-white/[0.05] hover:bg-white/[0.09] shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:translate-y-[-1px] hover:shadow-[0_6px_20px_rgba(0,0,0,0.4)]'
+                                            }
+                                        `}
                                     >
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center mr-5 font-black text-base shrink-0 transition-colors ${
-                                            isSelected ? 'bg-white text-indigo-600' : 'bg-white/10 text-white/40 group-hover:bg-white/20'
-                                        }`}>
-                                            {String.fromCharCode(65 + idx)}
+                                        {/* Letter badge */}
+                                        <div className={`
+                                            w-10 h-10 rounded-xl flex items-center justify-center
+                                            font-black text-sm shrink-0 transition-all
+                                            ${isSelected
+                                                ? 'bg-white text-indigo-600'
+                                                : 'bg-white/10 text-white/50 group-hover:bg-white/20 group-hover:text-white/80'
+                                            }
+                                        `}>
+                                            {letter}
                                         </div>
-                                        <span className="text-base font-bold leading-tight uppercase italic">
+                                        {/* Choice text */}
+                                        <span className={`font-bold text-base leading-snug uppercase tracking-tight ${
+                                            isSelected ? 'text-white' : 'text-white/80'
+                                        }`}>
                                             {choice.answer_text || choice.text}
                                         </span>
+                                        {/* Selected check */}
+                                        {isSelected && (
+                                            <div className="ml-auto shrink-0 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                                                <span className="text-white text-xs font-black">✓</span>
+                                            </div>
+                                        )}
                                     </button>
                                 );
                             })}
@@ -599,31 +724,37 @@ const GameEngine = () => {
                 </div>
             </div>
 
-            {/* Bottom controls */}
-            <div className="fixed bottom-0 left-0 right-0 z-20 px-6 pb-6 pt-4 bg-gradient-to-t from-[#020617] via-[#020617]/80 to-transparent flex justify-between items-center gap-4">
+            {/* ── Bottom action bar ── */}
+            <div className="fixed bottom-0 left-0 right-0 z-20 px-5 pb-5 pt-4 bg-gradient-to-t from-[#020617] via-[#020617]/90 to-transparent flex items-center justify-between gap-4">
+                {/* Back / Abort */}
                 <button
                     onClick={() => navigate(-1)}
-                    className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white px-6 py-4 rounded-2xl font-black transition-all border-2 border-rose-500/20 active:scale-95 uppercase italic text-sm"
+                    className="flex items-center gap-2 bg-white/5 hover:bg-rose-500/20 text-white/30 hover:text-rose-400 px-5 py-4 rounded-2xl font-black transition-all border border-white/10 hover:border-rose-500/30 active:scale-95 uppercase italic text-sm whitespace-nowrap"
                 >
-                    <span className="text-xl leading-none">×</span> Back
+                    <span className="text-lg leading-none">×</span> Back
                 </button>
 
+                {/* Submit / Finish — changes on last question */}
                 <button
                     onClick={() => handleSubmitAnswer(false)}
                     disabled={isSubmitting || !isAnswerProvided}
-                    className={`flex-1 max-w-xs py-5 rounded-2xl font-black text-base uppercase italic border-b-4 border-x-2 border-t-2 transition-all active:translate-y-1 active:shadow-none disabled:opacity-40 disabled:pointer-events-none ${
-                        isLastItem
-                            ? 'bg-emerald-500 hover:bg-emerald-400 border-emerald-700 text-white shadow-[0_6px_0_0_rgba(0,0,0,0.4)]'
-                            : 'bg-indigo-500 hover:bg-indigo-400 border-indigo-800 text-white shadow-[0_6px_0_0_rgba(0,0,0,0.4)]'
-                    }`}
+                    className={`
+                        flex-1 max-w-sm py-5 rounded-2xl font-black text-base uppercase italic
+                        transition-all active:translate-y-0.5
+                        disabled:opacity-40 disabled:pointer-events-none
+                        ${isLastItem
+                            ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-[0_8px_24px_rgba(16,185,129,0.4)] border-b-4 border-emerald-700'
+                            : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_8px_24px_rgba(99,102,241,0.35)] border-b-4 border-indigo-900'
+                        }
+                    `}
                 >
                     {submitLabel}
                 </button>
             </div>
 
-            {/* Glows */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-rose-500/5 rounded-full blur-[100px] pointer-events-none" />
+            {/* Corner glows */}
+            <div className="absolute top-0 left-0 w-[35%] h-[35%] bg-indigo-500/8 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-[25%] h-[25%] bg-rose-500/5 rounded-full blur-[100px] pointer-events-none" />
         </div>
     );
 };
