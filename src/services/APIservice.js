@@ -770,7 +770,94 @@ getQuestLevels: async (questId, token) => {
             throw error;
         }
     },
+// --- ACTIVITY ENDPOINTS ---
+
+    // Kunin ang listahan ng activities
+    getActivities: async (questId, quest_level_id, token) => {
+        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+    },
+
+    // Kunin ang activity questions
+    getActivityQuestions: async (questId, quest_level_id, activityId, token) => {
+        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+    },
+
+    // Kunin ang susunod na question sa activity
+    getNextActivityQuestion: async (questId, quest_level_id, activityId, token) => {
+        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/next-question`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+    },
+
+    // Submit ng sagot para sa activity question
+    submitActivityAnswer: async (questId, quest_level_id, activityId, questionId, answerData, token) => {
+        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/questions/${questionId}/answer`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(answerData)
+        });
+    },
+
+    // Tapusin ang activity
+    finishActivity: async (questId, quest_level_id, activityId, token) => {
+        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/activities/${activityId}/finish`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+    },
+
+
+// --- QUIZ ENDPOINTS ---
+  
+getQuizzes: async (questId, quest_level_id, token) => {
+        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        });
+    },
+
+    // Kunin ang mga questions ng isang quiz
+    getQuizQuestions: async (questId, quest_level_id, quizId, token) => {
+        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+    },
+
+    // Kunin ang susunod na question (Next Question)
+    getNextQuizQuestion: async (questId, quest_level_id, quizId, token) => {
+        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/next-question`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+    },
+
+    // Submit ng sagot para sa quiz question
+    submitQuizAnswer: async (questId, quest_level_id, quizId, questionId, answerData, token) => {
+        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions/${questionId}/answer`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(answerData)
+        });
+    },
+
+    // Tapusin ang quiz
+    finishQuiz: async (questId, quest_level_id, quizId, token) => {
+        return await fetch(`${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/finish`, {
+            method: 'POST', // O POST depende sa backend mo
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+    },
+
 };
+
 
 
 
