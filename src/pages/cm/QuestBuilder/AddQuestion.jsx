@@ -39,7 +39,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isDeleting, questionTe
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
       <div className="bg-white w-full max-w-sm rounded-2xl p-8 shadow-2xl border border-slate-200 text-center">
-        <div className="text-4xl mb-4"></div>
+        <div className="text-4xl mb-4">🗑️</div>
         <h3 className="text-lg font-black text-slate-900">Delete this question</h3>
         {questionText && (
           <p className="text-sm text-slate-500 mt-2 bg-slate-50 rounded-xl p-3 font-medium italic line-clamp-2">
@@ -47,7 +47,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isDeleting, questionTe
           </p>
         )}
         <p className="text-xs text-slate-400 mt-3 leading-relaxed">
-          This will permanently remove the question.  
+          This will permanently remove the question.
         </p>
         <div className="flex gap-3 mt-6">
           <button type="button" onClick={onClose} disabled={isDeleting}
@@ -56,7 +56,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isDeleting, questionTe
           </button>
           <button type="button" onClick={onConfirm} disabled={isDeleting}
             className="flex-1 py-3 bg-rose-500 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-rose-600 transition-all active:scale-95 disabled:opacity-60">
-            {isDeleting ? 'Deleting…' : ' Delete'}
+            {isDeleting ? 'Deleting…' : 'Delete'}
           </button>
         </div>
       </div>
@@ -81,10 +81,15 @@ const SuccessToast = ({ visible, message }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ✅ Handles both fill_in_the_blank (singular) and fill_in_the_blanks (plural)
+// to match GameEngine.jsx isTextType() which accepts both variants
+const TEXT_INPUT_TYPES = ['identification', 'fill_in_the_blank', 'fill_in_the_blanks', 'essay'];
+
 const buildBlankAnswers = (type) => {
   if (type === 'true_false')  return [{ text: 'True', is_correct: false }, { text: 'False', is_correct: false }];
   if (type === 'essay')       return [];
-  if (type === 'identification' || type === 'fill_in_the_blanks') return [{ text: '', is_correct: true }];
+  if (TEXT_INPUT_TYPES.includes(type)) return [{ text: '', is_correct: true }];
   return [
     { text: '', is_correct: false }, { text: '', is_correct: false },
     { text: '', is_correct: false }, { text: '', is_correct: false },
@@ -118,22 +123,35 @@ const mapApiQuestion = (q) => {
 // AddQuestion Page
 //
 // Routes:
-//   /cm/dashboard/quest/:questId/level/:levelId/activity/:activityId/add-question?mode=add
-//   /cm/dashboard/quest/:questId/level/:levelId/quiz/:quizId/add-question?mode=edit
+//   /cm/dashboard/quest/:questId/level/:quest_level_id/activity/:activityId/add-question?mode=add
+//   /cm/dashboard/quest/:questId/level/:quest_level_id/quiz/:quizId/add-question?mode=edit
 //
 // NAVIGATION:
-//   goBackToWorkspace() uses navigate(-1) — ALWAYS returns to SelectionView
-//   (the activity/quiz card page after selecting a level).
-//   This works because SelectionView navigated TO this page via navigate(path).
+//   goBackToWorkspace() uses navigate to the level URL — restores SelectionView
 //
-// KEY: `levelId` from useParams() IS the quest_level_id for all API calls.
+// KEY: `quest_level_id` from useParams() IS the quest_level_id for all API calls.
+// NOTE: The route in App.jsx uses :levelId but the param is destructured here as
+//       quest_level_id for clarity. If App.jsx uses :levelId adjust the destructure:
+//       const { questId, levelId: quest_level_id, activityId, quizId } = useParams();
 // ─────────────────────────────────────────────────────────────────────────────
 const AddQuestion = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ Rename levelId → quest_level_id immediately so every API call uses it correctly
-  const { questId, quest_level_id, activityId, quizId } = useParams();
+  // ✅ Supports both App.jsx route param names:
+  //   :levelId        → used in most setups
+  //   :quest_level_id → used in some setups
+  // Whichever is defined in the route, we capture it as quest_level_id.
+  const {
+    questId,
+    levelId,          // ← from route /level/:levelId/
+    quest_level_id: routeQuestLevelId, // ← from route /level/:quest_level_id/ (if used)
+    activityId,
+    quizId,
+  } = useParams();
+
+  // Use whichever param name the route provides
+  const quest_level_id = levelId || routeQuestLevelId || null;
 
   const contentType    = quizId ? 'quiz' : 'activity';
   const finalContentId = quizId || activityId;
@@ -174,21 +192,19 @@ const AddQuestion = () => {
     setTimeout(() => setToastVisible(false), 3000);
   };
 
-  // ✅ SINGLE navigate(-1) — ALWAYS goes back to SelectionView (workspace)
-  // This is the ONLY navigation function. No duplicates. No /cm/dashboard/quest/:id.
-  // Works for: Back button, Save & Finish, Back to Workspace in edit mode.
-const goBackToWorkspace = () => {
-  navigate(
-    `/cm/dashboard/quest/${questId}/level/${quest_level_id}`,
-    {
-      state: {
-        fromAddQuestion: true,
-        contentType,        // 'quiz' or 'activity'
-        contentId: finalContentId,
+  const goBackToWorkspace = () => {
+    navigate(
+      `/cm/dashboard/quest/${questId}/level/${quest_level_id}`,
+      {
+        state: {
+          fromAddQuestion: true,
+          contentType,
+          contentId: finalContentId,
+        }
       }
-    }
-  );
-};
+    );
+  };
+
   // ── Fetch questions ────────────────────────────────────────────────────────
   const fetchQuestions = useCallback(async (isInit = false) => {
     if (!questId || !quest_level_id || !finalContentId) return [];
@@ -239,7 +255,8 @@ const goBackToWorkspace = () => {
   // ── Build payload ──────────────────────────────────────────────────────────
   const buildPayload = (qd) => {
     const { question_text, question_type, answers } = qd;
-    const needsText = ['identification', 'fill_in_the_blanks'].includes(question_type);
+    // ✅ Both fill_in_the_blank variants handled
+    const needsText = TEXT_INPUT_TYPES.includes(question_type);
     const finalAnswers = question_type === 'essay' ? [] : answers
       .filter(a => (a.text || '').trim() !== '')
       .map((a, i) => ({
@@ -260,7 +277,8 @@ const goBackToWorkspace = () => {
         !answers.some(a => a.is_correct && a.text?.trim())) {
       showAlert('Please mark at least one correct answer.', 'Validation Error'); return false;
     }
-    if (['identification', 'fill_in_the_blanks'].includes(question_type) &&
+    // ✅ Both fill_in_the_blank variants validated
+    if (TEXT_INPUT_TYPES.filter(t => t !== 'essay').includes(question_type) &&
         !answers[0]?.text?.trim()) {
       showAlert('Please provide the correct answer.', 'Validation Error'); return false;
     }
@@ -276,7 +294,7 @@ const goBackToWorkspace = () => {
     if (contentType === 'quiz') {
       return id
         ? authAPI.updateQuizQuestion(questId, quest_level_id, finalContentId, id, payload, token)
-        : authAPI.addQuizQuestion(questId, quest_level_id, finalContentId, payload, token); 
+        : authAPI.addQuizQuestion(questId, quest_level_id, finalContentId, payload, token);
     } else {
       return id
         ? authAPI.updateActivityQuestion(questId, quest_level_id, finalContentId, id, payload, token)
@@ -324,25 +342,24 @@ const goBackToWorkspace = () => {
     }
   };
 
-  // ✅ Save & Finish — saves then returns to workspace (SelectionView)
-const handleSaveFinish = async () => {
-  if (!validate(questionData)) return;
-  setLoading(true);
-  try {
-    const res = await callSaveApi(questionData);
-    if (res.ok || res.status === 201) {
-      goBackToWorkspace(); // ✅ now reliable
-    } else {
-      const e = await res.json().catch(() => ({}));
-      showAlert(e.message || 'Failed to save.', 'Error');
+  const handleSaveFinish = async () => {
+    if (!validate(questionData)) return;
+    setLoading(true);
+    try {
+      const res = await callSaveApi(questionData);
+      if (res.ok || res.status === 201) {
+        goBackToWorkspace();
+      } else {
+        const e = await res.json().catch(() => ({}));
+        showAlert(e.message || 'Failed to save.', 'Error');
+      }
+    } catch (err) {
+      console.error('handleSaveFinish error:', err);
+      showAlert('Network error. Please try again.', 'Error');
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error('handleSaveFinish error:', err);
-    showAlert('Network error. Please try again.', 'Error');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handlePrev = () => {
     if (addStep <= 1) return;
@@ -364,7 +381,6 @@ const handleSaveFinish = async () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // ✅ Save Changes — updates in-place ONLY, never creates, never navigates
   const handleSaveChanges = async () => {
     if (!validate(questionData)) return;
 
@@ -389,7 +405,6 @@ const handleSaveFinish = async () => {
           setQuestionData(mapApiQuestion(freshArr[safeIdx]));
         }
         showToast('✅ Question updated successfully!');
-        // ✅ Does NOT navigate — stays on this page
       } else {
         const e = await res.json().catch(() => ({}));
         showAlert(e.message || 'Failed to update question.', 'Error');
@@ -458,7 +473,6 @@ const handleSaveFinish = async () => {
 
         {/* ── Top Nav ── */}
         <div className="flex items-center justify-between mb-6">
-          {/* ✅ Single back button — navigate(-1) → SelectionView */}
           <button
             type="button"
             onClick={goBackToWorkspace}
@@ -516,7 +530,7 @@ const handleSaveFinish = async () => {
               </div>
               <div>
                 <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                  {typeLabel} 
+                  {typeLabel}
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
                   <span className={`w-2 h-2 rounded-full animate-pulse ${
@@ -631,7 +645,6 @@ const handleSaveFinish = async () => {
               {/* ── ADD MODE sidebar ── */}
               {pageMode === 'add' && (
                 <div className="space-y-2 flex-1 overflow-y-auto max-h-[500px] pr-1">
-                  {/* Saved questions */}
                   {savedQuestions.map((q, idx) => {
                     const stepNum  = idx + 1;
                     const isActive = addStep === stepNum;
@@ -707,7 +720,7 @@ const handleSaveFinish = async () => {
                     </div>
                   ) : (
                     savedQuestions.map((q, idx) => {
-                      const stepNum  = idx + 1; // ✅ Always sequential after any deletion
+                      const stepNum  = idx + 1;
                       const isActive = editSelectedIdx === idx;
                       const qId      = q.id || q.activity_question_id || q.quiz_question_id || q.question_id;
 
@@ -747,7 +760,7 @@ const handleSaveFinish = async () => {
                             </div>
                           </button>
 
-                          {/* ✅ Delete X — hover to reveal */}
+                          {/* Delete X — hover to reveal */}
                           <button
                             type="button"
                             onClick={(e) => openDeleteModal(e, qId, idx, q.question_text)}

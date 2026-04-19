@@ -46,58 +46,55 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
         return token.replace(/['"]+/g, '').trim();
     }, []);
 
-    // ── Data Fetching Logic ────────────────────────────────────────────────
-   // ── Data Fetching Logic (Updated for strict flow) ──────────────────────────
-const fetchData = useCallback(async () => {
-    const storedSection = localStorage.getItem('selectedSection');
-    const activeSection = storedSection ? JSON.parse(storedSection) : null;
-    const sId = sectionId || activeSection?.section_id || activeSection?.id;
+    // ── Data Fetching Logic (Updated for strict flow) ──────────────────────────
+    const fetchData = useCallback(async () => {
+        const storedSection = localStorage.getItem('selectedSection');
+        const activeSection = storedSection ? JSON.parse(storedSection) : null;
+        const sId = sectionId || activeSection?.section_id || activeSection?.id;
 
-    if (!sId) {
-        setLoading(false);
-        return;
-    }
-
-    setLoading(true);
-    try {
-        const token = getCleanToken();
-        const [detailsRes, pendingRes] = await Promise.all([
-            authAPI.getSectionDetails(sId, token),
-            authAPI.getPendingStudents(sId, token)
-        ]);
-
-        // FIX PARA SA PENDING REQUESTS
-        if (pendingRes.ok) {
-            const pData = await pendingRes.json();
-            // Dito natin kukunin ang 'pending_students' base sa nakita sa console
-            const pendingList = pData.pending_students || (Array.isArray(pData) ? pData : []);
-            setPendingRequests(pendingList);
+        if (!sId) {
+            setLoading(false);
+            return;
         }
 
-        // FIX PARA SA OFFICIAL LIST (Approved Only)
-        if (detailsRes.ok) {
-            const sData = await detailsRes.json();
-            // Base sa console: sData.students ang tamang path
-            const allStudents = sData.students || [];
-            
-            // I-filter para 'approved' lang ang nasa main table
-            const approvedOnly = allStudents.filter(s => s.status?.toLowerCase() === 'approved');
-            setStudents(approvedOnly);
-        }
+        setLoading(true);
+        try {
+            const token = getCleanToken();
+            const [detailsRes, pendingRes] = await Promise.all([
+                authAPI.getSectionDetails(sId, token),
+                authAPI.getPendingStudents(sId, token)
+            ]);
 
-    } catch (err) {
-        console.error("Fetch Error:", err);
-        setError('Failed to sync data.');
-    } finally {
-        setLoading(false);
-    }
-}, [sectionId, getCleanToken]);
+            // FIX PARA SA PENDING REQUESTS
+            if (pendingRes.ok) {
+                const pData = await pendingRes.json();
+                const pendingList = pData.pending_students || (Array.isArray(pData) ? pData : []);
+                setPendingRequests(pendingList);
+            }
+
+            // FIX PARA SA OFFICIAL LIST (Approved Only)
+            if (detailsRes.ok) {
+                const sData = await detailsRes.json();
+                const allStudents = sData.students || [];
+                
+                // I-filter para 'approved' lang ang nasa main table
+                const approvedOnly = allStudents.filter(s => s.status?.toLowerCase() === 'approved');
+                setStudents(approvedOnly);
+            }
+
+        } catch (err) {
+            console.error("Fetch Error:", err);
+            setError('Failed to sync data.');
+        } finally {
+            setLoading(false);
+        }
+    }, [sectionId, getCleanToken]);
   
-useEffect(() => { 
+    useEffect(() => { 
         fetchData(); 
     }, [fetchData]);
 
-    // ── Handle Action (Approve/Reject) ────────────────────────────────────
+    // ── Handle Action (Approve/Reject) - AUTO ACTION NO MODAL ────────────────
     const handleAction = async (requestId, action) => {
         const storedSection = localStorage.getItem('selectedSection');
         const activeSection = storedSection ? JSON.parse(storedSection) : null;
@@ -109,8 +106,8 @@ useEffect(() => {
         }
 
         const statusMapping = action === 'approve' ? 'approved' : 'rejected';
-        const confirmMsg = `Are you sure you want to ${action} this request?`;
-        if (!window.confirm(confirmMsg)) return;
+        
+        // REMOVED window.confirm HERE for automatic processing
         
         try {
             const token = getCleanToken();
@@ -119,8 +116,6 @@ useEffect(() => {
             if (res.ok) {
                 // Refresh records para mawala sa modal at lumipat sa approved table
                 await fetchData(); 
-                // Kung wala nang pending, pwede mo ring i-close ang modal (optional)
-                // if (pendingRequests.length <= 1) setIsModalOpen(false);
             } else {
                 const errData = await res.json().catch(() => ({}));
                 alert(`Error: ${errData.message || res.statusText}`);

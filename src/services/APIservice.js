@@ -593,7 +593,7 @@ export const authAPI = {
         );
     },
 
-    // Activity Add Question //
+    // Activity Add Question //____________________________________________________________________________________________
 
     getActivityQuestions: async (questId, quest_level_id, activityId, token) => {
         validateParams({ questId, quest_level_id, activityId });
@@ -676,7 +676,7 @@ export const authAPI = {
         );
     },
 
-        // Quiz Add Question //
+        // Quiz Add Question // ______________________________________________________________________________________________________
 
 
     addQuizQuestion: async (questId, quest_level_id, quizId, data, token) => {
