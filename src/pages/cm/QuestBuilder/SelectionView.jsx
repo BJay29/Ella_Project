@@ -12,10 +12,22 @@ const getDifficultyStyle = (diff) => {
 };
 
 const SelectionView = ({
-  selectedQuest, selectedLevel, existingActivity, existingQuiz,
-  loadingContent, currentQuestId, currentLevelId,
-  activityModal, quizModal, setActivityModal, setQuizModal,
-  onBack, onActivitySuccess, onQuizSuccess, onDeleteActivity, onDeleteQuiz,
+  selectedQuest, 
+  selectedLevel, 
+  existingActivity, 
+  existingQuiz,
+  loadingContent, 
+  currentQuestId, 
+  currentLevelId, // Ito ang nagdadala ng quest_level_id
+  activityModal, 
+  quizModal, 
+  setActivityModal, 
+  setQuizModal,
+  onBack, 
+  onActivitySuccess, 
+  onQuizSuccess, 
+  onDeleteActivity, 
+  onDeleteQuiz,
 }) => {
   const navigate = useNavigate();
 
@@ -24,7 +36,7 @@ const SelectionView = ({
   const [loadingCounts,         setLoadingCounts]         = useState(false);
 
   const activityData = existingActivity?.activity || existingActivity || null;
-  const quizData     = existingQuiz?.quiz          || existingQuiz     || null;
+  const quizData     = existingQuiz?.quiz           || existingQuiz     || null;
   const activityId   = activityData?.activity_id   || activityData?.id || null;
   const quizId       = quizData?.quiz_id            || quizData?.id    || null;
 
@@ -38,6 +50,7 @@ const SelectionView = ({
         const token = localStorage.getItem('token');
         if (activityId) {
           try {
+            // Gamit ang currentLevelId (quest_level_id)
             const res = await authAPI.getActivityQuestions(currentQuestId, currentLevelId, activityId, token);
             if (!cancelled && res.ok) {
               const d = await res.json();
@@ -50,6 +63,7 @@ const SelectionView = ({
 
         if (quizId) {
           try {
+            // Gamit ang currentLevelId (quest_level_id)
             const res = await authAPI.getQuizQuestions(currentQuestId, currentLevelId, quizId, token);
             if (!cancelled && res.ok) {
               const d = await res.json();
@@ -68,14 +82,9 @@ const SelectionView = ({
   }, [activityId, quizId, currentQuestId, currentLevelId]);
 
   // ── Navigate to question designer ─────────────────────────────────────────
-  // mode='add'  → opens AddQuestion in Add Mode  (creates new questions)
-  // mode='edit' → opens AddQuestion in Edit Mode (updates existing questions)
-  //
-  // The route is the same for both — only the ?mode= param differs.
-  // AddQuestion reads the param on mount and sets its initial pageMode.
-  // navigate(-1) inside AddQuestion will return here correctly.
   const goToQuestions = (contentId, type, mode = 'add') => {
     if (!contentId || !currentQuestId || !currentLevelId) return;
+    // URL structured with currentLevelId (quest_level_id)
     const path = `/cm/dashboard/quest/${currentQuestId}/level/${currentLevelId}/${type}/${contentId}/add-question?mode=${mode}`;
     navigate(path);
   };
@@ -195,7 +204,6 @@ const SelectionView = ({
                     </div>
 
                     <div className="mt-auto grid grid-cols-2 gap-4 pt-6 border-t border-slate-50">
-                      {/* Add Questions → mode=add */}
                       <button
                         onClick={() => goToQuestions(activityId, 'activity', 'add')}
                         disabled={!activityId || loadingCounts || activityQuestionCount === null}
@@ -208,7 +216,6 @@ const SelectionView = ({
                         {(activityQuestionCount ?? 0) > 0 ? '✅ Questions Added' : '+ Add Questions'}
                       </button>
 
-                      {/* Edit Questions → mode=edit */}
                       <button
                         onClick={() => goToQuestions(activityId, 'activity', 'edit')}
                         disabled={!activityId || !(activityQuestionCount ?? 0)}
@@ -271,7 +278,6 @@ const SelectionView = ({
                     </div>
 
                     <div className="mt-auto grid grid-cols-2 gap-4 pt-6 border-t border-slate-50">
-                      {/* Add Questions → mode=add */}
                       <button
                         onClick={() => goToQuestions(quizId, 'quiz', 'add')}
                         disabled={!quizId || loadingCounts || quizQuestionCount === null}
@@ -284,7 +290,6 @@ const SelectionView = ({
                         {(quizQuestionCount ?? 0) > 0 ? '✅ Questions Added' : '+ Add Questions'}
                       </button>
 
-                      {/* Edit Questions → mode=edit */}
                       <button
                         onClick={() => goToQuestions(quizId, 'quiz', 'edit')}
                         disabled={!quizId || !(quizQuestionCount ?? 0)}
@@ -312,7 +317,7 @@ const SelectionView = ({
           isOpen={activityModal.open}
           onClose={() => setActivityModal({ open: false, mode: 'save-info' })}
           questId={currentQuestId}
-          quest_level_id={currentLevelId}
+          quest_level_id={currentLevelId} // Consistent variable name
           existingActivity={activityData}
           mode={activityModal.mode}
           onActivityCreated={onActivitySuccess}
@@ -325,7 +330,7 @@ const SelectionView = ({
           isOpen={quizModal.open}
           onClose={() => setQuizModal({ open: false, mode: 'save-info' })}
           questId={currentQuestId}
-          quest_level_id={currentLevelId}
+          quest_level_id={currentLevelId} // Consistent variable name
           existingQuiz={quizData}
           mode={quizModal.mode}
           onSuccess={onQuizSuccess}

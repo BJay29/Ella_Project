@@ -6,13 +6,13 @@ import AssignQuestModal from './AssignQuestModal';
 import SelectionView     from './SelectionView';
 import LevelsView        from './LevelsView';
 import ListView          from './ListView';
-import QuestModal        from './QuestModals'; // Inalis ang 's' base sa screenshot mo na resolve import error
+import QuestModal        from './QuestModals'; 
 import DeleteModal       from './DeleteModal';
 import ActivityCreator   from './ActivityCreator';
 import QuizCreator       from './QuizCreator';
 
 const QuestBuilder = () => {
-  // ── Read URL params — present when navigate(-1) lands here from AddQuestion
+  // ── Read URL params
   const { questId: routeQuestId, levelId: routeLevelId } = useParams();
 
   const [quests,       setQuests]       = useState([]);
@@ -25,15 +25,15 @@ const QuestBuilder = () => {
   const [selectedQuest,   setSelectedQuest]   = useState(null);
   const [selectedLevel,   setSelectedLevel]   = useState(null);
   const [currentQuestId,  setCurrentQuestId]  = useState(null);
-  const [currentLevelId,  setCurrentLevelId]  = useState(null);
+  const [currentLevelId,  setCurrentLevelId]  = useState(null); // Ito ay quest_level_id
   const [levels,          setLevels]          = useState([]);
 
   // Quest modal
-  const [showModal,         setShowModal]        = useState(false);
-  const [showDeleteModal,   setShowDeleteModal]  = useState(false);
-  const [showAssignModal,   setShowAssignModal]  = useState(false);
-  const [isEditing,         setIsEditing]        = useState(false);
-  const [questData,         setQuestData]        = useState({
+  const [showModal,         setShowModal]         = useState(false);
+  const [showDeleteModal,   setShowDeleteModal]   = useState(false);
+  const [showAssignModal,   setShowAssignModal]   = useState(false);
+  const [isEditing,         setIsEditing]         = useState(false);
+  const [questData,         setQuestData]         = useState({
     quest_type: '', quest_level: '', quest_number: '',
     passing_score: 7, is_unlocked_by_default: false,
   });
@@ -89,10 +89,10 @@ const QuestBuilder = () => {
     finally { setIsLoading(false); }
   };
 
-  const fetchActivityOnly = async (questId, levelId) => {
+  const fetchActivityOnly = async (questId, quest_level_id) => {
     try {
       const token = localStorage.getItem('token');
-      const res   = await authAPI.getActivities(questId, levelId, token);
+      const res   = await authAPI.getActivitiesCM(questId, quest_level_id, token);
       if (res.ok) {
         const d = await res.json();
         if (d?.activity) setExistingActivity(d.activity);
@@ -105,10 +105,10 @@ const QuestBuilder = () => {
     } catch (err) { console.error('fetchActivityOnly error:', err); setExistingActivity(null); }
   };
 
-  const fetchQuizOnly = async (questId, levelId) => {
+  const fetchQuizOnly = async (questId, quest_level_id) => {
     try {
       const token = localStorage.getItem('token');
-      const res   = await authAPI.getQuizzes(questId, levelId, token);
+      const res   = await authAPI.getQuizzesCM(questId, quest_level_id, token);
       if (res.ok) {
         const d = await res.json();
         if (d?.quiz) setExistingQuiz(d.quiz);
@@ -121,19 +121,18 @@ const QuestBuilder = () => {
     } catch (err) { console.warn('fetchQuizOnly info:', err); setExistingQuiz(null); }
   };
 
-  const fetchLevelContent = async (questId, levelId) => {
-    if (!questId || !levelId) return;
+  const fetchLevelContent = async (questId, quest_level_id) => {
+    if (!questId || !quest_level_id) return;
     setLoadingContent(true);
     try {
-      await fetchActivityOnly(questId, levelId);
-      await fetchQuizOnly(questId, levelId);
+      await fetchActivityOnly(questId, quest_level_id);
+      await fetchQuizOnly(questId, quest_level_id);
     } finally { setLoadingContent(false); }
   };
 
-  // ── ✅ UPDATED AUTO-RESTORE on mount ──────────────────────────────────
+  // ── ✅ AUTO-RESTORE on mount ──────────────────────────────────
   useEffect(() => {
     if (routeQuestId && routeLevelId) {
-      // Restore selection-view ONLY if both IDs are present in URL
       setCurrentQuestId(routeQuestId);
       setCurrentLevelId(routeLevelId);
       setView('selection-view');
@@ -142,12 +141,10 @@ const QuestBuilder = () => {
       fetchLevelContent(routeQuestId, routeLevelId);
       restoreBreadcrumbs(routeQuestId, routeLevelId);
     } else if (routeQuestId) {
-      // Only quest in URL → restore manage-levels
       setCurrentQuestId(routeQuestId);
       fetchQuests().then(() => fetchLevels(routeQuestId));
       setView('manage-levels');
     } else {
-      // NO PARAMS → Reset to List View (Workshop home)
       setView('list');
       setCurrentQuestId(null);
       setCurrentLevelId(null);
@@ -155,10 +152,9 @@ const QuestBuilder = () => {
       setSelectedLevel(null);
       fetchQuests();
     }
-  }, [routeQuestId, routeLevelId]); // Syncing with URL changes
+  }, [routeQuestId, routeLevelId]);
 
-  // Fetch quest + level metadata for breadcrumb display when restoring
-  const restoreBreadcrumbs = async (questId, levelId) => {
+  const restoreBreadcrumbs = async (questId, quest_level_id) => {
     try {
       const token = localStorage.getItem('token');
       const qRes = await authAPI.getQuests(token);
@@ -174,7 +170,7 @@ const QuestBuilder = () => {
         const lData  = await lRes.json();
         const levelsList = lData?.quest_levels || (Array.isArray(lData) ? lData : lData.levels || []);
         setLevels(levelsList);
-        const found = levelsList.find(l => String(l.quest_level_id || l.id) === String(levelId));
+        const found = levelsList.find(l => String(l.quest_level_id || l.id) === String(quest_level_id));
         if (found) setSelectedLevel(found);
       }
     } catch (err) {
@@ -201,16 +197,16 @@ const QuestBuilder = () => {
   };
 
   const goToSelection = (level) => {
-    const lvlId = level.quest_level_id || level.id;
+    const qlvlId = level.quest_level_id || level.id;
     const qId   = currentQuestId || selectedQuest?.quest_id || selectedQuest?.id;
-    if (!qId || !lvlId) { alert('Error: Missing Quest or Level ID.'); return; }
+    if (!qId || !qlvlId) { alert('Error: Missing Quest or Level ID.'); return; }
     setSelectedLevel(level);
-    setCurrentLevelId(lvlId);
+    setCurrentLevelId(qlvlId);
     setExistingActivity(null);
     setExistingQuiz(null);
     setActivityModal({ open: false, mode: 'save-info' });
     setQuizModal({ open: false, mode: 'save-info' });
-    fetchLevelContent(qId, lvlId);
+    fetchLevelContent(qId, qlvlId);
     setView('selection-view');
   };
 
@@ -280,12 +276,6 @@ const QuestBuilder = () => {
       is_unlocked_by_default: quest.is_unlocked_by_default || false,
     });
     setShowModal(true);
-  };
-
-  const openAssignModal = (e, quest) => {
-    e.stopPropagation();
-    setSelectedQuest(quest);
-    setShowAssignModal(true);
   };
 
   const handleQuestSubmit = async (e) => {
@@ -385,6 +375,12 @@ const QuestBuilder = () => {
     } catch (err) { console.error(err); }
   };
 
+  const openAssignModal = (e, quest) => {
+    e.stopPropagation();
+    setSelectedQuest(quest);
+    setShowAssignModal(true);
+  };
+
   // ─────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────
@@ -447,7 +443,6 @@ const QuestBuilder = () => {
     );
   }
 
-  // Default: list view
   return (
     <>
       <ListView

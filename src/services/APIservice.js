@@ -593,6 +593,8 @@ export const authAPI = {
         );
     },
 
+    // Activity Add Question //
+
     getActivityQuestions: async (questId, quest_level_id, activityId, token) => {
         validateParams({ questId, quest_level_id, activityId });
         return await fetchWithTimeout(
@@ -674,6 +676,9 @@ export const authAPI = {
         );
     },
 
+        // Quiz Add Question //
+
+
     addQuizQuestion: async (questId, quest_level_id, quizId, data, token) => {
         validateParams({ questId, quest_level_id, quizId });
         return await fetchWithTimeout(
@@ -685,6 +690,16 @@ export const authAPI = {
             }
         );
     },
+
+    
+    getQuizQuestions: async (questId, quest_level_id, quizId, token) => {
+        validateParams({ questId, quest_level_id, quizId });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/quests/${questId}/levels/${quest_level_id}/quizzes/${quizId}/questions`,
+            { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+        );
+    },
+
 
     updateQuizQuestion: async (questId, quest_level_id, quizId, questionId, data, token) => {
         validateParams({ questId, quest_level_id, quizId, questionId });

@@ -120,22 +120,26 @@ const CourseForm = ({ onNext }) => {
         setIsDeleteModalOpen(true);
     };
 
+    // ✅ FIXED: Inayos ang logic para maipasa ang ID at Token sa deleteCourse
     const confirmDelete = async () => {
-        if(!courseToDelete?.id) return;
+        const idToDelete = courseToDelete?.id;
+        if(!idToDelete) return;
 
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await authAPI.deleteCourse(courseToDelete.id, token);
+            const response = await authAPI.deleteCourse(idToDelete, token);
             if (response.ok) {
                 fetchCourses();
                 setIsDeleteModalOpen(false);
                 setCourseToDelete(null);
             } else {
-                alert("Failed to delete from server.");
+                const errData = await response.json().catch(() => ({}));
+                alert(errData.message || "Failed to delete from server.");
             }
         } catch (err) {
             console.error("Delete error:", err);
+            alert("An error occurred while deleting.");
         } finally {
             setLoading(false);
         }
@@ -183,7 +187,7 @@ const CourseForm = ({ onNext }) => {
     );
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 bg-transparent">
             {/* --- HEADER & CONTROLS --- */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 text-left">
                 <div>
@@ -200,7 +204,8 @@ const CourseForm = ({ onNext }) => {
                         <input 
                             type="text" 
                             placeholder="Search Courses"
-                            className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 transition-all text-left"
+                            // ✅ FIXED: Inayos ang text color para hindi maging white
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-none rounded-xl text-sm font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 transition-all text-left placeholder:text-gray-400"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -225,7 +230,7 @@ const CourseForm = ({ onNext }) => {
                     <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center text-3xl mb-4">
                         📚
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800">No Courses Found</h3>
+                    <h3 className="text-xl font-bold text-gray-800 uppercase italic">No Courses Found</h3>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -282,7 +287,7 @@ const CourseForm = ({ onNext }) => {
                                         <span className="text-gray-300 text-[9px] font-black uppercase tracking-widest">Active Sections</span>
                                         <span className="text-lg font-black text-gray-700">{course.sectionCount || 0}</span>
                                     </div>
-                                    <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                    <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                                         <span className="font-bold">→</span>
                                     </div>
                                 </div>
@@ -313,7 +318,7 @@ const CourseForm = ({ onNext }) => {
                                 <input 
                                     required
                                     type="text"
-                                    className="w-full p-5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-left placeholder:text-slate-300"
+                                    className="w-full p-5 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 transition-all text-left placeholder:text-slate-300"
                                     placeholder="e.g. Programming 2"
                                     value={newCourse.course_name}
                                     onChange={(e) => setNewCourse({...newCourse, course_name: e.target.value})}
@@ -325,7 +330,7 @@ const CourseForm = ({ onNext }) => {
                                     <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">School Year</label>
                                     <input 
                                         type="text"
-                                        className="w-full p-5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-left"
+                                        className="w-full p-5 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 transition-all text-left"
                                         value={newCourse.school_year}
                                         onChange={(e) => setNewCourse({...newCourse, school_year: e.target.value})}
                                     />
@@ -333,7 +338,7 @@ const CourseForm = ({ onNext }) => {
                                 <div>
                                     <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Semester</label>
                                     <select 
-                                        className="w-full p-5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-left appearance-none"
+                                        className="w-full p-5 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 transition-all text-left appearance-none"
                                         value={newCourse.semester}
                                         onChange={(e) => setNewCourse({...newCourse, semester: e.target.value})}
                                     >
@@ -349,7 +354,7 @@ const CourseForm = ({ onNext }) => {
                                 <input 
                                     required
                                     type="text"
-                                    className="w-full p-5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-left placeholder:text-slate-300"
+                                    className="w-full p-5 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 transition-all text-left placeholder:text-slate-300"
                                     placeholder="e.g. CS101"
                                     value={newCourse.course_code}
                                     onChange={(e) => setNewCourse({...newCourse, course_code: e.target.value.toUpperCase()})}
@@ -360,7 +365,7 @@ const CourseForm = ({ onNext }) => {
                                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Description</label>
                                 <textarea 
                                     rows="3"
-                                    className="w-full p-5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all resize-none text-left placeholder:text-slate-300"
+                                    className="w-full p-5 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 transition-all resize-none text-left placeholder:text-slate-300"
                                     placeholder="Course description..."
                                     value={newCourse.description}
                                     onChange={(e) => setNewCourse({...newCourse, description: e.target.value})}

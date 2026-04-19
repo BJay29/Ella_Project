@@ -133,7 +133,7 @@ const AddQuestion = () => {
   const location = useLocation();
 
   // ✅ Rename levelId → quest_level_id immediately so every API call uses it correctly
-  const { questId, levelId: quest_level_id, activityId, quizId } = useParams();
+  const { questId, quest_level_id, activityId, quizId } = useParams();
 
   const contentType    = quizId ? 'quiz' : 'activity';
   const finalContentId = quizId || activityId;
@@ -276,7 +276,7 @@ const goBackToWorkspace = () => {
     if (contentType === 'quiz') {
       return id
         ? authAPI.updateQuizQuestion(questId, quest_level_id, finalContentId, id, payload, token)
-        : authAPI.addQuizQuestion(questId, quest_level_id, finalContentId, payload, token);
+        : authAPI.addQuizQuestion(questId, quest_level_id, finalContentId, payload, token); 
     } else {
       return id
         ? authAPI.updateActivityQuestion(questId, quest_level_id, finalContentId, id, payload, token)

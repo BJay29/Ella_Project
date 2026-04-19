@@ -6,8 +6,12 @@ const Management = ({ onShowPending }) => {
     const [view, setView] = useState('list');
     const [isModalOpen, setIsModalOpen] = useState(false);
     
+    // --- New States for Delete Modal ---
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [sectionToDelete, setSectionToDelete] = useState(null);
+    
     const STORAGE_KEY = 'instructor_handled_sections';
-    const SELECTED_SECTION_KEY = 'selectedSection'; // Key na ginagamit ng StudentTable at SectionDashboard
+    const SELECTED_SECTION_KEY = 'selectedSection'; 
 
     const [mySections, setMySections] = useState(() => {
         try {
@@ -48,18 +52,22 @@ const Management = ({ onShowPending }) => {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [fetchMySections]);
 
-    // ── Handle Manage Students (View Switcher) ──
     const handleManageStudents = (item) => {
-        // I-save ang buong object sa localStorage para sa StudentTable / API calls
         localStorage.setItem(SELECTED_SECTION_KEY, JSON.stringify(item));
-        
         setActiveSection(item); 
         setView('focus');
     };
 
-    const handleUnassign = (sectionId) => {
-        if (!window.confirm('Are you sure you want to remove this course from your dashboard?')) return;
+    // --- Updated Unassign Logic with Modal ---
+    const triggerDeletePrompt = (item) => {
+        setSectionToDelete(item);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmUnassign = () => {
+        if (!sectionToDelete) return;
         
+        const sectionId = getSectionId(sectionToDelete);
         const updatedCards = mySections.filter(card => 
             String(getSectionId(card)) !== String(sectionId)
         );
@@ -67,11 +75,13 @@ const Management = ({ onShowPending }) => {
         setMySections(updatedCards);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCards));
         
-        // Linisin ang selected kung ito yung tinanggal
         const currentSelected = JSON.parse(localStorage.getItem(SELECTED_SECTION_KEY));
         if (currentSelected && String(getSectionId(currentSelected)) === String(sectionId)) {
             localStorage.removeItem(SELECTED_SECTION_KEY);
         }
+
+        setIsDeleteModalOpen(false);
+        setSectionToDelete(null);
     };
 
     const handleAddSuccess = (updatedListOrNewItem) => {
@@ -110,7 +120,6 @@ const Management = ({ onShowPending }) => {
                             </p>
                         </div>
 
-                        {/* Button Group */}
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => setIsModalOpen(true)}
@@ -121,7 +130,6 @@ const Management = ({ onShowPending }) => {
                         </div>
                     </div>
 
-                    {/* ── Cards Grid ── */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
                         {isLoading && mySections.length === 0 && [1, 2, 3].map(i => (
@@ -149,7 +157,7 @@ const Management = ({ onShowPending }) => {
                                     <div className="absolute top-0 left-0 w-2 h-full bg-[#22C55E]" />
 
                                     <button
-                                        onClick={() => handleUnassign(sectionId)}
+                                        onClick={() => triggerDeletePrompt(item)}
                                         className="absolute top-6 right-6 text-gray-300 hover:text-red-500 transition-colors z-10 p-2"
                                         title="Unassign Section"
                                     >
@@ -209,6 +217,43 @@ const Management = ({ onShowPending }) => {
                     onClose={() => setIsModalOpen(false)}
                     onSuccess={handleAddSuccess}
                 />
+            )}
+
+            {/* ── CUSTOM DELETE MODAL ── */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-100">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            
+                            <h3 className="text-2xl font-black text-gray-800 uppercase italic tracking-tighter mb-2">
+                                Remove Course?
+                            </h3>
+                            <p className="text-gray-500 text-[11px] font-bold uppercase tracking-widest leading-relaxed mb-8">
+                                Are you sure you want to remove <span className="text-red-500">{sectionToDelete?.course_name || sectionToDelete?.subject}</span> from your dashboard?
+                            </p>
+
+                            <div className="flex w-full gap-3">
+                                <button 
+                                    onClick={() => { setIsDeleteModalOpen(false); setSectionToDelete(null); }}
+                                    className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={confirmUnassign}
+                                    className="flex-1 py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-red-100 transition-all active:scale-95"
+                                >
+                                    Yes, Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

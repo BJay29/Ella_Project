@@ -84,7 +84,7 @@ function App() {
           <ProtectedRoute allowedRole="student"><QuestLevels /></ProtectedRoute>
         } />
 
-        {/* ✅ GameEngine Route — Mahalaga na tugma ito sa path na binubuo sa QuestLevels.jsx */}
+        {/* ✅ GameEngine Route */}
         <Route path="/student/quest/:questId/level/:quest_level_id/play/:content_id" element={
           <ProtectedRoute allowedRole="student"><GameEngine /></ProtectedRoute>
         } />
@@ -97,13 +97,14 @@ function App() {
           <ProtectedRoute allowedRole="instructor"><InstructorDashboard /></ProtectedRoute>
         } />
 
+        {/* CM Routes - In-update mula :levelId papuntang :quest_level_id */}
         <Route path="/cm/dashboard" element={<CM><CMDashboard /></CM>} />
         <Route path="/cm/dashboard/quest/:questId" element={<CM><CMDashboard /></CM>} />
-        <Route path="/cm/dashboard/quest/:questId/level/:levelId" element={<CM><CMDashboard /></CM>} />
+        <Route path="/cm/dashboard/quest/:questId/level/:quest_level_id" element={<CM><CMDashboard /></CM>} />
 
-        <Route path="/cm/dashboard/quest/:questId/level/:levelId/activity/:activityId/add-question"
+        <Route path="/cm/dashboard/quest/:questId/level/:quest_level_id/activity/:activityId/add-question"
           element={<CM><AddQuestion /></CM>} />
-        <Route path="/cm/dashboard/quest/:questId/level/:levelId/quiz/:quizId/add-question"
+        <Route path="/cm/dashboard/quest/:questId/level/:quest_level_id/quiz/:quizId/add-question"
           element={<CM><AddQuestion /></CM>} />
 
         <Route path="/"  element={<PublicRoute><Navigate to="/login" replace /></PublicRoute>} />
