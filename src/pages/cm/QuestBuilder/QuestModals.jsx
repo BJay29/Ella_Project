@@ -9,8 +9,12 @@ const QuestModal = ({ isOpen, isEditing, isSubmitting, questData, setQuestData, 
         <form onSubmit={onSubmit} className="space-y-5">
           <div className="space-y-1.5">
             <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Macro Skill</label>
-            <select className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"
-              value={questData.quest_type} onChange={(e) => setQuestData({...questData, quest_type: e.target.value})} required>
+            <select
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500"
+              value={questData.quest_type}
+              onChange={(e) => setQuestData({...questData, quest_type: e.target.value})}
+              required
+            >
               <option value="" disabled>Select Skill</option>
               <option value="Reading">Reading</option>
               <option value="Writing">Writing</option>
@@ -20,8 +24,12 @@ const QuestModal = ({ isOpen, isEditing, isSubmitting, questData, setQuestData, 
           </div>
           <div className="space-y-1.5">
             <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Difficulty</label>
-            <select className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"
-              value={questData.quest_level} onChange={(e) => setQuestData({...questData, quest_level: e.target.value})} required>
+            <select
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500"
+              value={questData.quest_level}
+              onChange={(e) => setQuestData({...questData, quest_level: e.target.value})}
+              required
+            >
               <option value="" disabled>Select Level</option>
               <option value="Beginner">Beginner</option>
               <option value="Intermediate">Intermediate</option>
@@ -31,13 +39,23 @@ const QuestModal = ({ isOpen, isEditing, isSubmitting, questData, setQuestData, 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Quest No.</label>
-              <input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                value={questData.quest_number} onChange={(e) => setQuestData({...questData, quest_number: e.target.value})} required />
+              <input
+                type="number"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-400"
+                value={questData.quest_number}
+                onChange={(e) => setQuestData({...questData, quest_number: e.target.value})}
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Passing Score</label>
-              <input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                value={questData.passing_score} onChange={(e) => setQuestData({...questData, passing_score: e.target.value})} required />
+              <input
+                type="number"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-400"
+                value={questData.passing_score}
+                onChange={(e) => setQuestData({...questData, passing_score: e.target.value})}
+                required
+              />
             </div>
           </div>
           <div className="flex justify-between items-center pt-6 gap-4">

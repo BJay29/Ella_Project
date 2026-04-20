@@ -1,25 +1,24 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Calculating Screen
+// Calculating Screen — Ella Quest logo + loading bar only
 // ─────────────────────────────────────────────────────────────────────────────
 export const CalculatingScreen = () => (
     <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center text-white fixed inset-0 z-50">
-        <div className="relative mb-10 text-center">
-            <h1 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter text-white leading-none">
+        <div className="relative text-center px-8 w-full max-w-xs">
+            <h1 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter text-white leading-none">
                 Ella <span className="text-indigo-500">Quest</span>
             </h1>
-            <div className="mt-4 h-1 bg-indigo-500/30 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 rounded-full"
-                    style={{ animation: 'loadbar 1.5s ease-in-out infinite' }} />
+            <div className="mt-4 h-[3px] bg-indigo-500/30 rounded-full overflow-hidden">
+                <div
+                    className="h-full bg-indigo-500 rounded-full"
+                    style={{ animation: 'loadbar 1.5s ease-in-out infinite' }}
+                />
             </div>
+            <p className="mt-5 font-black tracking-[0.3em] uppercase text-indigo-400/70 text-[10px] animate-pulse">
+                Calculating Results...
+            </p>
         </div>
-        <p className="font-black tracking-[0.4em] uppercase text-indigo-400 animate-pulse text-sm">
-            Calculating Results...
-        </p>
-        <p className="text-white/30 text-xs font-bold mt-2 tracking-widest uppercase">
-            Processing Mission Data
-        </p>
         <style>{`
             @keyframes loadbar {
                 0%   { width: 0%;   margin-left: 0%; }
@@ -31,24 +30,154 @@ export const CalculatingScreen = () => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Results Screen
+// StatCard — animated count-up for each result value
 // ─────────────────────────────────────────────────────────────────────────────
-export const ResultsScreen = ({ summary, mode, questId, onTryAgain, onBack, navigate }) => {
-    const isPassed = summary.passed || summary.status === 'passed' || summary.is_passed;
-    const score    = summary.score         ?? 0;
-    const correct  = summary.correct_count ?? summary.correct   ?? 0;
-    const wrong    = summary.wrong_count   ?? summary.incorrect ?? summary.wrong ?? 0;
-    const points   = summary.points_earned ?? 0;
+const StatCard = ({ label, value, color, delay = 0 }) => {
+    const [displayed, setDisplayed] = useState(0);
+
+    useEffect(() => {
+        const target = Number(value) || 0;
+        if (target === 0) { setDisplayed(0); return; }
+        let current  = 0;
+        const duration  = 800;   // ms
+        const framerate = 16;    // ~60fps
+        const increment = target / (duration / framerate);
+        const timeout = setTimeout(() => {
+            const iv = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    setDisplayed(target);
+                    clearInterval(iv);
+                } else {
+                    setDisplayed(Math.floor(current));
+                }
+            }, framerate);
+            return () => clearInterval(iv);
+        }, delay);
+        return () => clearTimeout(timeout);
+    }, [value, delay]);
 
     return (
-        <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 fixed inset-0 z-50">
-            <div className="absolute inset-0 opacity-[0.04] pointer-events-none"
-                style={{ backgroundImage: `linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px)`, backgroundSize: '40px 40px' }} />
+        <div
+            className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center"
+            style={{ animation: `fadeSlideUp 0.45s ease both`, animationDelay: `${delay}ms` }}
+        >
+            <p className="text-[8px] font-black text-white/40 uppercase tracking-widest mb-2">{label}</p>
+            <p className={`text-2xl font-black ${color}`}>{displayed}</p>
+        </div>
+    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Results Screen
+//
+// – Score ring:   fraction format  "correct / total"
+// – Stats row:    Correct | Wrong | Points | Coins  (animated count-up)
+// – Pass/Fail:    derived from backend response (multiple field names handled)
+// – Retry button: hidden when quiz attempt limit reached
+// ─────────────────────────────────────────────────────────────────────────────
+export const ResultsScreen = ({
+    summary,
+    mode,
+    questId,
+    attemptCount   = 0,
+    maxAttempts    = null,   // null = unlimited (activity)
+    onTryAgain,
+    onBack,
+    navigate,
+}) => {
+    const [visible, setVisible] = useState(false);
+
+    useEffect(() => {
+        const t = setTimeout(() => setVisible(true), 50);
+        return () => clearTimeout(t);
+    }, []);
+
+    // ── Pass / Fail ───────────────────────────────────────────────────────────
+    const isPassed =
+        summary.passed    === true    ||
+        summary.is_passed === true    ||
+        summary.status    === 'passed'||
+        summary.result    === 'passed'||
+        (summary.score != null &&
+         summary.passing_score != null &&
+         Number(summary.score) >= Number(summary.passing_score));
+
+    // ── Extract all stats — covers every backend field name variant ───────────
+    const correct = Number(
+        summary.correct_count   ??
+        summary.correct         ??
+        summary.correct_answers ??
+        0
+    );
+    const wrong = Number(
+        summary.wrong_count   ??
+        summary.incorrect     ??
+        summary.wrong         ??
+        summary.wrong_answers ??
+        0
+    );
+    const total = Number(
+        summary.total_questions ??
+        summary.total           ??
+        (correct + wrong)
+    );
+    const points = Number(
+        summary.points_earned ??
+        summary.points        ??
+        summary.score_points  ??
+        0
+    );
+    const coins = Number(
+        summary.coins_earned ??
+        summary.coins        ??
+        summary.coin         ??
+        0
+    );
+
+    // Quiz attempt info
+    const attemptsUsed      = mode === 'quiz' ? attemptCount : null;
+    const attemptsRemaining = maxAttempts != null ? Math.max(0, maxAttempts - attemptsUsed) : null;
+    const canRetry          = maxAttempts == null || attemptsRemaining > 0;
+
+    return (
+        <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 fixed inset-0 z-50 overflow-y-auto">
+
+            {/* Grid background */}
+            <div
+                className="absolute inset-0 opacity-[0.04] pointer-events-none"
+                style={{
+                    backgroundImage: `linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px)`,
+                    backgroundSize: '40px 40px',
+                }}
+            />
+
+            {/* Top accent line */}
             <div className={`absolute top-0 left-0 w-full h-1 ${isPassed ? 'bg-emerald-500' : 'bg-rose-500'}`} />
 
-            <div className="relative w-full max-w-lg">
-                {/* Status badge */}
-                <div className="flex justify-center mb-6">
+            {/* Glow behind score ring */}
+            {visible && (
+                <div className={`absolute top-[12%] left-1/2 -translate-x-1/2 w-64 h-64 rounded-full blur-[80px] opacity-15 pointer-events-none ${
+                    isPassed ? 'bg-emerald-500' : 'bg-rose-500'
+                }`} />
+            )}
+
+            <div
+                className="relative w-full max-w-lg py-8"
+                style={{ animation: visible ? 'fadeSlideUp 0.4s ease both' : 'none' }}
+            >
+                {/* ── Ella Quest logo ── */}
+                <div className="text-center mb-5">
+                    <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white leading-none">
+                        Ella <span className="text-indigo-500">Quest</span>
+                    </h1>
+                </div>
+
+                {/* ── Pass / Fail badge ── */}
+                <div
+                    className="flex justify-center mb-6"
+                    style={{ animation: 'fadeSlideUp 0.4s ease 0.1s both' }}
+                >
                     <div className={`px-6 py-2 rounded-full border-2 text-[10px] font-black uppercase tracking-[0.3em] ${
                         isPassed
                             ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
@@ -58,42 +187,80 @@ export const ResultsScreen = ({ summary, mode, questId, onTryAgain, onBack, navi
                     </div>
                 </div>
 
-                {/* Score ring */}
-                <div className="flex justify-center mb-8">
+                {/* ── Score ring — fraction "correct / total" ── */}
+                <div
+                    className="flex justify-center mb-8"
+                    style={{ animation: 'scaleIn 0.5s ease 0.2s both' }}
+                >
                     <div className={`w-44 h-44 rounded-full border-[10px] flex flex-col items-center justify-center shadow-2xl ${
                         isPassed
-                            ? 'border-emerald-500 shadow-emerald-500/20'
-                            : 'border-rose-500 shadow-rose-500/20'
+                            ? 'border-emerald-500 shadow-emerald-500/25'
+                            : 'border-rose-500 shadow-rose-500/25'
                     }`}>
-                        <span className={`text-5xl font-black italic ${isPassed ? 'text-emerald-400' : 'text-rose-400'}`}>
-                            {score}%
+                        {total > 0 ? (
+                            <>
+                                <div className="flex items-baseline gap-1">
+                                    <span className={`text-4xl font-black italic leading-none ${isPassed ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                        {correct}
+                                    </span>
+                                    <span className="text-white/30 text-2xl font-black italic leading-none">/</span>
+                                    <span className="text-white/50 text-2xl font-black italic leading-none">{total}</span>
+                                </div>
+                                <span className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-2">Score</span>
+                            </>
+                        ) : (
+                            // Fallback when total is not provided by backend
+                            <>
+                                <span className={`text-4xl font-black italic ${isPassed ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                    {correct}
+                                </span>
+                                <span className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-2">Correct</span>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Animated stats — 4 columns ── */}
+                <div className="grid grid-cols-4 gap-3 mb-6">
+                    <StatCard label="Correct" value={correct} color="text-emerald-400" delay={300} />
+                    <StatCard label="Wrong"   value={wrong}   color="text-rose-400"    delay={400} />
+                    <StatCard label="Points"  value={points}  color="text-indigo-400"  delay={500} />
+                    <StatCard label="Coins"   value={coins}   color="text-amber-400"   delay={600} />
+                </div>
+
+                {/* ── Quiz attempt counter (quiz mode only) ── */}
+                {mode === 'quiz' && maxAttempts != null && (
+                    <div
+                        className="flex items-center justify-center gap-2 mb-6"
+                        style={{ animation: 'fadeSlideUp 0.4s ease 0.55s both' }}
+                    >
+                        {Array.from({ length: maxAttempts }).map((_, i) => (
+                            <div
+                                key={i}
+                                className={`w-3 h-3 rounded-full border-2 transition-all ${
+                                    i < attemptsUsed
+                                        ? 'bg-rose-500 border-rose-400'
+                                        : 'bg-white/10 border-white/20'
+                                }`}
+                            />
+                        ))}
+                        <span className="text-[9px] font-black text-white/30 uppercase tracking-widest ml-1">
+                            {attemptsRemaining > 0
+                                ? `${attemptsRemaining} attempt${attemptsRemaining !== 1 ? 's' : ''} left`
+                                : 'No attempts left'}
                         </span>
-                        <span className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-1">Score</span>
                     </div>
-                </div>
+                )}
 
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-4 mb-8">
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center">
-                        <p className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Correct</p>
-                        <p className="text-3xl font-black text-emerald-400">{correct}</p>
-                    </div>
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center">
-                        <p className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Wrong</p>
-                        <p className="text-3xl font-black text-rose-400">{wrong}</p>
-                    </div>
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center">
-                        <p className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Points</p>
-                        <p className="text-3xl font-black text-indigo-400">{points}</p>
-                    </div>
-                </div>
-
-                {/* Pass / Fail message */}
-                <div className={`rounded-2xl border p-4 mb-8 text-center ${
-                    isPassed
-                        ? 'bg-emerald-500/10 border-emerald-500/20'
-                        : 'bg-rose-500/10 border-rose-500/20'
-                }`}>
+                {/* ── Pass / Fail message ── */}
+                <div
+                    className={`rounded-2xl border p-4 mb-8 text-center ${
+                        isPassed
+                            ? 'bg-emerald-500/10 border-emerald-500/20'
+                            : 'bg-rose-500/10 border-rose-500/20'
+                    }`}
+                    style={{ animation: 'fadeSlideUp 0.4s ease 0.65s both' }}
+                >
                     <p className={`text-sm font-bold ${isPassed ? 'text-emerald-300' : 'text-rose-300'}`}>
                         {isPassed
                             ? mode === 'activity'
@@ -103,33 +270,57 @@ export const ResultsScreen = ({ summary, mode, questId, onTryAgain, onBack, navi
                     </p>
                 </div>
 
-                {/* Buttons */}
-                <div className="space-y-3">
+                {/* ── Action buttons ── */}
+                <div
+                    className="space-y-3"
+                    style={{ animation: 'fadeSlideUp 0.4s ease 0.75s both' }}
+                >
                     {isPassed ? (
                         <>
-                            {mode === 'activity' && (
-                                <button
-                                    onClick={() => navigate(`/student/quest/${questId}/levels`)}
-                                    className="w-full py-5 bg-amber-500 hover:bg-amber-400 text-amber-950 rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all active:scale-95 shadow-lg shadow-amber-500/20 border-b-4 border-amber-700"
-                                >
-                                    Proceed to Quiz →
-                                </button>
-                            )}
+                            {/* Primary — go back to levels */}
                             <button
                                 onClick={onBack}
-                                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all active:scale-95 shadow-lg border-b-4 border-indigo-800"
+                                className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all active:scale-95 shadow-lg border-b-4 border-indigo-800"
                             >
-                                {mode === 'activity' ? 'Back to Levels' : 'Return to Base'}
+                                {mode === 'activity' ? '← Back to Levels' : 'Return to Base'}
                             </button>
+
+                            {/* Secondary — retake only if attempts remain */}
+                            {canRetry && (
+                                <button
+                                    onClick={onTryAgain}
+                                    className="w-full py-4 text-white/40 hover:text-white font-black text-xs uppercase tracking-widest transition-colors text-center"
+                                >
+                                    🔄 Retake {mode === 'activity' ? 'Activity' : 'Quiz'}
+                                    {mode === 'quiz' && attemptsRemaining != null && (
+                                        <span className="ml-2 text-amber-400">
+                                            ({attemptsRemaining} left)
+                                        </span>
+                                    )}
+                                </button>
+                            )}
                         </>
                     ) : (
                         <>
-                            <button
-                                onClick={onTryAgain}
-                                className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all active:scale-95 shadow-lg border-b-4 border-indigo-800"
-                            >
-                                🔄 Try Again
-                            </button>
+                            {/* Try again — only shown if attempts remain */}
+                            {canRetry ? (
+                                <button
+                                    onClick={onTryAgain}
+                                    className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all active:scale-95 shadow-lg border-b-4 border-indigo-800"
+                                >
+                                    🔄 Try Again
+                                    {mode === 'quiz' && attemptsRemaining != null && (
+                                        <span className="ml-2 opacity-70 text-xs">
+                                            ({attemptsRemaining} attempt{attemptsRemaining !== 1 ? 's' : ''} left)
+                                        </span>
+                                    )}
+                                </button>
+                            ) : (
+                                /* No attempts remaining — show locked message */
+                                <div className="w-full py-5 bg-white/5 border border-white/10 text-white/30 rounded-2xl font-black uppercase tracking-[0.2em] text-sm text-center">
+                                    🔒 No Attempts Remaining
+                                </div>
+                            )}
                             <button
                                 onClick={onBack}
                                 className="w-full py-3 text-white/40 hover:text-white font-black text-xs uppercase tracking-widest transition-colors"
@@ -140,6 +331,17 @@ export const ResultsScreen = ({ summary, mode, questId, onTryAgain, onBack, navi
                     )}
                 </div>
             </div>
+
+            <style>{`
+                @keyframes fadeSlideUp {
+                    from { opacity: 0; transform: translateY(16px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes scaleIn {
+                    from { opacity: 0; transform: scale(0.7); }
+                    to   { opacity: 1; transform: scale(1); }
+                }
+            `}</style>
         </div>
     );
 };
@@ -148,32 +350,25 @@ export const ResultsScreen = ({ summary, mode, questId, onTryAgain, onBack, navi
 // Main Game UI
 // Receives all state and handlers as props from GameEngine.jsx
 // ─────────────────────────────────────────────────────────────────────────────
-const GameEngineUI = ({
-    // Navigation
+const GameEngineui = ({
     navigate,
     mode,
     questId,
-    // Question data
     currentQuestion,
     getQuestionText,
     getChoices,
     isIdentification,
-    // Progress
     displayNum,
     totalNum,
     isLastItem,
-    // Answer state
     selectedAnswer,
     setSelectedAnswer,
     answerText,
     setAnswerText,
     answerProvided,
-    // Submission
     isSubmitting,
     handleSubmitAnswer,
-    // Timer
     timeLeft,
-    // Feedback
     isFeedbackPhase,
     userWasCorrect,
     correctAnswerText,
@@ -181,14 +376,28 @@ const GameEngineUI = ({
     submittedAnswerId,
     feedbackResult,
 }) => {
+    const choices = getChoices();
+
+    // 2–4 choices → 2-column grid (side-by-side boxes, no scroll)
+    // 1 or 5+    → 1-column list
+    const gridClass = choices.length >= 2 && choices.length <= 4
+        ? 'grid grid-cols-2 gap-3'
+        : 'grid grid-cols-1 gap-3';
+
     return (
         <div className="min-h-screen bg-[#020617] relative font-sans text-white flex flex-col">
-            {/* Background */}
+
+            {/* ── Background ── */}
             <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
                 <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/8 rounded-full blur-[140px]" />
                 <div className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[50%] bg-purple-600/8 rounded-full blur-[140px]" />
-                <div className="absolute inset-0 opacity-[0.03]"
-                    style={{ backgroundImage: `linear-gradient(#6366f1 1px, transparent 1px), linear-gradient(90deg, #6366f1 1px, transparent 1px)`, backgroundSize: '48px 48px' }} />
+                <div
+                    className="absolute inset-0 opacity-[0.03]"
+                    style={{
+                        backgroundImage: `linear-gradient(#6366f1 1px, transparent 1px), linear-gradient(90deg, #6366f1 1px, transparent 1px)`,
+                        backgroundSize: '48px 48px',
+                    }}
+                />
             </div>
 
             {/* ── Top bar ── */}
@@ -225,7 +434,7 @@ const GameEngineUI = ({
                 </div>
             </div>
 
-            {/* ── Progress bar ── */}
+            {/* ── Timer progress bar ── */}
             <div className="relative z-10 w-full h-1.5 bg-white/5 shrink-0">
                 <div
                     className={`h-full transition-all duration-1000 ease-linear ${
@@ -257,7 +466,8 @@ const GameEngineUI = ({
                     </p>
                     {!userWasCorrect && correctAnswerText && (
                         <p className="text-white/60 text-xs font-bold mt-1 uppercase tracking-wide">
-                            Correct answer: <span className="text-emerald-400 font-black">{correctAnswerText}</span>
+                            Correct answer:{' '}
+                            <span className="text-emerald-400 font-black">{correctAnswerText}</span>
                         </p>
                     )}
                     <p className="text-white/30 text-[10px] font-bold mt-1 uppercase tracking-widest animate-pulse">
@@ -279,10 +489,10 @@ const GameEngineUI = ({
                     </h2>
                 </div>
 
-                {/* Choices / Input */}
+                {/* ── Choices / Input ── */}
                 <div className="w-full">
                     {isIdentification ? (
-                        // ── Text input: identification, fill_in_blanks, essay ──
+                        // Text input — identification / fill_in_blanks / essay
                         <div className="flex flex-col items-center gap-3">
                             <p className="text-[9px] font-black text-white/25 uppercase tracking-widest italic">
                                 {isFeedbackPhase ? 'Your answer' : 'Type your answer below'}
@@ -292,7 +502,10 @@ const GameEngineUI = ({
                                 value={answerText}
                                 onChange={e => !isFeedbackPhase && setAnswerText(e.target.value)}
                                 onKeyDown={e =>
-                                    e.key === 'Enter' && answerProvided && !isSubmitting && !isFeedbackPhase &&
+                                    e.key === 'Enter' &&
+                                    answerProvided &&
+                                    !isSubmitting &&
+                                    !isFeedbackPhase &&
                                     handleSubmitAnswer(false)
                                 }
                                 disabled={isFeedbackPhase || isSubmitting}
@@ -314,70 +527,60 @@ const GameEngineUI = ({
                             )}
                         </div>
                     ) : (
-                        // ── Choice buttons: multiple_choice, true_false ──
-                        <div className="grid grid-cols-1 gap-4">
-                            {getChoices().map((choice, idx) => {
-
-                                // ✅ FIX: Resolve the real DB answer ID from the choice object.
-                                // Priority order (per backend):
-                                //   activity mode → activity_answer_id (Image 3 confirmation)
-                                //   quiz mode     → quiz_answer_id (same pattern)
-                                //   fallback      → generic id field
-                                // NEVER fall back to idx (array index) — that's what caused
-                                // answer_id: 0 / answer_id: 1 in the payload screenshots.
+                        // ── Choice buttons — 2-col grid for 2–4 choices ──
+                        <div className={gridClass}>
+                            {choices.map((choice, idx) => {
+                                // Resolve real DB answer ID — never fall back to array index
                                 const choiceId =
-                                    choice.activity_answer_id          != null ? choice.activity_answer_id :
-                                    choice.quest_activity_answer_id    != null ? choice.quest_activity_answer_id :
-                                    choice.quiz_answer_id              != null ? choice.quiz_answer_id :
-                                    choice.quest_quiz_answer_id        != null ? choice.quest_quiz_answer_id :
-                                    choice.answer_id                   != null ? choice.answer_id :
-                                    choice.id                          != null ? choice.id :
-                                    null; // ← null, NOT idx, so we can detect missing IDs
+                                    choice.activity_answer_id       != null ? choice.activity_answer_id :
+                                    choice.quest_activity_answer_id != null ? choice.quest_activity_answer_id :
+                                    choice.quiz_answer_id           != null ? choice.quiz_answer_id :
+                                    choice.quest_quiz_answer_id     != null ? choice.quest_quiz_answer_id :
+                                    choice.answer_id                != null ? choice.answer_id :
+                                    choice.id                       != null ? choice.id :
+                                    null;
 
                                 const letter       = String.fromCharCode(65 + idx);
                                 const wasSubmitted = submittedAnswerId != null &&
                                     String(submittedAnswerId) === String(choiceId);
+                                const isSelected   = selectedAnswer != null &&
+                                    String(selectedAnswer) === String(choiceId);
 
-                                // A choice lights up green if:
-                                //   - player picked it AND server says correct, OR
-                                //   - server returned this choice's id as the correct one, OR
-                                //   - backend marked it is_correct=true on the choice object
                                 const isThisChoiceCorrect =
                                     (wasSubmitted && userWasCorrect) ||
                                     (serverCorrectId != null && choiceId != null &&
                                         String(choiceId) === String(serverCorrectId)) ||
                                     (choice.is_correct === true);
 
-                                // ── Button style ──────────────────────────────
+                                // Button colour
                                 let btnClass;
                                 if (isFeedbackPhase) {
-                                    if (isThisChoiceCorrect) btnClass = 'bg-emerald-500 text-white shadow-[0_0_24px_rgba(16,185,129,0.5)] scale-[1.01]';
-                                    else if (wasSubmitted)   btnClass = 'bg-rose-500/80 text-white';
-                                    else                     btnClass = 'bg-white/[0.03] text-white/25 opacity-50';
+                                    if (isThisChoiceCorrect)
+                                        btnClass = 'bg-emerald-500 border-emerald-400 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)]';
+                                    else if (wasSubmitted)
+                                        btnClass = 'bg-rose-500/80 border-rose-400 text-white';
+                                    else
+                                        btnClass = 'bg-white/[0.03] border-white/5 text-white/20 opacity-40';
                                 } else {
-                                    const isSelected = selectedAnswer != null &&
-                                        String(selectedAnswer) === String(choiceId);
                                     btnClass = isSelected
-                                        ? 'bg-indigo-600/90 text-white shadow-[0_6px_24px_rgba(99,102,241,0.35)] translate-y-[-2px]'
-                                        : 'bg-white/[0.05] hover:bg-white/[0.09] text-white/80 hover:translate-y-[-1px]';
+                                        ? 'bg-indigo-600/90 border-indigo-400 text-white shadow-[0_4px_20px_rgba(99,102,241,0.4)]'
+                                        : 'bg-white/[0.06] border-white/10 hover:bg-white/[0.10] text-white/80';
                                 }
 
-                                // ── Badge style ───────────────────────────────
+                                // Badge colour
                                 let badgeClass;
                                 if (isFeedbackPhase) {
                                     if (isThisChoiceCorrect) badgeClass = 'bg-white/30 text-white';
                                     else if (wasSubmitted)   badgeClass = 'bg-white/20 text-white';
-                                    else                     badgeClass = 'bg-white/5 text-white/30';
+                                    else                     badgeClass = 'bg-white/5 text-white/25';
                                 } else {
-                                    const isSelected = selectedAnswer != null &&
-                                        String(selectedAnswer) === String(choiceId);
                                     badgeClass = isSelected
                                         ? 'bg-white text-indigo-600'
-                                        : 'bg-white/10 text-white/50 group-hover:bg-white/20';
+                                        : 'bg-white/10 text-white/40 group-hover:bg-white/20';
                                 }
 
                                 const badgeIcon =
-                                    isFeedbackPhase && isThisChoiceCorrect             ? '✓' :
+                                    isFeedbackPhase && isThisChoiceCorrect                  ? '✓' :
                                     isFeedbackPhase && wasSubmitted && !isThisChoiceCorrect ? '✕' :
                                     letter;
 
@@ -386,24 +589,23 @@ const GameEngineUI = ({
                                         key={`choice-${idx}`}
                                         onClick={() => {
                                             if (!isSubmitting && !isFeedbackPhase && choiceId != null) {
-                                                // ✅ FIX: store the actual DB answer ID, NOT idx.
-                                                // This is what gets sent as answer_id to the backend.
-                                                // For activity: choice.activity_answer_id
-                                                // For quiz:     choice.quiz_answer_id
                                                 setSelectedAnswer(choiceId);
                                             }
                                         }}
                                         disabled={isSubmitting || isFeedbackPhase || choiceId == null}
-                                        className={`group relative flex items-center gap-4 px-8 py-7 rounded-3xl text-lg text-left transition-all duration-200 disabled:pointer-events-none ${btnClass}`}
+                                        className={`group relative flex flex-col items-center justify-center gap-3 px-4 py-6 rounded-3xl border-2 text-center transition-all duration-200 disabled:pointer-events-none min-h-[110px] ${btnClass}`}
                                     >
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 transition-all ${badgeClass}`}>
+                                        {/* Letter badge */}
+                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 transition-all ${badgeClass}`}>
                                             {badgeIcon}
                                         </div>
-                                        <span className="font-bold text-base leading-snug uppercase tracking-tight flex-1">
+                                        {/* Answer text */}
+                                        <span className="font-bold text-sm leading-snug uppercase tracking-tight w-full">
                                             {choice.answer_text || choice.text}
                                         </span>
+                                        {/* Correct pill */}
                                         {isFeedbackPhase && isThisChoiceCorrect && (
-                                            <span className="ml-auto shrink-0 text-[10px] font-black uppercase tracking-widest text-white/80 bg-white/15 px-3 py-1 rounded-full">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-white/80 bg-white/15 px-2 py-0.5 rounded-full">
                                                 Correct
                                             </span>
                                         )}
@@ -434,7 +636,7 @@ const GameEngineUI = ({
                                 : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_8px_24px_rgba(99,102,241,0.35)] border-b-4 border-indigo-900'
                         }`}
                     >
-                        {isSubmitting ? 'ANALYZING...' : isLastItem ? 'FINISH MISSION ✓' : 'SUBMIT ANSWER'}
+                        {isSubmitting ? 'ANALYZING...' : isLastItem ? 'FINISH' : 'SUBMIT'}
                     </button>
                 )}
 
@@ -458,4 +660,4 @@ const GameEngineUI = ({
     );
 };
 
-export default GameEngineUI;
+export default GameEngineui;

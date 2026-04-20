@@ -293,7 +293,7 @@ const QuestLevels = () => {
                                                                 : 'bg-indigo-600 border-indigo-800 text-white shadow-lg'
                                                         }`}
                                                     >
-                                                        {level.activity_passed ? '✓ Review Activity' : 'Activity'}
+                                                        {level.activity_passed ? ' Activity' : 'Activity'}
                                                     </button>
                                                     <button
                                                         disabled={!isQuizUnlocked || isLevelLocked || !isCenter}

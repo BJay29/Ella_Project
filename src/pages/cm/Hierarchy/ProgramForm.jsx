@@ -75,7 +75,6 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
 
             let response;
             if (editingId) {
-                // ✅ FIXED: pass courseId as first arg (was missing before)
                 response = await authAPI.updateProgram(courseId, deptId, editingId, payload, token);
             } else {
                 response = await authAPI.createProgram(courseId, deptId, payload, token);
@@ -108,7 +107,6 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            // ✅ FIXED: pass courseId as first arg (was missing before)
             const response = await authAPI.deleteProgram(courseId, deptId, id, token);
             if (response.ok) {
                 await fetchPrograms();
@@ -180,7 +178,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
                         <input
                             type="text"
                             placeholder="Search program..."
-                            className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 transition-all text-left"
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-none rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-left placeholder:text-gray-400"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -284,7 +282,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
                                 <input
                                     required
                                     type="text"
-                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-left"
+                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-indigo-500 transition-all text-left placeholder:text-gray-400"
                                     placeholder="Enter abbreviation..."
                                     value={newProgram.program_code}
                                     onChange={(e) => setNewProgram({...newProgram, program_code: e.target.value.toUpperCase()})}
@@ -295,7 +293,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
                                 <input
                                     required
                                     type="text"
-                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-left"
+                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-indigo-500 transition-all text-left placeholder:text-gray-400"
                                     placeholder="Enter full name..."
                                     value={newProgram.program_name}
                                     onChange={(e) => setNewProgram({...newProgram, program_name: e.target.value})}
@@ -304,7 +302,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
                             <div>
                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Description (Optional)</label>
                                 <textarea
-                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-left resize-none"
+                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 transition-all text-left resize-none placeholder:text-gray-400"
                                     placeholder="Brief description of the program..."
                                     rows="3"
                                     value={newProgram.description}

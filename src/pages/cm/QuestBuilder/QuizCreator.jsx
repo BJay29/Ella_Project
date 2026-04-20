@@ -46,7 +46,6 @@ const QuizCreator = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    // Siguraduhin na makuha ang tamang ID property mula sa existingQuiz
     const qId =
       existingQuiz?.quiz_id ||
       existingQuiz?.id      ||
@@ -71,7 +70,6 @@ const QuizCreator = ({
       return;
     }
 
-    // Mas mahigpit na check para sa passing score para laging number ang mapasa sa API
     const scoreVal = parseInt(formData.passing_score, 10);
     if (isNaN(scoreVal)) {
       setErrorModal({ show: true, title: 'Missing Info', message: 'Please enter a valid passing score.' });
@@ -91,21 +89,18 @@ const QuizCreator = ({
       const token   = localStorage.getItem('token');
       const payload = {
         title:         formData.title.trim(),
-        difficulty:    formData.difficulty.toLowerCase(),   // always send lowercase to DB
+        difficulty:    formData.difficulty.toLowerCase(),
         passing_score: scoreVal,
       };
 
       let res;
       if (quizIdRef.current) {
-        // UPDATE: gumagamit ng quizIdRef.current
         res = await authAPI.updateQuiz(questId, quest_level_id, quizIdRef.current, payload, token);
       } else {
-        // CREATE: bagong quiz
         res = await authAPI.createQuiz(questId, quest_level_id, payload, token);
       }
 
       if (res.ok || res.status === 201 || res.status === 200) {
-        // Kunin ang data mula sa response para maipasa ang ID sa Success callback kung kailangan
         const responseData = await res.json().catch(() => ({}));
         
         if (onSuccess) onSuccess(responseData);
@@ -154,7 +149,7 @@ const QuizCreator = ({
                 Quiz Title
               </label>
               <input
-                className="w-full bg-slate-50 border border-slate-100 rounded-[22px] px-6 py-5 text-sm font-bold focus:ring-4 ring-rose-500/10 focus:border-rose-400 outline-none transition-all placeholder:text-slate-300"
+                className="w-full bg-slate-50 border border-slate-100 rounded-[22px] px-6 py-5 text-sm font-bold text-slate-900 focus:ring-4 ring-rose-500/10 focus:border-rose-400 outline-none transition-all placeholder:text-slate-300"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="e.g. Grammar Mastery Test"
@@ -169,7 +164,7 @@ const QuizCreator = ({
                 </label>
                 <div className="relative">
                   <select
-                    className="w-full bg-slate-50 border border-slate-100 rounded-[22px] px-6 py-5 text-sm font-bold outline-none appearance-none cursor-pointer focus:border-rose-400 transition-all"
+                    className="w-full bg-slate-50 border border-slate-100 rounded-[22px] px-6 py-5 text-sm font-bold text-slate-900 outline-none appearance-none cursor-pointer focus:border-rose-400 transition-all"
                     value={formData.difficulty}
                     onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
                   >
@@ -188,7 +183,7 @@ const QuizCreator = ({
                 </label>
                 <input
                   type="number"
-                  className="w-full bg-slate-50 border border-slate-100 rounded-[22px] px-6 py-5 text-sm font-bold outline-none focus:border-rose-400 transition-all placeholder:text-slate-300"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-[22px] px-6 py-5 text-sm font-bold text-slate-900 outline-none focus:border-rose-400 transition-all placeholder:text-slate-300"
                   value={formData.passing_score}
                   onChange={(e) => setFormData({ ...formData, passing_score: e.target.value })}
                   placeholder="7"

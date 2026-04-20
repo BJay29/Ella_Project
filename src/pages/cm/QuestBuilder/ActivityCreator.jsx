@@ -42,13 +42,11 @@ const ActivityCreator = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorModal, setErrorModal]     = useState({ show: false, message: '', title: '' });
 
-  // Keep the activity id in a ref so it's always current in async callbacks
   const activityIdRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen) return;
     
-    // Siguraduhin na makuha ang tamang ID property mula sa existingActivity
     const actId =
       existingActivity?.activity_id ||
       existingActivity?.id          ||
@@ -73,7 +71,6 @@ const ActivityCreator = ({
       return;
     }
     
-    // Mas mahigpit na check para sa passing score
     const scoreVal = parseInt(formData.passing_score, 10);
     if (isNaN(scoreVal)) {
       setErrorModal({ show: true, title: 'Missing Info', message: 'Please enter a valid passing score.' });
@@ -99,17 +96,14 @@ const ActivityCreator = ({
 
       let res;
       if (activityIdRef.current) {
-        // UPDATE: gumagamit ng activityIdRef.current
         res = await authAPI.updateActivity(
           questId, quest_level_id, activityIdRef.current, payload, token
         );
       } else {
-        // CREATE: bagong activity
         res = await authAPI.createActivity(questId, quest_level_id, payload, token);
       }
 
       if (res.ok || res.status === 201 || res.status === 200) {
-        // Kunin ang data para maipasa ang bagong created ID kung kailangan
         const responseData = await res.json().catch(() => ({}));
         
         if (onActivityCreated) onActivityCreated(responseData);
@@ -158,7 +152,7 @@ const ActivityCreator = ({
                 Activity Title
               </label>
               <input
-                className="w-full bg-slate-50 border border-slate-100 rounded-[22px] px-6 py-5 text-sm font-bold focus:ring-4 ring-amber-500/10 focus:border-amber-400 outline-none transition-all placeholder:text-slate-300"
+                className="w-full bg-slate-50 border border-slate-100 rounded-[22px] px-6 py-5 text-sm font-bold text-slate-900 focus:ring-4 ring-amber-500/10 focus:border-amber-400 outline-none transition-all placeholder:text-slate-300"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="e.g. Vocabulary Practice"
@@ -172,7 +166,7 @@ const ActivityCreator = ({
                 </label>
                 <div className="relative">
                   <select
-                    className="w-full bg-slate-50 border border-slate-100 rounded-[22px] px-6 py-5 text-sm font-bold outline-none appearance-none cursor-pointer focus:border-amber-400 transition-all"
+                    className="w-full bg-slate-50 border border-slate-100 rounded-[22px] px-6 py-5 text-sm font-bold text-slate-900 outline-none appearance-none cursor-pointer focus:border-amber-400 transition-all"
                     value={formData.difficulty}
                     onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
                   >
@@ -191,7 +185,7 @@ const ActivityCreator = ({
                 </label>
                 <input
                   type="number"
-                  className="w-full bg-slate-50 border border-slate-100 rounded-[22px] px-6 py-5 text-sm font-bold outline-none focus:border-amber-400 transition-all placeholder:text-slate-300"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-[22px] px-6 py-5 text-sm font-bold text-slate-900 outline-none focus:border-amber-400 transition-all placeholder:text-slate-300"
                   value={formData.passing_score}
                   onChange={(e) => setFormData({ ...formData, passing_score: e.target.value })}
                   placeholder="7"

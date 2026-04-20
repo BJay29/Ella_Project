@@ -167,7 +167,7 @@ const HandleSectionModal = ({ onClose, onSuccess }) => {
                 if (res.ok) {
                     const data = await res.json();
                     const secData = data?.sections || data?.data || data || [];
-                    setLists(p => ({ ...p, sections: Array.isArray(secData) ? secData : [secData] }));
+                    setLists(p => ({ ...p, sections: Array.isArray(secData) ? secData : [secData] }));  
                 }
             } catch (err) { console.error("Fetch sections error:", err); }
             setLoading(p => ({ ...p, sections: false }));

@@ -94,13 +94,23 @@ const LevelsView = ({
             <form onSubmit={onLevelSubmit} className="space-y-6">
               <div className="space-y-1.5">
                 <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Level Title</label>
-                <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={levelData.title} onChange={(e) => setLevelData({...levelData, title: e.target.value})} required />
+                <input
+                  type="text"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-400"
+                  value={levelData.title}
+                  onChange={(e) => setLevelData({...levelData, title: e.target.value})}
+                  required
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Order</label>
-                <input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={levelData.level_order} onChange={(e) => setLevelData({...levelData, level_order: e.target.value})} required />
+                <input
+                  type="number"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-400"
+                  value={levelData.level_order}
+                  onChange={(e) => setLevelData({...levelData, level_order: e.target.value})}
+                  required
+                />
               </div>
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={() => setShowLevelModal(false)} className="flex-1 px-6 py-4 border border-gray-200 rounded-2xl font-black text-gray-400 text-[11px] uppercase tracking-widest hover:bg-gray-50">Cancel</button>
