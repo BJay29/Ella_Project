@@ -6,8 +6,6 @@ import GameEngineUI, { CalculatingScreen, ResultsScreen } from './GameEngineui';
 // ─────────────────────────────────────────────────────────────────────────────
 // Question type helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Choice-based: renders buttons, submits answer_id
 const isChoiceType = (qt) =>
     qt === 'multiple_choice' ||
     qt === 'multiple choice' ||
@@ -16,7 +14,6 @@ const isChoiceType = (qt) =>
     qt === 'true/false'      ||
     qt === 'boolean';
 
-// Text-based: renders text input, submits answer_text
 const isTextType = (qt) =>
     qt === 'identification'     ||
     qt === 'fill_in_the_blanks' ||
@@ -25,37 +22,78 @@ const isTextType = (qt) =>
     qt === 'essay';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// QUIZ ATTEMPT LIMIT — stored in sessionStorage per quiz content_id
-// Activity = unlimited, Quiz = max 3 attempts
+// Quiz attempt limit (client-side enforcement — 3 attempts max)
 // ─────────────────────────────────────────────────────────────────────────────
 const QUIZ_MAX_ATTEMPTS = 3;
 
-const getAttemptCount = (contentId) => {
-    try {
-        return parseInt(sessionStorage.getItem(`quiz_attempts_${contentId}`) || '0', 10);
-    } catch { return 0; }
+const getAttemptCount = (content_id) => {
+    try { return parseInt(sessionStorage.getItem(`quiz_attempts_${content_id}`) || '0', 10); }
+    catch { return 0; }
 };
 
-const incrementAttemptCount = (contentId) => {
+const incrementAttemptCount = (content_id) => {
     try {
-        const next = getAttemptCount(contentId) + 1;
-        sessionStorage.setItem(`quiz_attempts_${contentId}`, String(next));
+        const next = getAttemptCount(content_id) + 1;
+        sessionStorage.setItem(`quiz_attempts_${content_id}`, String(next));
         return next;
     } catch { return 1; }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper: extract attempt_id from any backend response shape
+// The backend may nest it differently depending on the endpoint.
+// ─────────────────────────────────────────────────────────────────────────────
+const extractAttemptId = (data) => {
+    if (!data) return null;
+    return (
+        data.attempt_id           ??
+        data.activity_attempt_id  ??
+        data.quiz_attempt_id      ??
+        data.session_id           ??
+        data.attempt?.id          ??
+        data.attempt?.attempt_id  ??
+        data.question?.attempt_id ??
+        data.data?.attempt_id     ??
+        null
+    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: detect if backend response means "all questions already answered"
+// IMPORTANT: Only triggers on definitive completion signals.
+// We no longer treat answered_count >= total_questions as completed here
+// because on the FIRST question of a fresh session, answered_count=0 and
+// total_questions=N which is valid — we should NOT finish.
+// ─────────────────────────────────────────────────────────────────────────────
+const isCompletedResponse = (status, data) => {
+    if (status === 204) return true;
+    if (!data) return false;
+    if (data.completed === true) return true;
+    // Only treat as completed if the message explicitly says so AND there is no question data
+    const hasQuestionData = !!(
+        data.question_text     ||
+        data.activity_question ||
+        data.quiz_question     ||
+        data.question          ||
+        data.question_content  ||
+        (data.question && typeof data.question === 'object') ||
+        (data.data    && typeof data.data    === 'object')
+    );
+    if (!hasQuestionData && typeof data.message === 'string' &&
+        (data.message.toLowerCase().includes('all questions answered') ||
+         data.message.toLowerCase().includes('already answered'))) return true;
+    return false;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GameEngine — logic only
-// Renders GameEngineUI and passes all state/handlers as props.
-//
-// Route: /student/quest/:questId/level/:quest_level_id/play/:content_id?mode=activity|quiz
 // ─────────────────────────────────────────────────────────────────────────────
 const GameEngine = () => {
     const { questId, quest_level_id, content_id } = useParams();
     const [searchParams] = useSearchParams();
     const navigate    = useNavigate();
     const location    = useLocation();
-    const mode        = searchParams.get('mode'); // 'activity' | 'quiz'
+    const mode        = searchParams.get('mode');
     const prefetched  = location.state?.prefetched || null;
     const paramsValid = !!(content_id && mode);
 
@@ -77,8 +115,7 @@ const GameEngine = () => {
     const [isCalculating, setIsCalculating] = useState(false);
     const [quizSummary,   setQuizSummary]   = useState(null);
 
-    // ── Attempt gate (quiz only) ──────────────────────────────────────────────
-    // attemptBlocked = true when quiz has hit the 3-attempt limit
+    // ── Quiz attempt state ────────────────────────────────────────────────────
     const [attemptBlocked, setAttemptBlocked] = useState(false);
     const [attemptCount,   setAttemptCount]   = useState(0);
 
@@ -94,10 +131,14 @@ const GameEngine = () => {
     const hasFetchedInitial = useRef(false);
     const isFetchingRef     = useRef(false);
     const isFinishingRef    = useRef(false);
-    // Always start display from 1 — never trust answered_count from backend
-    // on a re-attempt because the old session may still have stale count.
-    const displayNumRef  = useRef(1);
-    const totalQuestRef  = useRef(prefetched?.totalQuestions ?? 0);
+    const isSubmittingRef   = useRef(false);
+    const displayNumRef     = useRef(1);
+    const totalQuestRef     = useRef(prefetched?.totalQuestions ?? 0);
+
+    // ── attempt_id ref — tracks the current session's attempt ID ─────────────
+    // This is set from the backend response on every getNextQuestion call
+    // and on retake, and is included in every submitAnswer payload.
+    const attemptIdRef = useRef(null);
 
     // ── Derived values ────────────────────────────────────────────────────────
     const displayNum       = displayNumRef.current;
@@ -106,14 +147,12 @@ const GameEngine = () => {
     const questionType     = currentQuestion?.question_type || '';
     const isIdentification = isTextType(questionType);
 
-    // ── On mount: check quiz attempt gate ────────────────────────────────────
+    // ── Check quiz attempt limit on mount ─────────────────────────────────────
     useEffect(() => {
         if (mode === 'quiz' && content_id) {
             const count = getAttemptCount(content_id);
             setAttemptCount(count);
-            if (count >= QUIZ_MAX_ATTEMPTS) {
-                setAttemptBlocked(true);
-            }
+            if (count >= QUIZ_MAX_ATTEMPTS) setAttemptBlocked(true);
         }
     }, [mode, content_id]);
 
@@ -121,7 +160,6 @@ const GameEngine = () => {
     const handleFinish = useCallback(async () => {
         if (isFinishingRef.current) return;
         isFinishingRef.current = true;
-
         if (timerRef.current)         clearInterval(timerRef.current);
         if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
         setIsCalculating(true);
@@ -130,7 +168,6 @@ const GameEngine = () => {
             const response = mode === 'activity'
                 ? await authAPI.finishActivity(content_id, token)
                 : await authAPI.finishQuiz(content_id, token);
-
             if (response.ok) {
                 const result = await response.json();
                 await new Promise(r => setTimeout(r, 1400));
@@ -151,6 +188,7 @@ const GameEngine = () => {
     const fetchQuestion = useCallback(async (isNext = false) => {
         if (isFetchingRef.current) return;
         isFetchingRef.current = true;
+        setLoading(true);
 
         if (!paramsValid) {
             setErrorMessage(`Missing parameters: content_id=${content_id} mode=${mode}`);
@@ -166,10 +204,12 @@ const GameEngine = () => {
                 : await authAPI.getNextQuizQuestion(content_id, token);
 
             if (response.status === 204) {
+                setLoading(false);
                 isFetchingRef.current = false;
                 await handleFinish();
                 return;
             }
+
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
                 setErrorMessage(`Error ${response.status}: ${errData.message || 'Failed to load question.'}`);
@@ -178,17 +218,48 @@ const GameEngine = () => {
                 return;
             }
 
-            const data         = await response.json();
+            const data = await response.json();
+
+            // ── Extract and store attempt_id from this response ───────────────
+            // The backend returns the attempt_id on every getNextQuestion response.
+            // We store it in a ref so it's available synchronously in handleSubmitAnswer.
+            const newAttemptId = extractAttemptId(data);
+            if (newAttemptId != null) {
+                attemptIdRef.current = newAttemptId;
+                console.debug('attempt_id captured:', newAttemptId);
+            }
+
+            if (isCompletedResponse(response.status, data)) {
+                setLoading(false);
+                isFetchingRef.current = false;
+                await handleFinish();
+                return;
+            }
+
+            // Extract question from various response shapes
             const questionData = data.question || data.data || data;
 
             const hasText = questionData && (
-                questionData.question_text    ||
-                questionData.activity_question ||
-                questionData.quiz_question     ||
-                questionData.question
+                questionData.question_text        ||
+                questionData.activity_question    ||
+                questionData.quiz_question        ||
+                questionData.question             ||
+                questionData.question_content     ||
+                questionData.quest_question       ||
+                questionData.item_text            ||
+                questionData.title
             );
 
             if (hasText) {
+                // Also try extracting attempt_id from the nested question object
+                if (attemptIdRef.current == null) {
+                    const nestedAttemptId = extractAttemptId(questionData);
+                    if (nestedAttemptId != null) {
+                        attemptIdRef.current = nestedAttemptId;
+                        console.debug('attempt_id from question:', nestedAttemptId);
+                    }
+                }
+
                 setCurrentQuestion(questionData);
 
                 if (data.total_questions && data.total_questions > 0) {
@@ -196,14 +267,6 @@ const GameEngine = () => {
                     setTotalQuestions(data.total_questions);
                 }
 
-                // Always start at 1 for the first question of any attempt.
-                // Do NOT use data.answered_count — it may be stale from a
-                // previous session and would cause "Question 6/5" on re-attempts.
-                if (!isNext) {
-                    displayNumRef.current = 1;
-                }
-
-                // Full state reset for the new question
                 setSelectedAnswer(null);
                 setSubmittedAnswerId(null);
                 setAnswerText('');
@@ -213,11 +276,13 @@ const GameEngine = () => {
                 setTimeLeft(60);
 
                 if (!isNext) {
+                    displayNumRef.current = 1;
                     setHasStartedCountdown(true);
                 } else {
                     setGameStarted(true);
                 }
             } else {
+                setLoading(false);
                 isFetchingRef.current = false;
                 await handleFinish();
                 return;
@@ -231,7 +296,7 @@ const GameEngine = () => {
         }
     }, [content_id, mode, handleFinish, paramsValid]);
 
-    // ── Auto-advance after feedback (1.8s) ────────────────────────────────────
+    // ── Auto-advance after feedback ───────────────────────────────────────────
     useEffect(() => {
         if (!isFeedbackPhase) return;
         feedbackTimerRef.current = setTimeout(async () => {
@@ -243,8 +308,7 @@ const GameEngine = () => {
             }
         }, 1800);
         return () => { if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isFeedbackPhase, isLastItem]);
+    }, [isFeedbackPhase, isLastItem, handleFinish, fetchQuestion]);
 
     // ── isAnswerProvided ──────────────────────────────────────────────────────
     const isAnswerProvided = useCallback(() => {
@@ -254,10 +318,16 @@ const GameEngine = () => {
 
     // ── handleSubmitAnswer ────────────────────────────────────────────────────
     const handleSubmitAnswer = useCallback(async (isTimeUp = false) => {
-        if (isSubmitting || isFeedbackPhase || !currentQuestion) return;
+        if (isSubmittingRef.current) return;
+        if (isFeedbackPhase || !currentQuestion) return;
         if (!isTimeUp && !isAnswerProvided()) return;
 
-        if (timerRef.current) clearInterval(timerRef.current);
+        isSubmittingRef.current = true;
+
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
 
         const questionId =
             currentQuestion.id                         ||
@@ -268,26 +338,34 @@ const GameEngine = () => {
 
         if (!questionId) {
             setErrorMessage('Question ID missing — cannot submit.');
+            isSubmittingRef.current = false;
             return;
         }
 
-        try {
-            setIsSubmitting(true);
+        setIsSubmitting(true);
 
+        try {
             let answerData;
             let capturedSubmittedId = null;
+
+            // ── Always include attempt_id from the ref ────────────────────────
+            // attemptIdRef.current is set from every getNextQuestion response.
+            // This links the answer to the correct DB session/attempt row.
+            const currentAttemptId = attemptIdRef.current;
 
             if (isTimeUp) {
                 answerData = {
                     answer_id:      null,
                     answer_text:    '',
                     quest_level_id: quest_level_id || null,
+                    attempt_id:     currentAttemptId,
                 };
             } else if (isIdentification) {
                 answerData = {
                     answer_id:      null,
                     answer_text:    answerText.trim(),
                     quest_level_id: quest_level_id || null,
+                    attempt_id:     currentAttemptId,
                 };
             } else {
                 capturedSubmittedId = selectedAnswer;
@@ -295,10 +373,10 @@ const GameEngine = () => {
                     answer_id:      selectedAnswer,
                     answer_text:    null,
                     quest_level_id: quest_level_id || null,
+                    attempt_id:     currentAttemptId,
                 };
             }
 
-            // Set BEFORE API call so feedback highlight is always accurate
             setSubmittedAnswerId(capturedSubmittedId);
 
             const token    = localStorage.getItem('token');
@@ -308,7 +386,15 @@ const GameEngine = () => {
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.message || `Submission failed: ${response.status}`);
+                const errMsg  = (errData.message || errData.error || '').toLowerCase();
+
+                if (errMsg.includes('already answered') || errMsg.includes('already submitted')) {
+                    console.warn('Answer already recorded — advancing.');
+                    setFeedbackResult({ is_correct: false, already_answered: true });
+                    setIsFeedbackPhase(true);
+                    return;
+                }
+                throw new Error(errData.message || errData.error || `Submission failed: ${response.status}`);
             }
 
             const result = await response.json();
@@ -317,29 +403,31 @@ const GameEngine = () => {
 
         } catch (err) {
             console.error('Submit error:', err);
-            // Do NOT reset timer on error — question stays frozen
+            setErrorMessage("Failed to submit answer. Please try again.");
         } finally {
             setIsSubmitting(false);
+            isSubmittingRef.current = false;
         }
     }, [
-        isSubmitting, isFeedbackPhase, currentQuestion, selectedAnswer,
+        isFeedbackPhase, currentQuestion, selectedAnswer,
         answerText, mode, content_id, quest_level_id, isAnswerProvided, isIdentification,
     ]);
 
     // ── Init ──────────────────────────────────────────────────────────────────
     useEffect(() => {
-        // Record this attempt when the game starts
         if (mode === 'quiz' && content_id) {
             incrementAttemptCount(content_id);
             setAttemptCount(getAttemptCount(content_id));
         }
-
         if (prefetched?.firstQuestion && !hasFetchedInitial.current) {
             hasFetchedInitial.current = true;
             setCurrentQuestion(prefetched.firstQuestion);
             totalQuestRef.current = prefetched.totalQuestions ?? 0;
-            displayNumRef.current = 1; // Always start at 1
+            displayNumRef.current = 1;
             setTotalQuestions(prefetched.totalQuestions ?? 0);
+            // Extract attempt_id from prefetched data too
+            const prefetchedAttemptId = extractAttemptId(prefetched.firstQuestion);
+            if (prefetchedAttemptId != null) attemptIdRef.current = prefetchedAttemptId;
             setLoading(false);
             return;
         }
@@ -349,8 +437,7 @@ const GameEngine = () => {
             await fetchQuestion(false);
         };
         if (!hasFetchedInitial.current) initializeGame();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [mode, content_id, prefetched, fetchQuestion]);
 
     // ── Countdown ─────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -368,14 +455,12 @@ const GameEngine = () => {
 
     // ── Main game timer ───────────────────────────────────────────────────────
     useEffect(() => {
-        if (
-            gameStarted && currentQuestion && !loading &&
-            !quizSummary && !isCalculating && !isSubmitting && !isFeedbackPhase
-        ) {
+        if (gameStarted && currentQuestion && !loading && !quizSummary && !isCalculating && !isSubmitting && !isFeedbackPhase) {
             timerRef.current = setInterval(() => {
                 setTimeLeft(prev => {
                     if (prev <= 1) {
                         clearInterval(timerRef.current);
+                        timerRef.current = null;
                         handleSubmitAnswer(true);
                         return 0;
                     }
@@ -383,41 +468,46 @@ const GameEngine = () => {
                 });
             }, 1000);
         }
-        return () => { if (timerRef.current) clearInterval(timerRef.current); };
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+            }
+        };
     }, [gameStarted, currentQuestion, loading, quizSummary, isCalculating, isSubmitting, isFeedbackPhase, handleSubmitAnswer]);
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     const getQuestionText = () => {
         if (!currentQuestion) return '';
-        return currentQuestion.question_text    ||
-               currentQuestion.activity_question ||
-               currentQuestion.quiz_question     ||
-               currentQuestion.question          || '';
+        return (
+            currentQuestion.question_text      ||
+            currentQuestion.activity_question  ||
+            currentQuestion.quiz_question      ||
+            currentQuestion.question           ||
+            currentQuestion.question_content   ||
+            currentQuestion.quest_question     ||
+            currentQuestion.item_text          ||
+            currentQuestion.title              ||
+            ''
+        );
     };
 
     const getChoices = () => {
         if (!currentQuestion) return [];
-        const choices =
+        return (
             currentQuestion.activity_answers       ||
             currentQuestion.quiz_answers           ||
             currentQuestion.answers                ||
             currentQuestion.choices                ||
+            currentQuestion.options                ||
             currentQuestion.quest_activity_answers ||
-            currentQuestion.quest_quiz_answers     || [];
-
-        // Sort True/False: True always first
-        if (choices.length === 2) {
-            const texts = choices.map(c => (c.answer_text || c.text || '').toLowerCase());
-            if (texts.includes('true') && texts.includes('false')) {
-                return [...choices].sort(a =>
-                    (a.answer_text || a.text || '').toLowerCase() === 'true' ? -1 : 1
-                );
-            }
-        }
-        return choices;
+            currentQuestion.quest_quiz_answers     ||
+            currentQuestion.answer_choices         ||
+            currentQuestion.items                  ||
+            []
+        );
     };
 
-    // ── Feedback derived values ───────────────────────────────────────────────
     const userWasCorrect =
         feedbackResult?.is_correct    === true      ||
         feedbackResult?.correct       === true      ||
@@ -439,17 +529,9 @@ const GameEngine = () => {
         : selectedAnswer !== null;
 
     // ── handleTryAgain ────────────────────────────────────────────────────────
-    // For ACTIVITY — unlimited retakes.
-    //   1. Close the current backend session via finishActivity.
-    //   2. Fully reset all local state (display counter, refs, answers).
-    //   3. Re-fetch the first question — no page reload needed, which means
-    //      the session starts fresh from Q1 without any stale answered_count.
-    //
-    // For QUIZ — max 3 attempts (tracked in sessionStorage).
-    //   If under limit: same reset flow as activity.
-    //   If at limit: block with attemptBlocked UI instead of resetting.
+    // Calls retakeActivity/retakeQuiz API, captures the new attempt_id from the
+    // response, resets all state, then fetches Q1 with the new attempt_id active.
     const handleTryAgain = useCallback(async () => {
-        // ── Quiz attempt gate ─────────────────────────────────────────────
         if (mode === 'quiz') {
             const currentCount = getAttemptCount(content_id);
             if (currentCount >= QUIZ_MAX_ATTEMPTS) {
@@ -458,79 +540,98 @@ const GameEngine = () => {
             }
         }
 
+        if (timerRef.current)         { clearInterval(timerRef.current);  timerRef.current = null; }
+        if (feedbackTimerRef.current) { clearTimeout(feedbackTimerRef.current); feedbackTimerRef.current = null; }
+
+        setLoading(true);
+        setErrorMessage(null);
+
         try {
             const token = localStorage.getItem('token');
-            // Close the current session gracefully (ignore if already closed)
-            if (mode === 'activity') {
-                await authAPI.finishActivity(content_id, token).catch(() => {});
-            } else {
-                await authAPI.finishQuiz(content_id, token).catch(() => {});
+
+            // ── Call retake API — this resets the backend session ─────────────
+            // The response contains the new attempt_id for this fresh session.
+            let retakeData = null;
+            try {
+                const retakeRes = mode === 'activity'
+                    ? await authAPI.retakeActivity(content_id, token)
+                    : await authAPI.retakeQuiz(content_id, token);
+
+                if (retakeRes.ok) {
+                    retakeData = await retakeRes.json().catch(() => null);
+                    // ── Capture the new attempt_id from retake response ────────
+                    const newAttemptId = extractAttemptId(retakeData);
+                    if (newAttemptId != null) {
+                        attemptIdRef.current = newAttemptId;
+                        console.debug('New attempt_id from retake:', newAttemptId);
+                    } else {
+                        // Reset so fetchQuestion picks it up fresh on next call
+                        attemptIdRef.current = null;
+                    }
+                } else {
+                    console.warn('Retake API returned non-OK, proceeding with local reset');
+                    attemptIdRef.current = null;
+                }
+            } catch (retakeErr) {
+                console.warn('Retake API error (proceeding):', retakeErr);
+                attemptIdRef.current = null;
             }
-        } catch (_) { /* ignore */ }
 
-        // ── Full state reset ──────────────────────────────────────────────
-        // Reset EVERY piece of state so Q1 starts with a clean slate.
-        // This is what prevents "Question 6/5" on re-attempts.
-        setQuizSummary(null);
-        setCurrentQuestion(null);
-        setSelectedAnswer(null);
-        setSubmittedAnswerId(null);
-        setAnswerText('');
-        setIsFeedbackPhase(false);
-        setFeedbackResult(null);
-        setIsCalculating(false);
-        setErrorMessage(null);
-        setTimeLeft(60);
-        setGameStarted(false);
-        setHasStartedCountdown(false);
-        setStartingCountdown(3);
-        setTotalQuestions(0);
-        setIsSubmitting(false);
+            // ── Full state reset ──────────────────────────────────────────────
+            setQuizSummary(null);
+            setCurrentQuestion(null);
+            setSelectedAnswer(null);
+            setSubmittedAnswerId(null);
+            setAnswerText('');
+            setIsFeedbackPhase(false);
+            setFeedbackResult(null);
+            setIsCalculating(false);
+            setTimeLeft(60);
+            setIsSubmitting(false);
+            setTotalQuestions(0);
 
-        // Reset all refs
-        hasFetchedInitial.current = false;
-        isFetchingRef.current     = false;
-        isFinishingRef.current    = false;
-        displayNumRef.current     = 1;     // ← KEY: reset to 1 so counter starts over
-        totalQuestRef.current     = 0;
+            hasFetchedInitial.current = false;
+            isFetchingRef.current     = false;
+            isFinishingRef.current    = false;
+            isSubmittingRef.current   = false;
+            displayNumRef.current     = 1;
+            totalQuestRef.current     = 0;
 
-        // Clear any running timers
-        if (timerRef.current)         clearInterval(timerRef.current);
-        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+            // ── Skip countdown on retake — game already started ───────────────
+            setGameStarted(true);
+            setHasStartedCountdown(false);
+            setStartingCountdown(3);
 
-        // Record attempt for quiz
-        if (mode === 'quiz' && content_id) {
-            const newCount = incrementAttemptCount(content_id);
-            setAttemptCount(newCount);
-            if (newCount >= QUIZ_MAX_ATTEMPTS) {
-                // This was the last allowed attempt — they just used it
-                // (they played; result screen will block further retries)
+            // ── Increment quiz attempt counter ────────────────────────────────
+            if (mode === 'quiz' && content_id) {
+                const newCount = incrementAttemptCount(content_id);
+                setAttemptCount(newCount);
             }
+
+            // ── Fetch first question — attempt_id already set in ref ──────────
+            // Pass isNext=true so it calls setGameStarted(true) instead of
+            // triggering the countdown, making Q1 appear immediately.
+            await fetchQuestion(true);
+
+        } catch (err) {
+            console.error('Retake Error:', err);
+            setErrorMessage("Failed to restart the mission.");
+            setLoading(false);
         }
-
-        // Set loading state and fetch fresh Q1
-        setLoading(true);
-        await fetchQuestion(false);
-
     }, [content_id, mode, fetchQuestion]);
 
     // ── Early render states ───────────────────────────────────────────────────
-
-    // Quiz attempt blocked screen
     if (attemptBlocked && mode === 'quiz') return (
-        <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 text-white">
-            <div className="bg-[#0f172a] p-10 rounded-3xl shadow-2xl border border-amber-500/30 text-center max-w-md w-full">
+        <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 text-white text-center">
+            <div className="bg-[#0f172a] p-10 rounded-3xl border border-amber-500/30 max-w-md w-full">
                 <div className="text-5xl mb-4">🔒</div>
                 <h2 className="text-xl font-black mb-3 uppercase italic text-amber-400">Attempt Limit Reached</h2>
                 <p className="mb-2 text-white/60 font-medium text-sm leading-relaxed">
                     You have used all <span className="text-amber-400 font-black">{QUIZ_MAX_ATTEMPTS}</span> attempts for this quiz.
                 </p>
-                <p className="mb-8 text-white/40 text-xs font-bold uppercase tracking-widest">
-                    Attempts used: {attemptCount} / {QUIZ_MAX_ATTEMPTS}
-                </p>
                 <button
                     onClick={() => navigate(`/student/quest/${questId}/levels`)}
-                    className="w-full px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase tracking-wider transition-colors"
+                    className="w-full mt-6 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase tracking-wider transition-colors"
                 >
                     Back to Levels
                 </button>
@@ -574,35 +675,27 @@ const GameEngine = () => {
     );
 
     if (errorMessage) return (
-        <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 text-white">
-            <div className="bg-[#0f172a] p-10 rounded-3xl shadow-2xl border border-rose-500/30 text-center max-w-md w-full">
+        <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 text-white text-center">
+            <div className="bg-[#0f172a] p-10 rounded-3xl border border-rose-500/30 max-w-md w-full">
                 <div className="text-5xl mb-4">📡</div>
                 <h2 className="text-xl font-black mb-3 uppercase italic text-rose-400">Communications Error</h2>
-                <p className="mb-8 text-white/60 font-medium text-sm leading-relaxed">{errorMessage}</p>
-                <div className="flex flex-col gap-3">
-                    <button
-                        onClick={() => {
-                            setErrorMessage(null);
-                            hasFetchedInitial.current = false;
-                            isFetchingRef.current     = false;
-                            fetchQuestion(false);
-                        }}
-                        className="w-full px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase tracking-wider transition-colors"
-                    >
-                        Retry
-                    </button>
-                    <button
-                        onClick={() => navigate(`/student/quest/${questId}/levels`)}
-                        className="w-full px-8 py-3 text-white/30 hover:text-white rounded-xl font-black uppercase tracking-wider transition-colors text-sm"
-                    >
-                        Back to Levels
-                    </button>
-                </div>
+                <p className="mb-8 text-white/60 text-sm">{errorMessage}</p>
+                <button
+                    onClick={() => {
+                        setErrorMessage(null);
+                        hasFetchedInitial.current = false;
+                        isFetchingRef.current     = false;
+                        isSubmittingRef.current   = false;
+                        fetchQuestion(false);
+                    }}
+                    className="w-full px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase tracking-wider"
+                >
+                    Retry
+                </button>
             </div>
         </div>
     );
 
-    // ── Render main game UI ───────────────────────────────────────────────────
     return (
         <GameEngineUI
             navigate={navigate}

@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authAPI } from '../../services/APIservice';
 
 const QuestLevels = () => {
-    // Kinukuha natin ang questId mula sa URL params base sa definition sa App.js
     const { questId } = useParams();
     const navigate = useNavigate();
-    
+    const location = useLocation();
+
     const [questData,          setQuestData]          = useState(null);
     const [levels,             setLevels]             = useState([]);
     const [loading,            setLoading]            = useState(true);
@@ -18,52 +18,48 @@ const QuestLevels = () => {
     const [countdown,          setCountdown]          = useState(3);
     const [prefetchedGameData, setPrefetchedGameData] = useState(null);
 
-    // ── Fetch quest levels ─────────────────────────────────────────────────
-    useEffect(() => {
-        const fetchQuestProgress = async () => {
-            try {
-                setLoading(true);
-                const token = localStorage.getItem('token');
-                
-                // Ginamit ang questId para sa API: /my-quests/:questId/levels
-                const response = await authAPI.getQuestLevels(questId, token);
-                if (!response.ok) throw new Error(`Error: ${response.status}`);
-                const data = await response.json();
 
-                setQuestData(data);
-                
-                // Inaayos ang pagkuha ng levels depende sa structure ng response
-                const rawLevels = data.levels || (Array.isArray(data) ? data : []);
+    const fetchQuestProgress = useCallback(async () => {
+        try {
+            setLoading(true);
+            const token    = localStorage.getItem('token');
+            const response = await authAPI.getQuestLevels(questId, token);
+            if (!response.ok) throw new Error(`Error: ${response.status}`);
+            const data = await response.json();
 
-                const mappedLevels = rawLevels.map((level, index) => ({
-                    ...level,
-                    // Siguraduhing may quest_level_id para sa unique key at tracking
-                    quest_level_id: level.quest_level_id || level.id,
-                    display_title:  level.level_title || `Level ${level.level_number || index + 1}`,
-                }));
+            setQuestData(data);
 
-                setLevels(mappedLevels);
-                
-                // Hanapin ang unang hindi pa tapos na level para doon i-focus ang carousel
-                const firstIncomplete = mappedLevels.findIndex(l => !l.is_completed && !l.is_locked);
-                setCurrentIndex(firstIncomplete !== -1 ? firstIncomplete : Math.max(0, mappedLevels.length - 1));
-            } catch (error) {
-                console.error('Error fetching quest levels:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        
-        if (questId) fetchQuestProgress();
+            const rawLevels    = data.levels || (Array.isArray(data) ? data : []);
+            const mappedLevels = rawLevels.map((level, index) => ({
+                ...level,
+                quest_level_id: level.quest_level_id || level.id,
+                display_title:  level.level_title || `Level ${level.level_number || index + 1}`,
+            }));
+
+            setLevels(mappedLevels);
+
+            const firstIncomplete = mappedLevels.findIndex(l => !l.is_completed && !l.is_locked);
+            setCurrentIndex(firstIncomplete !== -1 ? firstIncomplete : Math.max(0, mappedLevels.length - 1));
+        } catch (error) {
+            console.error('Error fetching quest levels:', error);
+        } finally {
+            setLoading(false);
+        }
     }, [questId]);
 
-    const handleBackNavigation = () => navigate('/student/dashboard?tab=quests');
+    // FIX: Re-fetch every time location.key changes.
+    // location.key is a unique value React Router assigns to each navigation event.
+    // When the student navigates back here (from GameEngine), location.key changes,
+    // triggering a fresh fetch with the latest backend data.
+    useEffect(() => {
+        if (questId) fetchQuestProgress();
+    }, [questId, fetchQuestProgress, location.key]);
 
-    // ── Open mission briefing modal ────────────────────────────────────────
+    const handleBackNavigation = () => navigate('/student/dashboard?tab=myquests');
+
     const openMissionModal = async (level, mode) => {
         try {
-            const token = localStorage.getItem('token');
-            // FIX: Ginamit ang quest_level_id consistently
+            const token          = localStorage.getItem('token');
             const quest_level_id = level.quest_level_id;
 
             if (!quest_level_id) {
@@ -100,7 +96,7 @@ const QuestLevels = () => {
             }
 
             setSelectedMission({
-                quest_level_id: quest_level_id, // FIX: Consistently named quest_level_id
+                quest_level_id,
                 mode,
                 content_id,
                 title:          content.activity_title || content.title || content.quiz_title || 'Untitled Mission',
@@ -116,7 +112,6 @@ const QuestLevels = () => {
         }
     };
 
-    // ── confirmStart: pre-fetch first question during countdown ───────────
     const confirmStart = async () => {
         setIsModalOpen(false);
         setIsCountingDown(true);
@@ -149,20 +144,15 @@ const QuestLevels = () => {
         }
     };
 
-    // ── Countdown → navigate ───────────────────────────────────────────────
+    // Countdown → navigate to GameEngine
     useEffect(() => {
         let timer;
         if (isCountingDown && countdown > 0) {
             timer = setInterval(() => setCountdown(p => p - 1), 1000);
         } else if (isCountingDown && countdown === 0 && selectedMission) {
-            // FIX: Ginamit ang quest_level_id para sa navigation
             const { quest_level_id, mode, content_id } = selectedMission;
-            
-            // Siguraduhin na may questId para sa URL construction
             const currentQuestId = questData?.quest?.quest_id || questData?.quest_id || questId;
-
             const path = `/student/quest/${currentQuestId}/level/${quest_level_id}/play/${content_id}?mode=${mode}`;
-            
             navigate(path, {
                 state: { skipLoading: true, prefetched: prefetchedGameData || null },
             });
@@ -180,14 +170,12 @@ const QuestLevels = () => {
                     <div className="h-16 w-16 rounded-full border-t-4 border-b-4 border-indigo-500 animate-spin" />
                     <div className="absolute inset-0 h-16 w-16 rounded-full border-r-4 border-l-4 border-purple-500 animate-spin-reverse opacity-30" />
                 </div>
-                <p className="font-black tracking-[0.3em] uppercase text-[10px] animate-pulse">Syncing Mission Data...</p>
             </div>
         </div>
     );
 
     return (
         <div className="min-h-screen bg-[#020617] text-white font-sans relative overflow-hidden flex flex-col">
-            {/* Background Effects */}
             <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-indigo-600/10 rounded-full blur-[120px] animate-pulse" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/10 rounded-full blur-[120px] animate-pulse delay-1000" />
@@ -199,7 +187,10 @@ const QuestLevels = () => {
             <nav className="relative w-full px-4 py-4 flex items-center border-b border-white/5 bg-black/40 backdrop-blur-xl sticky top-0 z-50">
                 <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-4">
-                        <button onClick={handleBackNavigation} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group shadow-lg">
+                        <button
+                            onClick={handleBackNavigation}
+                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group shadow-lg"
+                        >
                             <span className="text-xl group-hover:-translate-x-1 transition-transform">←</span>
                         </button>
                         <div className="h-6 w-[1px] bg-white/10 mx-1" />
@@ -223,7 +214,6 @@ const QuestLevels = () => {
                     </h1>
                 </div>
 
-                {/* Levels Carousel */}
                 <div className="relative w-full max-w-5xl h-[500px] flex items-center justify-center">
                     <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 z-50 pointer-events-none">
                         <button onClick={prevLevel} className={`pointer-events-auto w-14 h-14 rounded-full bg-black/50 border border-white/10 flex items-center justify-center hover:bg-indigo-600 transition-all shadow-2xl backdrop-blur-md ${currentIndex === 0 ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100'}`}>
@@ -293,7 +283,7 @@ const QuestLevels = () => {
                                                                 : 'bg-indigo-600 border-indigo-800 text-white shadow-lg'
                                                         }`}
                                                     >
-                                                        {level.activity_passed ? ' Activity' : 'Activity'}
+                                                        {level.activity_passed ? '↻ Retake Activity' : 'Activity'}
                                                     </button>
                                                     <button
                                                         disabled={!isQuizUnlocked || isLevelLocked || !isCenter}
@@ -304,7 +294,9 @@ const QuestLevels = () => {
                                                                 : 'bg-white/5 border-white/10 text-gray-600 cursor-not-allowed opacity-50'
                                                         }`}
                                                     >
-                                                        {isQuizUnlocked ? 'Final Quiz' : '🔒 Quiz Locked'}
+                                                        {isQuizUnlocked
+                                                            ? (level.is_completed ? '↻ Retake Quiz' : 'Final Quiz')
+                                                            : '🔒 Quiz Locked'}
                                                     </button>
                                                 </div>
                                             </div>
@@ -341,10 +333,10 @@ const QuestLevels = () => {
                             <h2 className="text-3xl font-black text-white mb-6 uppercase italic leading-tight">{selectedMission.title}</h2>
                             <div className="grid grid-cols-2 gap-4 mb-8">
                                 {[
-                                    { label: 'Difficulty',     value: selectedMission.difficulty,          color: 'text-indigo-400' },
-                                    { label: 'Passing Score', value: `${selectedMission.passingScore}%`,  color: 'text-emerald-400' },
-                                    { label: 'Questions',     value: selectedMission.totalQuestions,      color: 'text-white' },
-                                    { label: 'Attempts',       value: selectedMission.attempts,            color: selectedMission.mode === 'activity' ? 'text-blue-400' : 'text-amber-400' },
+                                    { label: 'Difficulty',    value: selectedMission.difficulty,         color: 'text-indigo-400' },
+                                    { label: 'Passing Score', value: `${selectedMission.passingScore}%`, color: 'text-emerald-400' },
+                                    { label: 'Questions',     value: selectedMission.totalQuestions,     color: 'text-white' },
+                                    { label: 'Attempts',      value: selectedMission.attempts,           color: selectedMission.mode === 'activity' ? 'text-blue-400' : 'text-amber-400' },
                                 ].map(({ label, value, color }) => (
                                     <div key={label} className="bg-white/5 p-4 rounded-2xl border border-white/5">
                                         <p className="text-[10px] text-white/40 uppercase font-bold mb-1">{label}</p>

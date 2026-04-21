@@ -115,7 +115,7 @@ const MyQuests = () => {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500 mb-4"></div>
-        <p className="text-sm font-medium tracking-wide">Fetching Your Quests...</p>
+        <p className="text-sm font-medium tracking-wide"></p>
       </div>
     );
   }

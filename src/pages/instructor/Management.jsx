@@ -36,20 +36,54 @@ const Management = ({ onShowPending }) => {
             const savedData = localStorage.getItem(STORAGE_KEY);
             if (savedData) {
                 const parsedData = JSON.parse(savedData);
-                setMySections(Array.isArray(parsedData) ? parsedData : []);
+                const finalData = Array.isArray(parsedData) ? parsedData : [];
+                
+                // I-update lang ang state kung may tunay na pagbabago sa data
+                setMySections(prev => {
+                    if (JSON.stringify(prev) !== JSON.stringify(finalData)) {
+                        return finalData;
+                    }
+                    return prev;
+                });
+
+                // Kung ang activeSection ay wala na sa listahan (binura ng CM), ibalik sa list view
+                if (activeSection) {
+                    const activeId = getSectionId(activeSection);
+                    const exists = finalData.some(s => String(getSectionId(s)) === String(activeId));
+                    if (!exists) {
+                        setView('list');
+                        setActiveSection(null);
+                    }
+                }
+            } else {
+                // Kung totally nawala ang key sa localStorage
+                setMySections([]);
+                setView('list');
+                setActiveSection(null);
             }
         } catch (err) {
             console.error('Error loading sections from localStorage:', err);
         }
-    }, []);
+    }, [activeSection]);
 
     useEffect(() => {
         fetchMySections();
+
+        // 1. Nakikinig sa changes mula sa ibang tabs/windows
         const handleStorageChange = (e) => {
             if (e.key === STORAGE_KEY) fetchMySections();
         };
         window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+
+        // 2. AUTO-SYNC: Nagche-check bawat 2 segundo kung may binura ang CM sa parehong tab
+        const syncInterval = setInterval(() => {
+            fetchMySections();
+        }, 2000);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            clearInterval(syncInterval);
+        };
     }, [fetchMySections]);
 
     const handleManageStudents = (item) => {

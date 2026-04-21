@@ -315,7 +315,7 @@ const MyCourses = () => {
           {loadingDetails ? (
             <div className="flex flex-col items-center justify-center py-24 gap-4">
               <div className="animate-spin w-10 h-10 border-4 border-[#4CAF50] border-t-transparent rounded-full" />
-              <p className="font-black text-gray-400 text-sm uppercase">Loading Section Data...</p>
+              <p className="font-black text-gray-400 text-sm uppercase"></p>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

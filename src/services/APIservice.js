@@ -816,6 +816,24 @@ export const authAPI = {
         );
     },
 
+   //Retake Activity session
+    retakeActivity: async (activityId, token) => {
+        try {
+            const response = await fetch(`${BASE_URL}/api/student/activity/${activityId}/retake`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            return response;
+        } catch (error) {
+            console.error("API Error (Retake Activity):", error);
+            throw error;
+        }
+    },
+
     // ─────────────────────────────────────────────────────────────────────────
     // STUDENT GAME — QUIZ
     // New flat routes from backend image:
@@ -866,5 +884,23 @@ export const authAPI = {
                 headers: { 'Authorization': `Bearer ${token}` }
             }
         );
+    },
+    
+    //Retake Quiz session
+    retakeQuiz: async (quizId, token) => {
+        try {
+            const response = await fetch(`${BASE_URL}/api/student/quiz/${quizId}/retake`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            return response;
+        } catch (error) {
+            console.error("API Error (Retake Quiz):", error);
+            throw error;
+        }
     },
 };

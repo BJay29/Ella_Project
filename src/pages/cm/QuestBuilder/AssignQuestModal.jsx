@@ -197,7 +197,7 @@ const AssignQuestModal = ({ isOpen, onClose, quest, onSuccess }) => {
         }
     };
 
-    // --- UPDATED SUBMIT HANDLER ---
+    // --- SUBMIT HANDLER ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!selectedSectionIds.length) return alert('Please select at least one section.');
@@ -207,7 +207,7 @@ const AssignQuestModal = ({ isOpen, onClose, quest, onSuccess }) => {
             const token = localStorage.getItem('token');
             const questId = quest?.quest_id || quest?.id;
 
-            // 1. Publishing Logic: I-publish ang quest kung hindi pa ito published
+            // 1. Publishing Logic: publish the quest if not yet published
             if (quest?.status !== 'published') {
                 const publishRes = await authAPI.toggleQuestPublish(questId, token);
                 if (!publishRes.ok) {
@@ -216,7 +216,7 @@ const AssignQuestModal = ({ isOpen, onClose, quest, onSuccess }) => {
                 }
             }
             
-            // 2. Assignment Logic: Gamit ang bagong API signature
+            // 2. Assignment Logic
             const response = await authAPI.assignQuestToSection(
                 questId, 
                 selectedSectionIds, 
@@ -224,10 +224,7 @@ const AssignQuestModal = ({ isOpen, onClose, quest, onSuccess }) => {
             );
 
             if (response.ok) {
-                // Ipakita ang Toast sa gilid
                 setShowToast(true);
-                
-                // Tawagin ang success callbacks pagkatapos ng maikling delay
                 setTimeout(() => {
                     if (onSuccess) onSuccess(); 
                     setShowToast(false);
@@ -288,15 +285,15 @@ const AssignQuestModal = ({ isOpen, onClose, quest, onSuccess }) => {
                                 Step 1: Select Course
                             </label>
                             <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                                 value={selectedCourseId}
                                 onChange={(e) => setSelectedCourseId(e.target.value)}
                                 disabled={loadingCourses}
                                 required
                             >
-                                <option value="" disabled>{loadingCourses ? 'Loading...' : 'Choose a course...'}</option>
+                                <option value="" disabled className="text-gray-400">{loadingCourses ? 'Loading...' : 'Choose a course...'}</option>
                                 {courses.map(course => (
-                                    <option key={course.id} value={course.id}>{course.name}</option>
+                                    <option key={course.id} value={course.id} className="text-gray-900">{course.name}</option>
                                 ))}
                             </select>
                             {courseError && <p className="text-[9px] text-red-500 mt-1 font-bold">{courseError}</p>}
@@ -308,17 +305,17 @@ const AssignQuestModal = ({ isOpen, onClose, quest, onSuccess }) => {
                                 Step 2: Select Department
                             </label>
                             <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                                 value={selectedDeptId}
                                 onChange={(e) => setSelectedDeptId(e.target.value)}
                                 disabled={!selectedCourseId || loadingDepartments}
                                 required
                             >
-                                <option value="" disabled>
+                                <option value="" disabled className="text-gray-400">
                                     {!selectedCourseId ? 'Select course first' : loadingDepartments ? 'Loading...' : 'Choose a department...'}
                                 </option>
                                 {departments.map(dept => (
-                                    <option key={dept.id} value={dept.id}>{dept.name}</option>
+                                    <option key={dept.id} value={dept.id} className="text-gray-900">{dept.name}</option>
                                 ))}
                             </select>
                             {deptError && <p className="text-[9px] text-red-500 mt-1 font-bold">{deptError}</p>}
@@ -330,17 +327,17 @@ const AssignQuestModal = ({ isOpen, onClose, quest, onSuccess }) => {
                                 Step 3: Select Program
                             </label>
                             <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                                 value={selectedProgramId}
                                 onChange={(e) => setSelectedProgramId(e.target.value)}
                                 disabled={!selectedDeptId || loadingPrograms}
                                 required
                             >
-                                <option value="" disabled>
+                                <option value="" disabled className="text-gray-400">
                                     {!selectedDeptId ? 'Select department first' : loadingPrograms ? 'Loading...' : 'Choose a program...'}
                                 </option>
                                 {programs.map(prog => (
-                                    <option key={prog.id} value={prog.id}>{prog.name}</option>
+                                    <option key={prog.id} value={prog.id} className="text-gray-900">{prog.name}</option>
                                 ))}
                             </select>
                             {programError && <p className="text-[9px] text-red-500 mt-1 font-bold">{programError}</p>}

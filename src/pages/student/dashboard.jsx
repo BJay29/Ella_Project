@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import StudentNavbar from '../../components/layout/studentnavbar';
 import MyCourses from './MyCourses';
 import MyQuests from './MyQuests';
@@ -13,6 +13,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'https://ellaquest-backend.onre
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // Added to detect navigation state
   const dropdownRef = useRef(null);
 
   // --- STATES ---
@@ -21,7 +22,7 @@ const StudentDashboard = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // New: Logout Message State
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [soundEffects, setSoundEffects] = useState(true);
 
   const [profileData, setProfileData] = useState({
@@ -32,6 +33,15 @@ const StudentDashboard = () => {
   const [profileMsg, setProfileMsg] = useState({ type: '', text: '' });
 
   const firstName = profileData.firstName || 'Student';
+
+  // --- HANDLER FOR EXTERNAL NAVIGATION (Quest Navigation Support) ---
+  useEffect(() => {
+    // If the user is coming back from a specific Quest Level, 
+    // we ensure the "My Quests" page is active.
+    if (location.state?.activePage) {
+      setActivePage(location.state.activePage);
+    }
+  }, [location]);
 
   // --- CLOSE DROPDOWN ON CLICK OUTSIDE ---
   useEffect(() => {
@@ -47,7 +57,7 @@ const StudentDashboard = () => {
   // --- HANDLERS ---
   const handleConfirmLogout = () => {
     sessionStorage.clear();
-   localStorage.removeItem('token');
+    localStorage.removeItem('token');
     localStorage.removeItem('userRole');
     localStorage.removeItem('userEmail');
     navigate('/login', { replace: true });
@@ -107,7 +117,6 @@ const StudentDashboard = () => {
           activePage={activePage}
           setActivePage={setActivePage}
           onSettingsClick={() => setShowSettings(true)}
-          // Update: Ginawa nating toggle functionality
           onProfileClick={() => setShowDropdown(!showDropdown)} 
         />
 

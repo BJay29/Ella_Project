@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// Inayos ang path at case sensitivity
 import { authAPI } from '../../../services/APIservice';
 
 const CourseForm = ({ onNext }) => {
@@ -12,8 +11,8 @@ const CourseForm = ({ onNext }) => {
     const [courseToDelete, setCourseToDelete] = useState(null);
     const [editingId, setEditingId] = useState(null);
     const [error, setError] = useState('');
+    const [deleteStatus, setDeleteStatus] = useState('');
 
-    // Form State na tugma sa hininging design
     const [newCourse, setNewCourse] = useState({
         course_name: '',
         school_year: '2025-2026',
@@ -117,31 +116,108 @@ const CourseForm = ({ onNext }) => {
         e.stopPropagation();
         const id = course.id || course.course_id || course._id;
         setCourseToDelete({ ...course, id });
+        setDeleteStatus('');
         setIsDeleteModalOpen(true);
     };
 
-    // ✅ FIXED: Inayos ang logic para maipasa ang ID at Token sa deleteCourse
+    // ── CASCADE DELETE ────────────────────────────────────────────────────────
+    // Deletes all nested data (departments → programs → sections) before
+    // deleting the course itself. This prevents orphaned records in the DB.
+    // Each level is fetched then deleted in sequence.
+    // If the backend already handles cascade deletion server-side, the nested
+    // loops will simply 404/skip harmlessly — the course delete still runs.
     const confirmDelete = async () => {
         const idToDelete = courseToDelete?.id;
-        if(!idToDelete) return;
+        if (!idToDelete) return;
 
         setLoading(true);
+        setDeleteStatus('Fetching departments...');
+
         try {
             const token = localStorage.getItem('token');
+
+            // ── Step 1: Get all departments for this course ───────────────────
+            let departments = [];
+            try {
+                const deptRes = await authAPI.getDepartments(idToDelete, token);
+                if (deptRes.ok) {
+                    const deptData = await deptRes.json();
+                    departments = Array.isArray(deptData) ? deptData : (deptData.departments || []);
+                }
+            } catch (_) { /* if fetch fails, proceed with empty array */ }
+
+            // ── Step 2: For each department, get programs and delete sections ─
+            for (const dept of departments) {
+                const deptId = dept.dept_id ?? dept.id ?? dept._id ?? dept.department_id;
+                if (!deptId) continue;
+
+                setDeleteStatus(`Cleaning department ${dept.department_code || deptId}...`);
+
+                // Get programs in this department
+                let programs = [];
+                try {
+                    const progRes = await authAPI.getPrograms(idToDelete, deptId, token);
+                    if (progRes.ok) {
+                        const progData = await progRes.json();
+                        programs = Array.isArray(progData) ? progData : (progData.programs || []);
+                    }
+                } catch (_) { /* continue */ }
+
+                // For each program, delete all sections then delete program
+                for (const prog of programs) {
+                    const progId = prog.prog_id ?? prog.id ?? prog._id ?? prog.program_id;
+                    if (!progId) continue;
+
+                    // Get sections in this program
+                    let sections = [];
+                    try {
+                        const secRes = await authAPI.getSections(idToDelete, deptId, progId, token);
+                        if (secRes.ok) {
+                            const secData = await secRes.json();
+                            sections = Array.isArray(secData) ? secData : (secData.sections || []);
+                        }
+                    } catch (_) { /* continue */ }
+
+                    // Delete each section
+                    for (const sec of sections) {
+                        const secId = sec.section_id ?? sec.id ?? sec._id;
+                        if (!secId) continue;
+                        try {
+                            await authAPI.deleteSection(idToDelete, deptId, progId, secId, token);
+                        } catch (_) { /* continue */ }
+                    }
+
+                    // Delete the program
+                    try {
+                        await authAPI.deleteProgram(idToDelete, deptId, progId, token);
+                    } catch (_) { /* continue */ }
+                }
+
+                // Delete the department
+                try {
+                    await authAPI.deleteDepartment(idToDelete, deptId, token);
+                } catch (_) { /* continue */ }
+            }
+
+            // ── Step 3: Delete the course itself ─────────────────────────────
+            setDeleteStatus('Deleting course...');
             const response = await authAPI.deleteCourse(idToDelete, token);
+
             if (response.ok) {
-                fetchCourses();
+                await fetchCourses();
                 setIsDeleteModalOpen(false);
                 setCourseToDelete(null);
+                setDeleteStatus('');
             } else {
                 const errData = await response.json().catch(() => ({}));
-                alert(errData.message || "Failed to delete from server.");
+                alert(errData.message || "Failed to delete course from server.");
             }
         } catch (err) {
-            console.error("Delete error:", err);
+            console.error("Cascade delete error:", err);
             alert("An error occurred while deleting.");
         } finally {
             setLoading(false);
+            setDeleteStatus('');
         }
     };
 
@@ -204,7 +280,6 @@ const CourseForm = ({ onNext }) => {
                         <input 
                             type="text" 
                             placeholder="Search Courses"
-                            // ✅ FIXED: Inayos ang text color para hindi maging white
                             className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-none rounded-xl text-sm font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 transition-all text-left placeholder:text-gray-400"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -393,7 +468,7 @@ const CourseForm = ({ onNext }) => {
                 </div>
             )}
 
-            {/* --- DELETE CONFIRMATION MODAL --- */}
+            {/* --- CASCADE DELETE CONFIRMATION MODAL --- */}
             {isDeleteModalOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-center">
                     <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden animate-in zoom-in duration-200 shadow-2xl p-8">
@@ -401,16 +476,36 @@ const CourseForm = ({ onNext }) => {
                             ⚠️
                         </div>
                         <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight italic">
-                            Delete Subject?
+                            Delete Course?
                         </h3>
-                        <p className="text-slate-400 text-sm font-medium mt-2">
-                            Are you sure you want to delete <span className="text-slate-800 font-bold">{courseToDelete?.course_code}</span>? This action cannot be undone.
+                        <p className="text-slate-400 text-sm font-medium mt-2 leading-relaxed">
+                            Are you sure you want to delete{' '}
+                            <span className="text-slate-800 font-bold">{courseToDelete?.course_code}</span>?
                         </p>
+                        {/* Cascade warning */}
+                        <div className="mt-4 bg-red-50 border border-red-100 rounded-2xl p-4 text-left">
+                            <p className="text-red-600 text-[10px] font-black uppercase tracking-widest mb-1">⚠ Cascade Deletion</p>
+                            <p className="text-red-400 text-xs font-medium leading-relaxed">
+                                This will permanently delete the course and{' '}
+                                <strong className="text-red-600">all its departments, programs, and sections</strong>.
+                                This action cannot be undone.
+                            </p>
+                        </div>
+
+                        {/* Progress status during delete */}
+                        {deleteStatus && (
+                            <div className="mt-4 bg-indigo-50 border border-indigo-100 rounded-2xl p-3">
+                                <p className="text-indigo-600 text-[10px] font-black uppercase tracking-widest animate-pulse">
+                                    {deleteStatus}
+                                </p>
+                            </div>
+                        )}
 
                         <div className="flex gap-4 mt-8">
                             <button 
                                 onClick={() => setIsDeleteModalOpen(false)}
-                                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-500 font-black rounded-2xl text-xs uppercase tracking-widest transition-all"
+                                disabled={loading}
+                                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-500 font-black rounded-2xl text-xs uppercase tracking-widest transition-all disabled:opacity-50"
                             >
                                 No, Keep it
                             </button>
@@ -419,7 +514,7 @@ const CourseForm = ({ onNext }) => {
                                 disabled={loading}
                                 className="flex-1 py-4 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-lg shadow-red-100 transition-all active:scale-95 disabled:opacity-50"
                             >
-                                {loading ? 'Deleting...' : 'Yes, Delete'}
+                                {loading ? 'Deleting...' : 'Yes, Delete All'}
                             </button>
                         </div>
                     </div>

@@ -39,8 +39,8 @@ const StatCard = ({ label, value, color, delay = 0 }) => {
         const target = Number(value) || 0;
         if (target === 0) { setDisplayed(0); return; }
         let current  = 0;
-        const duration  = 800;   // ms
-        const framerate = 16;    // ~60fps
+        const duration  = 800;
+        const framerate = 16;
         const increment = target / (duration / framerate);
         const timeout = setTimeout(() => {
             const iv = setInterval(() => {
@@ -71,17 +71,15 @@ const StatCard = ({ label, value, color, delay = 0 }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Results Screen
 //
-// – Score ring:   fraction format  "correct / total"
-// – Stats row:    Correct | Wrong | Points | Coins  (animated count-up)
-// – Pass/Fail:    derived from backend response (multiple field names handled)
-// – Retry button: hidden when quiz attempt limit reached
+// Reads summary data with maximum field-name coverage to handle all
+// possible backend response shapes, including attempt-based responses.
 // ─────────────────────────────────────────────────────────────────────────────
 export const ResultsScreen = ({
     summary,
     mode,
     questId,
     attemptCount   = 0,
-    maxAttempts    = null,   // null = unlimited (activity)
+    maxAttempts    = null,
     onTryAgain,
     onBack,
     navigate,
@@ -93,57 +91,98 @@ export const ResultsScreen = ({
         return () => clearTimeout(t);
     }, []);
 
-    // ── Pass / Fail ───────────────────────────────────────────────────────────
+    // ── Pass / Fail detection ─────────────────────────────────────────────────
+    // Covers every field name the backend might use, including attempt-based ones.
     const isPassed =
-        summary.passed    === true    ||
-        summary.is_passed === true    ||
-        summary.status    === 'passed'||
-        summary.result    === 'passed'||
+        summary.passed           === true     ||
+        summary.is_passed        === true     ||
+        summary.status           === 'passed' ||
+        summary.result           === 'passed' ||
+        summary.attempt_status   === 'passed' ||
+        summary.attempt_result   === 'passed' ||
         (summary.score != null &&
          summary.passing_score != null &&
-         Number(summary.score) >= Number(summary.passing_score));
+         Number(summary.score) >= Number(summary.passing_score)) ||
+        (summary.percentage != null &&
+         summary.passing_score != null &&
+         Number(summary.percentage) >= Number(summary.passing_score));
 
-    // ── Extract all stats — covers every backend field name variant ───────────
+    // ── Extract stats — covers ALL possible backend field names ───────────────
+    // The backend may return attempt-based nested objects or flat fields.
+    const attemptData = summary.attempt || summary.result_data || summary.attempt_data || {};
+
     const correct = Number(
-        summary.correct_count   ??
-        summary.correct         ??
-        summary.correct_answers ??
+        summary.correct_count         ??
+        summary.correct               ??
+        summary.correct_answers       ??
+        summary.total_correct         ??
+        attemptData.correct_count     ??
+        attemptData.correct           ??
         0
     );
     const wrong = Number(
-        summary.wrong_count   ??
-        summary.incorrect     ??
-        summary.wrong         ??
-        summary.wrong_answers ??
+        summary.wrong_count           ??
+        summary.incorrect             ??
+        summary.wrong                 ??
+        summary.wrong_answers         ??
+        summary.total_wrong           ??
+        summary.incorrect_count       ??
+        attemptData.wrong_count       ??
+        attemptData.incorrect         ??
         0
     );
     const total = Number(
-        summary.total_questions ??
-        summary.total           ??
-        (correct + wrong)
+        summary.total_questions       ??
+        summary.total                 ??
+        summary.item_count            ??
+        summary.question_count        ??
+        attemptData.total_questions   ??
+        attemptData.total             ??
+        (correct + wrong)             ??
+        0
     );
     const points = Number(
-        summary.points_earned ??
-        summary.points        ??
-        summary.score_points  ??
+        summary.points_earned         ??
+        summary.points                ??
+        summary.score_points          ??
+        summary.earned_points         ??
+        summary.total_points          ??
+        attemptData.points_earned     ??
+        attemptData.points            ??
         0
     );
     const coins = Number(
-        summary.coins_earned ??
-        summary.coins        ??
-        summary.coin         ??
+        summary.coins_earned          ??
+        summary.coins                 ??
+        summary.coin                  ??
+        summary.earned_coins          ??
+        summary.total_coins           ??
+        attemptData.coins_earned      ??
+        attemptData.coins             ??
         0
     );
 
-    // Quiz attempt info
+    // ── Passing score for message ─────────────────────────────────────────────
+    const passingScore =
+        summary.passing_score         ??
+        summary.pass_score            ??
+        summary.minimum_score         ??
+        attemptData.passing_score     ??
+        75;
+
     const attemptsUsed      = mode === 'quiz' ? attemptCount : null;
     const attemptsRemaining = maxAttempts != null ? Math.max(0, maxAttempts - attemptsUsed) : null;
     const canRetry          = maxAttempts == null || attemptsRemaining > 0;
 
+    // ── Debug: log summary so dev can see what fields the backend actually sends
+    // Remove this in production if desired.
+    useEffect(() => {
+        console.debug('[ResultsScreen] summary received:', summary);
+        console.debug('[ResultsScreen] parsed →', { isPassed, correct, wrong, total, points, coins });
+    }, [summary]);
+
     return (
         <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 fixed inset-0 z-50 overflow-y-auto">
-
-            {/* Grid background */}
             <div
                 className="absolute inset-0 opacity-[0.04] pointer-events-none"
                 style={{
@@ -151,11 +190,7 @@ export const ResultsScreen = ({
                     backgroundSize: '40px 40px',
                 }}
             />
-
-            {/* Top accent line */}
             <div className={`absolute top-0 left-0 w-full h-1 ${isPassed ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-
-            {/* Glow behind score ring */}
             {visible && (
                 <div className={`absolute top-[12%] left-1/2 -translate-x-1/2 w-64 h-64 rounded-full blur-[80px] opacity-15 pointer-events-none ${
                     isPassed ? 'bg-emerald-500' : 'bg-rose-500'
@@ -209,7 +244,7 @@ export const ResultsScreen = ({
                                 <span className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-2">Score</span>
                             </>
                         ) : (
-                            // Fallback when total is not provided by backend
+                            // Fallback when total is 0 — show just correct count
                             <>
                                 <span className={`text-4xl font-black italic ${isPassed ? 'text-emerald-400' : 'text-rose-400'}`}>
                                     {correct}
@@ -228,7 +263,7 @@ export const ResultsScreen = ({
                     <StatCard label="Coins"   value={coins}   color="text-amber-400"   delay={600} />
                 </div>
 
-                {/* ── Quiz attempt counter (quiz mode only) ── */}
+                {/* ── Quiz attempt dots ── */}
                 {mode === 'quiz' && maxAttempts != null && (
                     <div
                         className="flex items-center justify-center gap-2 mb-6"
@@ -266,7 +301,7 @@ export const ResultsScreen = ({
                             ? mode === 'activity'
                                 ? '🎉 Activity passed! The Quiz is now unlocked.'
                                 : '🏆 Quest level complete!'
-                            : `❌ You need ${summary.passing_score ?? 75}% to pass. Keep pushing!`}
+                            : `❌ You need ${passingScore}% to pass. Keep pushing!`}
                     </p>
                 </div>
 
@@ -277,15 +312,12 @@ export const ResultsScreen = ({
                 >
                     {isPassed ? (
                         <>
-                            {/* Primary — go back to levels */}
                             <button
                                 onClick={onBack}
                                 className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all active:scale-95 shadow-lg border-b-4 border-indigo-800"
                             >
                                 {mode === 'activity' ? '← Back to Levels' : 'Return to Base'}
                             </button>
-
-                            {/* Secondary — retake only if attempts remain */}
                             {canRetry && (
                                 <button
                                     onClick={onTryAgain}
@@ -302,7 +334,6 @@ export const ResultsScreen = ({
                         </>
                     ) : (
                         <>
-                            {/* Try again — only shown if attempts remain */}
                             {canRetry ? (
                                 <button
                                     onClick={onTryAgain}
@@ -316,7 +347,6 @@ export const ResultsScreen = ({
                                     )}
                                 </button>
                             ) : (
-                                /* No attempts remaining — show locked message */
                                 <div className="w-full py-5 bg-white/5 border border-white/10 text-white/30 rounded-2xl font-black uppercase tracking-[0.2em] text-sm text-center">
                                     🔒 No Attempts Remaining
                                 </div>
@@ -348,7 +378,6 @@ export const ResultsScreen = ({
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Game UI
-// Receives all state and handlers as props from GameEngine.jsx
 // ─────────────────────────────────────────────────────────────────────────────
 const GameEngineui = ({
     navigate,
@@ -378,11 +407,11 @@ const GameEngineui = ({
 }) => {
     const choices = getChoices();
 
-    // 2–4 choices → 2-column grid (side-by-side boxes, no scroll)
-    // 1 or 5+    → 1-column list
     const gridClass = choices.length >= 2 && choices.length <= 4
         ? 'grid grid-cols-2 gap-3'
         : 'grid grid-cols-1 gap-3';
+
+    const resolvedQuestionText = getQuestionText();
 
     return (
         <div className="min-h-screen bg-[#020617] relative font-sans text-white flex flex-col">
@@ -418,7 +447,6 @@ const GameEngineui = ({
                     {mode === 'activity' ? 'Activity Mission' : 'Quiz Challenge'}
                 </span>
 
-                {/* Timer / Feedback indicator */}
                 <div className={`flex items-center justify-center w-16 h-16 rounded-full border-4 font-black text-lg italic transition-all duration-500 ${
                     isFeedbackPhase
                         ? userWasCorrect
@@ -484,15 +512,20 @@ const GameEngineui = ({
                     <p className="text-indigo-400/70 font-black uppercase tracking-[0.35em] text-[9px] mb-5 italic">
                         — Current Objective —
                     </p>
-                    <h2 className="text-2xl md:text-[2rem] font-black leading-snug uppercase tracking-tight text-white">
-                        {getQuestionText()}
-                    </h2>
+                    {resolvedQuestionText ? (
+                        <h2 className="text-2xl md:text-[2rem] font-black leading-snug uppercase tracking-tight text-white">
+                            {resolvedQuestionText}
+                        </h2>
+                    ) : (
+                        <p className="text-white/20 text-sm italic font-medium">
+                            Loading question...
+                        </p>
+                    )}
                 </div>
 
                 {/* ── Choices / Input ── */}
                 <div className="w-full">
                     {isIdentification ? (
-                        // Text input — identification / fill_in_blanks / essay
                         <div className="flex flex-col items-center gap-3">
                             <p className="text-[9px] font-black text-white/25 uppercase tracking-widest italic">
                                 {isFeedbackPhase ? 'Your answer' : 'Type your answer below'}
@@ -527,10 +560,8 @@ const GameEngineui = ({
                             )}
                         </div>
                     ) : (
-                        // ── Choice buttons — 2-col grid for 2–4 choices ──
                         <div className={gridClass}>
                             {choices.map((choice, idx) => {
-                                // Resolve real DB answer ID — never fall back to array index
                                 const choiceId =
                                     choice.activity_answer_id       != null ? choice.activity_answer_id :
                                     choice.quest_activity_answer_id != null ? choice.quest_activity_answer_id :
@@ -552,7 +583,6 @@ const GameEngineui = ({
                                         String(choiceId) === String(serverCorrectId)) ||
                                     (choice.is_correct === true);
 
-                                // Button colour
                                 let btnClass;
                                 if (isFeedbackPhase) {
                                     if (isThisChoiceCorrect)
@@ -567,7 +597,6 @@ const GameEngineui = ({
                                         : 'bg-white/[0.06] border-white/10 hover:bg-white/[0.10] text-white/80';
                                 }
 
-                                // Badge colour
                                 let badgeClass;
                                 if (isFeedbackPhase) {
                                     if (isThisChoiceCorrect) badgeClass = 'bg-white/30 text-white';
@@ -584,6 +613,14 @@ const GameEngineui = ({
                                     isFeedbackPhase && wasSubmitted && !isThisChoiceCorrect ? '✕' :
                                     letter;
 
+                                const choiceText =
+                                    choice.answer_text  ||
+                                    choice.text         ||
+                                    choice.choice_text  ||
+                                    choice.option_text  ||
+                                    choice.value        ||
+                                    '';
+
                                 return (
                                     <button
                                         key={`choice-${idx}`}
@@ -595,15 +632,12 @@ const GameEngineui = ({
                                         disabled={isSubmitting || isFeedbackPhase || choiceId == null}
                                         className={`group relative flex flex-col items-center justify-center gap-3 px-4 py-6 rounded-3xl border-2 text-center transition-all duration-200 disabled:pointer-events-none min-h-[110px] ${btnClass}`}
                                     >
-                                        {/* Letter badge */}
                                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 transition-all ${badgeClass}`}>
                                             {badgeIcon}
                                         </div>
-                                        {/* Answer text */}
                                         <span className="font-bold text-sm leading-snug uppercase tracking-tight w-full">
-                                            {choice.answer_text || choice.text}
+                                            {choiceText}
                                         </span>
-                                        {/* Correct pill */}
                                         {isFeedbackPhase && isThisChoiceCorrect && (
                                             <span className="text-[9px] font-black uppercase tracking-widest text-white/80 bg-white/15 px-2 py-0.5 rounded-full">
                                                 Correct
@@ -653,7 +687,6 @@ const GameEngineui = ({
                 )}
             </div>
 
-            {/* Corner glows */}
             <div className="absolute top-0 left-0 w-[35%] h-[35%] bg-indigo-500/8 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute bottom-0 right-0 w-[25%] h-[25%] bg-rose-500/5 rounded-full blur-[100px] pointer-events-none" />
         </div>
