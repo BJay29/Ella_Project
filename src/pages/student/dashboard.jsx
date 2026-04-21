@@ -58,9 +58,14 @@ const StudentDashboard = () => {
         const pointsData = await pointsRes.json();
         const coinsData = await coinsRes.json();
         
+        // Debugging logs para makita sa console kung pumasok ang data
+        console.log("Fetched Points:", pointsData);
+        console.log("Fetched Coins:", coinsData);
+
         setStudentStats({
-          points: pointsData.points || 0,
-          coins: coinsData.coins || 0
+          // Ginamit ang total_points at total_coins base sa API response structure mo
+          points: pointsData.total_points || 0,
+          coins: coinsData.total_coins || 0
         });
       }
     } catch (error) {
@@ -154,13 +159,9 @@ const StudentDashboard = () => {
           setActivePage={setActivePage}
           onSettingsClick={() => setShowSettings(true)}
           onProfileClick={() => setShowDropdown(!showDropdown)} 
-          // Pinasa natin ang fetched stats sa Navbar para doon ipakita ang Points at Coins
+          // Ipinapasa ang fetched stats sa Navbar
           studentStats={studentStats}
         />
-
-        {/* --- DITO MO PALITAN YUNG STAR SA NAVBAR MO --- */}
-        {/* Note: Dahil ang Navbar ay separate component, siguraduhin na ang StudentNavbar component 
-            mo ay tumatanggap ng 'studentStats' prop at nira-render ito sa pwesto ng star icon. */}
 
         {/* --- PROFILE DROPDOWN MENU --- */}
         {showDropdown && (

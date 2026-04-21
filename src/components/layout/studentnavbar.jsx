@@ -17,7 +17,7 @@ const timeAgo = (iso) => {
 const CATEGORY_COLORS = {
   enrollment:  'bg-blue-50 dark:bg-blue-900/20',
   quest:       'bg-purple-50 dark:bg-purple-900/20',
-  quiz:        'bg-orange-50 dark:bg-orange-900/20',
+  quiz:         'bg-orange-50 dark:bg-orange-900/20',
   achievement: 'bg-yellow-50 dark:bg-yellow-900/20',
   message:     'bg-green-50 dark:bg-green-900/20',
   reminder:    'bg-gray-50 dark:bg-gray-700/30',
