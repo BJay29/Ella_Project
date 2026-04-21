@@ -56,6 +56,7 @@ const QuestLevels = () => {
         }
     }, [questId]);
 
+    // Re-fetch every time location.key changes (student navigates back here)
     useEffect(() => {
         if (questId) fetchQuestProgress();
     }, [questId, fetchQuestProgress, location.key]);
@@ -100,7 +101,8 @@ const QuestLevels = () => {
                 return;
             }
 
-            // ── FIX: Check attempt limit for quiz BEFORE opening start modal ──
+            // ── FIX: Check attempt limit for quiz BEFORE opening start modal.
+            // Show the locked modal immediately — NO countdown happens here.
             if (mode === 'quiz') {
                 const usedAttempts = getAttemptCount(content_id);
                 if (usedAttempts >= QUIZ_MAX_ATTEMPTS) {
@@ -254,6 +256,19 @@ const QuestLevels = () => {
                                 );
                                 const isLevelLocked = level.is_locked;
 
+                                // ── FIX: Quiz button label — show "↻ Retake Quiz" if user
+                                // has already done at least 1 quiz attempt for this level.
+                                // We read the attempt count from sessionStorage using the
+                                // quiz content_id stored on the level object (if available).
+                                // Fall back to level flags when content_id is not yet known.
+                                const quizContentId = level.quiz_content_id || level.quiz_id || null;
+                                const quizAttemptsUsed = quizContentId ? getAttemptCount(quizContentId) : 0;
+                                const hasUsedQuizAttempt = quizAttemptsUsed > 0 || level.is_completed || level.quiz_attempted;
+
+                                const quizButtonLabel = isQuizUnlocked
+                                    ? (hasUsedQuizAttempt ? '↻ Retake Quiz' : 'Final Quiz')
+                                    : '🔒 Quiz Locked';
+
                                 return (
                                     <motion.div
                                         key={level.quest_level_id || index}
@@ -288,6 +303,7 @@ const QuestLevels = () => {
                                                     </div>
                                                 )}
                                                 <div className="w-full space-y-4 mt-2">
+                                                    {/* Activity button — unchanged logic */}
                                                     <button
                                                         disabled={isLevelLocked || !isCenter}
                                                         onClick={() => openMissionModal(level, 'activity')}
@@ -299,6 +315,8 @@ const QuestLevels = () => {
                                                     >
                                                         {level.activity_passed ? '↻ Retake Activity' : 'Activity'}
                                                     </button>
+
+                                                    {/* Quiz button — now shows Retake Quiz after first attempt */}
                                                     <button
                                                         disabled={!isQuizUnlocked || isLevelLocked || !isCenter}
                                                         onClick={() => openMissionModal(level, 'quiz')}
@@ -308,9 +326,7 @@ const QuestLevels = () => {
                                                                 : 'bg-white/5 border-white/10 text-gray-600 cursor-not-allowed opacity-50'
                                                         }`}
                                                     >
-                                                        {isQuizUnlocked
-                                                            ? (level.is_completed ? '↻ Retake Quiz' : 'Final Quiz')
-                                                            : '🔒 Quiz Locked'}
+                                                        {quizButtonLabel}
                                                     </button>
                                                 </div>
                                             </div>
@@ -348,7 +364,7 @@ const QuestLevels = () => {
                             <div className="grid grid-cols-2 gap-4 mb-8">
                                 {[
                                     { label: 'Difficulty',    value: selectedMission.difficulty,         color: 'text-indigo-400' },
-                                    { label: 'Passing Score', value: `${selectedMission.passingScore}%`, color: 'text-emerald-400' },
+                                    { label: 'Passing Score', value: `${selectedMission.passingScore}`,  color: 'text-emerald-400' },
                                     { label: 'Questions',     value: selectedMission.totalQuestions,     color: 'text-white' },
                                     { label: 'Attempts',      value: selectedMission.attempts,           color: selectedMission.mode === 'activity' ? 'text-blue-400' : 'text-amber-400' },
                                 ].map(({ label, value, color }) => (
@@ -371,7 +387,7 @@ const QuestLevels = () => {
                 )}
             </AnimatePresence>
 
-            {/* ── Attempt Limit Modal ── */}
+            {/* ── Attempt Limit Modal — shown immediately, NO countdown before it ── */}
             <AnimatePresence>
                 {isAttemptLimitModalOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -405,7 +421,7 @@ const QuestLevels = () => {
                 )}
             </AnimatePresence>
 
-            {/* ── Countdown Overlay ── */}
+            {/* ── Countdown Overlay (only for normal start, NOT for attempt-limit check) ── */}
             <AnimatePresence>
                 {isCountingDown && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

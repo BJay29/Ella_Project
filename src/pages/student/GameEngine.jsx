@@ -80,6 +80,60 @@ const isCompletedResponse = (status, data) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// normalizeResults — exhaustively pull correct/wrong/total from any backend shape
+// This is the single source of truth fed into ResultsScreen props.
+// ─────────────────────────────────────────────────────────────────────────────
+const normalizeResults = (raw) => {
+    if (!raw) return { correct: 0, wrong: 0, total: 0 };
+
+    // Flatten nested objects the backend might use
+    const nested = raw.result || raw.attempt || raw.result_data || raw.attempt_data || raw.data || {};
+
+    const correct = Number(
+        raw.correct_count     ??
+        raw.correct           ??
+        raw.correct_answers   ??
+        raw.total_correct     ??
+        raw.score             ??
+        nested.correct_count  ??
+        nested.correct        ??
+        nested.correct_answers??
+        nested.total_correct  ??
+        0
+    );
+    const wrong = Number(
+        raw.wrong_count       ??
+        raw.wrong             ??
+        raw.incorrect         ??
+        raw.wrong_answers     ??
+        raw.total_wrong       ??
+        raw.incorrect_count   ??
+        raw.incorrect_answers ??
+        nested.wrong_count    ??
+        nested.wrong          ??
+        nested.incorrect      ??
+        nested.wrong_answers  ??
+        nested.total_wrong    ??
+        0
+    );
+    const total = Number(
+        raw.total_questions   ??
+        raw.total             ??
+        raw.item_count        ??
+        raw.question_count    ??
+        nested.total_questions??
+        nested.total          ??
+        (correct + wrong)     ??
+        0
+    );
+
+    console.debug('[normalizeResults] raw keys:', Object.keys(raw));
+    console.debug('[normalizeResults] result →', { correct, wrong, total });
+
+    return { correct, wrong, total };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GameEngine — logic only
 // ─────────────────────────────────────────────────────────────────────────────
 const GameEngine = () => {
@@ -461,7 +515,6 @@ const GameEngine = () => {
         if (retakeCountdown <= 0) {
             setIsRetakeCountingDown(false);
             setRetakeCountdown(3);
-            // Now actually fetch the first question
             pendingRetakeRef.current = false;
             fetchQuestion(true);
             return;
@@ -666,23 +719,8 @@ const GameEngine = () => {
 
     // ── Results screen ────────────────────────────────────────────────────────
     if (quizSummary) {
-        const correct = Number(
-            quizSummary.correct       ??
-            quizSummary.total_correct ??
-            quizSummary.correct_answers ??
-            0
-        );
-        const wrong = Number(
-            quizSummary.wrong         ??
-            quizSummary.total_wrong   ??
-            quizSummary.incorrect_answers ??
-            0
-        );
-        const total = Number(
-            quizSummary.total_questions ??
-            quizSummary.total           ??
-            (correct + wrong)
-        );
+        // Use the exhaustive normalizer so we always get real values
+        const { correct, wrong, total } = normalizeResults(quizSummary);
 
         return (
             <ResultsScreen

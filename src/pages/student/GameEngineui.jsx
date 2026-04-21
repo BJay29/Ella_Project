@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Calculating Screen — Ella Quest logo + loading bar only
@@ -28,6 +28,68 @@ export const CalculatingScreen = () => (
         `}</style>
     </div>
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ConfettiCanvas — celebration particles rendered on a canvas overlay
+// ─────────────────────────────────────────────────────────────────────────────
+const ConfettiCanvas = () => {
+    const canvasRef = useRef(null);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        canvas.width  = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#a78bfa', '#34d399'];
+        const pieces = Array.from({ length: 140 }, () => ({
+            x:     Math.random() * canvas.width,
+            y:     Math.random() * canvas.height - canvas.height,
+            w:     Math.random() * 11 + 5,
+            h:     Math.random() * 6 + 3,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            rot:   Math.random() * Math.PI * 2,
+            vx:    (Math.random() - 0.5) * 2.5,
+            vy:    Math.random() * 3.5 + 1.5,
+            vr:    (Math.random() - 0.5) * 0.15,
+            alpha: 1,
+        }));
+
+        let frame;
+        let tick = 0;
+        const draw = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            tick++;
+            pieces.forEach(p => {
+                p.x   += p.vx;
+                p.y   += p.vy;
+                p.rot += p.vr;
+                if (tick > 100) p.alpha = Math.max(0, p.alpha - 0.007);
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                ctx.restore();
+            });
+            if (pieces.some(p => p.alpha > 0)) {
+                frame = requestAnimationFrame(draw);
+            }
+        };
+        frame = requestAnimationFrame(draw);
+        return () => cancelAnimationFrame(frame);
+    }, []);
+
+    return (
+        <canvas
+            ref={canvasRef}
+            className="fixed inset-0 pointer-events-none z-[60]"
+            style={{ width: '100vw', height: '100vh' }}
+        />
+    );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StatCard — animated count-up for each result value
@@ -71,8 +133,8 @@ const StatCard = ({ label, value, color, delay = 0 }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Results Screen
 //
-// Props may include pre-normalized values (correct, wrong, total, points, coins)
-// passed directly from GameEngine to avoid relying solely on raw summary fields.
+// Props may include pre-normalized values (correctCount, wrongCount, totalItems)
+// passed directly from GameEngine so the score ring always shows real numbers.
 // ─────────────────────────────────────────────────────────────────────────────
 export const ResultsScreen = ({
     summary,
@@ -83,7 +145,7 @@ export const ResultsScreen = ({
     onTryAgain,
     onBack,
     navigate,
-    // Pre-normalized values passed from GameEngine (fixes score ring showing 0)
+    // Pre-normalized values passed from GameEngine
     score          = null,
     totalQuestions = null,
     correctCount   = null,
@@ -112,8 +174,7 @@ export const ResultsScreen = ({
          summary.passing_score != null &&
          Number(summary.percentage) >= Number(summary.passing_score));
 
-    // ── Extract stats ─────────────────────────────────────────────────────────
-    // Priority: explicit props from GameEngine > summary fields > 0
+    // ── Extract stats — explicit props always take priority ──────────────────
     const attemptData = summary.attempt || summary.result_data || summary.attempt_data || {};
 
     const correct = Number(
@@ -172,7 +233,6 @@ export const ResultsScreen = ({
         0
     );
 
-    // ── Passing score for message ─────────────────────────────────────────────
     const passingScore =
         summary.passing_score         ??
         summary.pass_score            ??
@@ -190,196 +250,201 @@ export const ResultsScreen = ({
     }, [summary]);
 
     return (
-        <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 fixed inset-0 z-50 overflow-y-auto">
-            <div
-                className="absolute inset-0 opacity-[0.04] pointer-events-none"
-                style={{
-                    backgroundImage: `linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px)`,
-                    backgroundSize: '40px 40px',
-                }}
-            />
-            <div className={`absolute top-0 left-0 w-full h-1 ${isPassed ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-            {visible && (
-                <div className={`absolute top-[12%] left-1/2 -translate-x-1/2 w-64 h-64 rounded-full blur-[80px] opacity-15 pointer-events-none ${
-                    isPassed ? 'bg-emerald-500' : 'bg-rose-500'
-                }`} />
-            )}
+        <>
+            {/* ── Confetti celebration — only on pass ── */}
+            {isPassed && visible && <ConfettiCanvas />}
 
-            <div
-                className="relative w-full max-w-lg py-8"
-                style={{ animation: visible ? 'fadeSlideUp 0.4s ease both' : 'none' }}
-            >
-                {/* ── Ella Quest logo ── */}
-                <div className="text-center mb-5">
-                    <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white leading-none">
-                        Ella <span className="text-indigo-500">Quest</span>
-                    </h1>
-                </div>
-
-                {/* ── Pass / Fail badge ── */}
+            <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 fixed inset-0 z-50 overflow-y-auto">
                 <div
-                    className="flex justify-center mb-6"
-                    style={{ animation: 'fadeSlideUp 0.4s ease 0.1s both' }}
+                    className="absolute inset-0 opacity-[0.04] pointer-events-none"
+                    style={{
+                        backgroundImage: `linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px)`,
+                        backgroundSize: '40px 40px',
+                    }}
+                />
+                <div className={`absolute top-0 left-0 w-full h-1 ${isPassed ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                {visible && (
+                    <div className={`absolute top-[12%] left-1/2 -translate-x-1/2 w-64 h-64 rounded-full blur-[80px] opacity-15 pointer-events-none ${
+                        isPassed ? 'bg-emerald-500' : 'bg-rose-500'
+                    }`} />
+                )}
+
+                <div
+                    className="relative w-full max-w-lg py-8"
+                    style={{ animation: visible ? 'fadeSlideUp 0.4s ease both' : 'none' }}
                 >
-                    <div className={`px-6 py-2 rounded-full border-2 text-[10px] font-black uppercase tracking-[0.3em] ${
-                        isPassed
-                            ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
-                            : 'bg-rose-500/10 border-rose-500/40 text-rose-400'
-                    }`}>
-                        {isPassed ? '✓ Mission Cleared' : '✕ Mission Failed'}
+                    {/* ── Ella Quest logo ── */}
+                    <div className="text-center mb-5">
+                        <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white leading-none">
+                            Ella <span className="text-indigo-500">Quest</span>
+                        </h1>
                     </div>
-                </div>
 
-                {/* ── Score ring — fraction "correct / total" ── */}
-                <div
-                    className="flex justify-center mb-8"
-                    style={{ animation: 'scaleIn 0.5s ease 0.2s both' }}
-                >
-                    <div className={`w-44 h-44 rounded-full border-[10px] flex flex-col items-center justify-center shadow-2xl ${
-                        isPassed
-                            ? 'border-emerald-500 shadow-emerald-500/25'
-                            : 'border-rose-500 shadow-rose-500/25'
-                    }`}>
-                        {total > 0 ? (
-                            <>
-                                <div className="flex items-baseline gap-1">
-                                    <span className={`text-4xl font-black italic leading-none ${isPassed ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {/* ── Pass / Fail badge ── */}
+                    <div
+                        className="flex justify-center mb-6"
+                        style={{ animation: 'fadeSlideUp 0.4s ease 0.1s both' }}
+                    >
+                        <div className={`px-6 py-2 rounded-full border-2 text-[10px] font-black uppercase tracking-[0.3em] ${
+                            isPassed
+                                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
+                                : 'bg-rose-500/10 border-rose-500/40 text-rose-400'
+                        }`}>
+                            {isPassed ? '✓ Mission Cleared' : '✕ Mission Failed'}
+                        </div>
+                    </div>
+
+                    {/* ── Score ring — correct / total ── */}
+                    <div
+                        className="flex justify-center mb-8"
+                        style={{ animation: 'scaleIn 0.5s ease 0.2s both' }}
+                    >
+                        <div className={`w-44 h-44 rounded-full border-[10px] flex flex-col items-center justify-center shadow-2xl ${
+                            isPassed
+                                ? 'border-emerald-500 shadow-emerald-500/25'
+                                : 'border-rose-500 shadow-rose-500/25'
+                        }`}>
+                            {total > 0 ? (
+                                <>
+                                    <div className="flex items-baseline gap-1">
+                                        <span className={`text-4xl font-black italic leading-none ${isPassed ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                            {correct}
+                                        </span>
+                                        <span className="text-white/30 text-2xl font-black italic leading-none">/</span>
+                                        <span className="text-white/50 text-2xl font-black italic leading-none">{total}</span>
+                                    </div>
+                                    <span className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-2">Score</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className={`text-4xl font-black italic ${isPassed ? 'text-emerald-400' : 'text-rose-400'}`}>
                                         {correct}
                                     </span>
-                                    <span className="text-white/30 text-2xl font-black italic leading-none">/</span>
-                                    <span className="text-white/50 text-2xl font-black italic leading-none">{total}</span>
-                                </div>
-                                <span className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-2">Score</span>
+                                    <span className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-2">Score</span>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* ── Animated stats — 4 columns ── */}
+                    <div className="grid grid-cols-4 gap-3 mb-6">
+                        <StatCard label="Correct"   value={correct} color="text-emerald-400" delay={300} />
+                        <StatCard label="Incorrect" value={wrong}   color="text-rose-400"    delay={400} />
+                        <StatCard label="Points"    value={points}  color="text-indigo-400"  delay={500} />
+                        <StatCard label="Coins"     value={coins}   color="text-amber-400"   delay={600} />
+                    </div>
+
+                    {/* ── Quiz attempt dots ── */}
+                    {mode === 'quiz' && maxAttempts != null && (
+                        <div
+                            className="flex items-center justify-center gap-2 mb-6"
+                            style={{ animation: 'fadeSlideUp 0.4s ease 0.55s both' }}
+                        >
+                            {Array.from({ length: maxAttempts }).map((_, i) => (
+                                <div
+                                    key={i}
+                                    className={`w-3 h-3 rounded-full border-2 transition-all ${
+                                        i < attemptsUsed
+                                            ? 'bg-rose-500 border-rose-400'
+                                            : 'bg-white/10 border-white/20'
+                                    }`}
+                                />
+                            ))}
+                            <span className="text-[9px] font-black text-white/30 uppercase tracking-widest ml-1">
+                                {attemptsRemaining > 0
+                                    ? `${attemptsRemaining} attempt${attemptsRemaining !== 1 ? 's' : ''} left`
+                                    : 'No attempts left'}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* ── Pass / Fail message ── */}
+                    <div
+                        className={`rounded-2xl border p-4 mb-8 text-center ${
+                            isPassed
+                                ? 'bg-emerald-500/10 border-emerald-500/20'
+                                : 'bg-rose-500/10 border-rose-500/20'
+                        }`}
+                        style={{ animation: 'fadeSlideUp 0.4s ease 0.65s both' }}
+                    >
+                        <p className={`text-sm font-bold ${isPassed ? 'text-emerald-300' : 'text-rose-300'}`}>
+                            {isPassed
+                                ? mode === 'activity'
+                                    ? '🎉 Activity passed! The Quiz is now unlocked.'
+                                    : '🏆 Quest level complete!'
+                                : `❌ You need ${passingScore}% to pass. Keep pushing!`}
+                        </p>
+                    </div>
+
+                    {/* ── Action buttons ── */}
+                    <div
+                        className="space-y-3"
+                        style={{ animation: 'fadeSlideUp 0.4s ease 0.75s both' }}
+                    >
+                        {isPassed ? (
+                            <>
+                                <button
+                                    onClick={onBack}
+                                    className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all active:scale-95 shadow-lg border-b-4 border-indigo-800"
+                                >
+                                    {mode === 'activity' ? '← Back to Levels' : 'Return to Base'}
+                                </button>
+                                {canRetry && (
+                                    <button
+                                        onClick={onTryAgain}
+                                        className="w-full py-4 text-white/40 hover:text-white font-black text-xs uppercase tracking-widest transition-colors text-center"
+                                    >
+                                        🔄 Retake {mode === 'activity' ? 'Activity' : 'Quiz'}
+                                        {mode === 'quiz' && attemptsRemaining != null && (
+                                            <span className="ml-2 text-amber-400">
+                                                ({attemptsRemaining} left)
+                                            </span>
+                                        )}
+                                    </button>
+                                )}
                             </>
                         ) : (
                             <>
-                                <span className={`text-4xl font-black italic ${isPassed ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                    {correct}
-                                </span>
-                                <span className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-2">Correct</span>
+                                {canRetry ? (
+                                    <button
+                                        onClick={onTryAgain}
+                                        className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all active:scale-95 shadow-lg border-b-4 border-indigo-800"
+                                    >
+                                        🔄 Try Again
+                                        {mode === 'quiz' && attemptsRemaining != null && (
+                                            <span className="ml-2 opacity-70 text-xs">
+                                                ({attemptsRemaining} attempt{attemptsRemaining !== 1 ? 's' : ''} left)
+                                            </span>
+                                        )}
+                                    </button>
+                                ) : (
+                                    <div className="w-full py-5 bg-white/5 border border-white/10 text-white/30 rounded-2xl font-black uppercase tracking-[0.2em] text-sm text-center">
+                                        🔒 No Attempts Remaining
+                                    </div>
+                                )}
+                                <button
+                                    onClick={onBack}
+                                    className="w-full py-3 text-white/40 hover:text-white font-black text-xs uppercase tracking-widest transition-colors"
+                                >
+                                    Exit
+                                </button>
                             </>
                         )}
                     </div>
                 </div>
 
-                {/* ── Animated stats — 4 columns ── */}
-                <div className="grid grid-cols-4 gap-3 mb-6">
-                    <StatCard label="Correct" value={correct} color="text-emerald-400" delay={300} />
-                    <StatCard label="Wrong"   value={wrong}   color="text-rose-400"    delay={400} />
-                    <StatCard label="Points"  value={points}  color="text-indigo-400"  delay={500} />
-                    <StatCard label="Coins"   value={coins}   color="text-amber-400"   delay={600} />
-                </div>
-
-                {/* ── Quiz attempt dots ── */}
-                {mode === 'quiz' && maxAttempts != null && (
-                    <div
-                        className="flex items-center justify-center gap-2 mb-6"
-                        style={{ animation: 'fadeSlideUp 0.4s ease 0.55s both' }}
-                    >
-                        {Array.from({ length: maxAttempts }).map((_, i) => (
-                            <div
-                                key={i}
-                                className={`w-3 h-3 rounded-full border-2 transition-all ${
-                                    i < attemptsUsed
-                                        ? 'bg-rose-500 border-rose-400'
-                                        : 'bg-white/10 border-white/20'
-                                }`}
-                            />
-                        ))}
-                        <span className="text-[9px] font-black text-white/30 uppercase tracking-widest ml-1">
-                            {attemptsRemaining > 0
-                                ? `${attemptsRemaining} attempt${attemptsRemaining !== 1 ? 's' : ''} left`
-                                : 'No attempts left'}
-                        </span>
-                    </div>
-                )}
-
-                {/* ── Pass / Fail message ── */}
-                <div
-                    className={`rounded-2xl border p-4 mb-8 text-center ${
-                        isPassed
-                            ? 'bg-emerald-500/10 border-emerald-500/20'
-                            : 'bg-rose-500/10 border-rose-500/20'
-                    }`}
-                    style={{ animation: 'fadeSlideUp 0.4s ease 0.65s both' }}
-                >
-                    <p className={`text-sm font-bold ${isPassed ? 'text-emerald-300' : 'text-rose-300'}`}>
-                        {isPassed
-                            ? mode === 'activity'
-                                ? '🎉 Activity passed! The Quiz is now unlocked.'
-                                : '🏆 Quest level complete!'
-                            : `❌ You need ${passingScore}% to pass. Keep pushing!`}
-                    </p>
-                </div>
-
-                {/* ── Action buttons ── */}
-                <div
-                    className="space-y-3"
-                    style={{ animation: 'fadeSlideUp 0.4s ease 0.75s both' }}
-                >
-                    {isPassed ? (
-                        <>
-                            <button
-                                onClick={onBack}
-                                className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all active:scale-95 shadow-lg border-b-4 border-indigo-800"
-                            >
-                                {mode === 'activity' ? '← Back to Levels' : 'Return to Base'}
-                            </button>
-                            {canRetry && (
-                                <button
-                                    onClick={onTryAgain}
-                                    className="w-full py-4 text-white/40 hover:text-white font-black text-xs uppercase tracking-widest transition-colors text-center"
-                                >
-                                    🔄 Retake {mode === 'activity' ? 'Activity' : 'Quiz'}
-                                    {mode === 'quiz' && attemptsRemaining != null && (
-                                        <span className="ml-2 text-amber-400">
-                                            ({attemptsRemaining} left)
-                                        </span>
-                                    )}
-                                </button>
-                            )}
-                        </>
-                    ) : (
-                        <>
-                            {canRetry ? (
-                                <button
-                                    onClick={onTryAgain}
-                                    className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all active:scale-95 shadow-lg border-b-4 border-indigo-800"
-                                >
-                                    🔄 Try Again
-                                    {mode === 'quiz' && attemptsRemaining != null && (
-                                        <span className="ml-2 opacity-70 text-xs">
-                                            ({attemptsRemaining} attempt{attemptsRemaining !== 1 ? 's' : ''} left)
-                                        </span>
-                                    )}
-                                </button>
-                            ) : (
-                                <div className="w-full py-5 bg-white/5 border border-white/10 text-white/30 rounded-2xl font-black uppercase tracking-[0.2em] text-sm text-center">
-                                    🔒 No Attempts Remaining
-                                </div>
-                            )}
-                            <button
-                                onClick={onBack}
-                                className="w-full py-3 text-white/40 hover:text-white font-black text-xs uppercase tracking-widest transition-colors"
-                            >
-                                Exit
-                            </button>
-                        </>
-                    )}
-                </div>
+                <style>{`
+                    @keyframes fadeSlideUp {
+                        from { opacity: 0; transform: translateY(16px); }
+                        to   { opacity: 1; transform: translateY(0); }
+                    }
+                    @keyframes scaleIn {
+                        from { opacity: 0; transform: scale(0.7); }
+                        to   { opacity: 1; transform: scale(1); }
+                    }
+                `}</style>
             </div>
-
-            <style>{`
-                @keyframes fadeSlideUp {
-                    from { opacity: 0; transform: translateY(16px); }
-                    to   { opacity: 1; transform: translateY(0); }
-                }
-                @keyframes scaleIn {
-                    from { opacity: 0; transform: scale(0.7); }
-                    to   { opacity: 1; transform: scale(1); }
-                }
-            `}</style>
-        </div>
+        </>
     );
 };
 
@@ -566,12 +631,12 @@ const choices = React.useMemo(() => {
             )}
 
             {/* ── Main content ── */}
-            <div className="relative z-10 flex-1 flex flex-col items-center justify-start px-5 pt-6 pb-36 max-w-4xl mx-auto w-full gap-10">
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-start px-10 pt-10 pb-36 max-w-4xl mx-auto w-full gap-18">
 
                 {/* Question card */}
-                <div className="w-full bg-white/[0.06] backdrop-blur-md rounded-[2rem] px-8 py-15 text-center shadow-[0_8px_40px_rgba(0,0,0,0.5)]">
-                    <p className="text-indigo-400/70 font-black uppercase tracking-[0.35em] text-[9px] mb-5 italic">
-                        — Current Objective —
+                <div className="w-full bg-white/[0.06] backdrop-blur-md rounded-[2rem] px-15 py-15 text-center shadow-[0_8px_40px_rgba(0,0,0,0.5)]">
+                    <p className="text-indigo-400/70 font-black uppercase tracking-[0.35em] text-[8px] mb-5 italic">
+                       - Question -
                     </p>
                     {resolvedQuestionText ? (
                         <h2 className="text-2xl md:text-[2rem] font-black leading-snug uppercase tracking-tight text-white">
@@ -585,10 +650,10 @@ const choices = React.useMemo(() => {
                 </div>
 
                 {/* ── Choices / Input ── */}
-<div className="w-full mt-10">                  
+<div className="w-full mt-15">                  
       {isIdentification ? (
-                        <div className="flex flex-col items-center gap-3">
-                            <p className="text-[9px] font-black text-white/25 uppercase tracking-widest italic">
+                        <div className="flex flex-col items-center gap-5">
+                            <p className="text-[14px] font-black text-white/25 uppercase tracking-widest italic">
                                 {isFeedbackPhase ? 'Your answer' : 'Type your answer below'}
                             </p>
                             <input
@@ -614,7 +679,7 @@ const choices = React.useMemo(() => {
                                 autoFocus
                             />
                             {isFeedbackPhase && !userWasCorrect && correctAnswerText && (
-                                <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-5 py-3 rounded-2xl">
+                                <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-10 py-3 rounded-2xl">
                                     <span className="text-emerald-400 font-black text-[10px] uppercase tracking-widest">Correct:</span>
                                     <span className="text-emerald-400 font-black text-base uppercase italic">{correctAnswerText}</span>
                                 </div>
