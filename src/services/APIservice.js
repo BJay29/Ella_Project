@@ -111,6 +111,21 @@ export const authAPI = {
         });
     },
 
+unenrollSection: async (sectionId, token) => {
+    try {
+      const response = await fetch(`${BASE_URL}/api/student/my-section/${sectionId}/unenroll`, {
+        method: 'DELETE', 
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      return response;
+    } catch (error) {
+      console.error("Unenroll API Error:", error);
+      throw error;
+    }
+  },
     // ─────────────────────────────────────────────────────────────────────────
     // INSTRUCTOR SECTION SELECTION
     // ─────────────────────────────────────────────────────────────────────────
@@ -766,12 +781,6 @@ export const authAPI = {
     },
     // ─────────────────────────────────────────────────────────────────────────
     // STUDENT GAME — ACTIVITY
-    // New flat routes from backend image:
-    //   GET  /student/levels/:quest_level_id/activity         → get activity info
-    //   GET  /student/activity/:activity_id/next-question     → next question
-    //   POST /student/activity/:activity_id/questions/:question_id/answer → submit
-    //   POST /student/activity/:activity_id/finish            → finish
-    // ─────────────────────────────────────────────────────────────────────────
 
     // Get activity info for a level (used by QuestLevels modal)
     getActivities: async (quest_level_id, token) => {
@@ -836,12 +845,6 @@ export const authAPI = {
 
     // ─────────────────────────────────────────────────────────────────────────
     // STUDENT GAME — QUIZ
-    // New flat routes from backend image:
-    //   GET  /student/levels/:quest_level_id/quiz              → get quiz info
-    //   GET  /student/quiz/:quiz_id/next-question              → next question
-    //   POST /student/quiz/:quiz_id/questions/:question_id/answer → submit
-    //   POST /student/quiz/:quiz_id/finish                     → finish
-    // ─────────────────────────────────────────────────────────────────────────
 
     // Get quiz info for a level (used by QuestLevels modal)
     getQuizzes: async (quest_level_id, token) => {
