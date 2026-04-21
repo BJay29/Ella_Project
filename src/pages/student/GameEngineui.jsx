@@ -681,7 +681,7 @@ const GameEngineui = ({
                             : 'bg-rose-500/20 border-rose-700 text-rose-400'
                     }`}>
                         <span className="animate-pulse">
-                            {userWasCorrect ? '✓ Moving on...' : '✕ Next question...'}
+                            {userWasCorrect ? 'Next Question' : 'Next Question'}
                         </span>
                     </div>
                 )}

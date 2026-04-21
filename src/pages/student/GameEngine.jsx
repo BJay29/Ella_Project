@@ -657,7 +657,7 @@ const GameEngine = () => {
     if (loading && !currentQuestion && !errorMessage) return (
         <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center font-black text-white">
             <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-500 mb-6" />
-            <p className="tracking-widest uppercase italic">Establishing Secure Uplink...</p>
+            <p className="tracking-widest uppercase italic"></p>
         </div>
     );
 
