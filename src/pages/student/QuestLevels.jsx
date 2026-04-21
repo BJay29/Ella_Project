@@ -266,7 +266,7 @@ const QuestLevels = () => {
                                 const hasUsedQuizAttempt = quizAttemptsUsed > 0 || level.is_completed || level.quiz_attempted;
 
                                 const quizButtonLabel = isQuizUnlocked
-                                    ? (hasUsedQuizAttempt ? '↻ Retake Quiz' : 'Final Quiz')
+                                    ? (hasUsedQuizAttempt ? '↻ Retake Quiz' : 'Quiz')
                                     : '🔒 Quiz Locked';
 
                                 return (

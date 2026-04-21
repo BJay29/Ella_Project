@@ -135,7 +135,7 @@ const NotificationPanel = () => {
 
 // ── StudentNavbar ─────────────────────────────────────────────────────────────
 
-const StudentNavbar = ({ activePage, setActivePage, onSettingsClick, onProfileClick }) => {
+const StudentNavbar = ({ activePage, setActivePage, onSettingsClick, onProfileClick, studentStats }) => {
   const { notificationsEnabled, unreadCount } = useNotification();
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const bellRef = useRef(null);
@@ -198,10 +198,23 @@ const StudentNavbar = ({ activePage, setActivePage, onSettingsClick, onProfileCl
         {/* Right side */}
         <div className="flex items-center gap-3 flex-shrink-0">
 
-          {/* Stars */}
-          <div className="flex items-center gap-1">
-            <span className="text-yellow-400">⭐</span>
-            <span className="text-sm font-bold text-gray-700 dark:text-gray-200">1134</span>
+          {/* Points & Coins Display */}
+          <div className="flex items-center gap-3 mr-2">
+            {/* Points */}
+            <div className="flex items-center gap-1 bg-yellow-50 dark:bg-yellow-900/20 px-2.5 py-1 rounded-full border border-yellow-100 dark:border-yellow-700/50">
+              <span className="text-sm">⭐</span>
+              <span className="text-xs font-black text-gray-700 dark:text-yellow-500">
+                {studentStats?.points || 0}
+              </span>
+            </div>
+            
+            {/* Coins */}
+            <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-2.5 py-1 rounded-full border border-blue-100 dark:border-blue-700/50">
+              <span className="text-sm">🪙</span>
+              <span className="text-xs font-black text-gray-700 dark:text-blue-400">
+                {studentStats?.coins || 0}
+              </span>
+            </div>
           </div>
 
           {/* 🔔 Bell — only visible when notifications enabled */}

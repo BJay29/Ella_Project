@@ -8,12 +8,14 @@ import Leaderboard from './Leaderboard';
 import MyBadges from './MyBadges';
 import Messages from './Messages';
 import SettingsCard from './settingscard';
+// Import authAPI para sa fetching ng points at coins
+import { authAPI } from '../../services/APIservice';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://ellaquest-backend.onrender.com';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
-  const location = useLocation(); // Added to detect navigation state
+  const location = useLocation();
   const dropdownRef = useRef(null);
 
   // --- STATES ---
@@ -25,6 +27,12 @@ const StudentDashboard = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [soundEffects, setSoundEffects] = useState(true);
 
+  // Bagong states para sa Points at Coins
+  const [studentStats, setStudentStats] = useState({
+    points: 0,
+    coins: 0
+  });
+
   const [profileData, setProfileData] = useState({
     firstName: sessionStorage.getItem('firstName') || localStorage.getItem('firstName') || '',
     lastName:  sessionStorage.getItem('lastName')  || localStorage.getItem('lastName')  || '',
@@ -34,16 +42,44 @@ const StudentDashboard = () => {
 
   const firstName = profileData.firstName || 'Student';
 
-  // --- HANDLER FOR EXTERNAL NAVIGATION (Quest Navigation Support) ---
+  // --- FETCH POINTS & COINS LOGIC ---
+  const fetchCurrency = async () => {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      // Sabay na i-fetch ang points at coins para mas mabilis
+      const [pointsRes, coinsRes] = await Promise.all([
+        authAPI.getPoints(token),
+        authAPI.getCoins(token)
+      ]);
+
+      if (pointsRes.ok && coinsRes.ok) {
+        const pointsData = await pointsRes.json();
+        const coinsData = await coinsRes.json();
+        
+        setStudentStats({
+          points: pointsData.points || 0,
+          coins: coinsData.coins || 0
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching student currency:", error);
+    }
+  };
+
+  // --- USE EFFECTS ---
   useEffect(() => {
-    // If the user is coming back from a specific Quest Level, 
-    // we ensure the "My Quests" page is active.
+    // Tawagin ang fetchCurrency kapag nag-mount ang dashboard
+    fetchCurrency();
+  }, []);
+
+  useEffect(() => {
     if (location.state?.activePage) {
       setActivePage(location.state.activePage);
     }
   }, [location]);
 
-  // --- CLOSE DROPDOWN ON CLICK OUTSIDE ---
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -100,9 +136,9 @@ const StudentDashboard = () => {
   ];
 
   const macroSkills = [
-    { label: 'Reading',   emoji: '📖', percent: 80, status: 'Quest active', color: 'bg-[#4CAF50]'  },
+    { label: 'Reading',  emoji: '📖', percent: 80, status: 'Quest active', color: 'bg-[#4CAF50]'  },
     { label: 'Listening', emoji: '🎧', percent: 0,  status: 'Quest active', color: 'bg-blue-400'   },
-    { label: 'Writing',   emoji: '✏️', percent: 0,  status: 'Quest active', color: 'bg-yellow-400' },
+    { label: 'Writing',  emoji: '✏️', percent: 0,  status: 'Quest active', color: 'bg-yellow-400' },
     { label: 'Speaking',  emoji: '🎤', percent: 0,  status: 'Quest active', color: 'bg-purple-400' },
   ];
 
@@ -118,7 +154,13 @@ const StudentDashboard = () => {
           setActivePage={setActivePage}
           onSettingsClick={() => setShowSettings(true)}
           onProfileClick={() => setShowDropdown(!showDropdown)} 
+          // Pinasa natin ang fetched stats sa Navbar para doon ipakita ang Points at Coins
+          studentStats={studentStats}
         />
+
+        {/* --- DITO MO PALITAN YUNG STAR SA NAVBAR MO --- */}
+        {/* Note: Dahil ang Navbar ay separate component, siguraduhin na ang StudentNavbar component 
+            mo ay tumatanggap ng 'studentStats' prop at nira-render ito sa pwesto ng star icon. */}
 
         {/* --- PROFILE DROPDOWN MENU --- */}
         {showDropdown && (
@@ -219,8 +261,6 @@ const StudentDashboard = () => {
       )}
 
       {/* --- MODALS & MESSAGES --- */}
-      
-      {/* Settings Modal */}
       {showSettings && (
         <SettingsCard
           onClose={() => setShowSettings(false)}
@@ -229,7 +269,6 @@ const StudentDashboard = () => {
         />
       )}
 
-      {/* Simplified Logout Confirmation */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/50 z-[500] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-[300px] p-6 text-center animate-in fade-in zoom-in-95 duration-200">
@@ -255,7 +294,6 @@ const StudentDashboard = () => {
         </div>
       )}
 
-      {/* Profile Modal */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-black/40 z-[400] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-white/20">

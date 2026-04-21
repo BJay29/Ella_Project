@@ -126,7 +126,9 @@ unenrollSection: async (sectionId, token) => {
       throw error;
     }
   },
-    // ─────────────────────────────────────────────────────────────────────────
+   
+  
+  // ─────────────────────────────────────────────────────────────────────────
     // INSTRUCTOR SECTION SELECTION
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -906,4 +908,38 @@ unenrollSection: async (sectionId, token) => {
             throw error;
         }
     },
+
+ // Get Total Points and Coins // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+ getPoints: async (token) => {
+    try {
+      const response = await fetch(`${BASE_URL}/api/student/points`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      return response;
+    } catch (error) {
+      console.error("Get Points API Error:", error);
+      throw error;
+    }
+  },
+
+  getCoins: async (token) => {
+    try {
+      const response = await fetch(`${BASE_URL}/api/student/coins`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      return response;
+    } catch (error) {
+      console.error("Get Coins API Error:", error);
+      throw error;
+    }
+  },
 };
