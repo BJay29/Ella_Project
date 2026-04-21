@@ -71,8 +71,8 @@ const StatCard = ({ label, value, color, delay = 0 }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Results Screen
 //
-// Reads summary data with maximum field-name coverage to handle all
-// possible backend response shapes, including attempt-based responses.
+// Props may include pre-normalized values (correct, wrong, total, points, coins)
+// passed directly from GameEngine to avoid relying solely on raw summary fields.
 // ─────────────────────────────────────────────────────────────────────────────
 export const ResultsScreen = ({
     summary,
@@ -83,6 +83,12 @@ export const ResultsScreen = ({
     onTryAgain,
     onBack,
     navigate,
+    // Pre-normalized values passed from GameEngine (fixes score ring showing 0)
+    score          = null,
+    totalQuestions = null,
+    correctCount   = null,
+    wrongCount     = null,
+    totalItems     = null,
 }) => {
     const [visible, setVisible] = useState(false);
 
@@ -92,7 +98,6 @@ export const ResultsScreen = ({
     }, []);
 
     // ── Pass / Fail detection ─────────────────────────────────────────────────
-    // Covers every field name the backend might use, including attempt-based ones.
     const isPassed =
         summary.passed           === true     ||
         summary.is_passed        === true     ||
@@ -107,58 +112,63 @@ export const ResultsScreen = ({
          summary.passing_score != null &&
          Number(summary.percentage) >= Number(summary.passing_score));
 
-    // ── Extract stats — covers ALL possible backend field names ───────────────
-    // The backend may return attempt-based nested objects or flat fields.
+    // ── Extract stats ─────────────────────────────────────────────────────────
+    // Priority: explicit props from GameEngine > summary fields > 0
     const attemptData = summary.attempt || summary.result_data || summary.attempt_data || {};
 
     const correct = Number(
-        summary.correct_count         ??
-        summary.correct               ??
-        summary.correct_answers       ??
-        summary.total_correct         ??
-        attemptData.correct_count     ??
-        attemptData.correct           ??
+        correctCount                          ??
+        score                                 ??
+        summary.correct_count                 ??
+        summary.correct                       ??
+        summary.correct_answers               ??
+        summary.total_correct                 ??
+        attemptData.correct_count             ??
+        attemptData.correct                   ??
         0
     );
     const wrong = Number(
-        summary.wrong_count           ??
-        summary.incorrect             ??
-        summary.wrong                 ??
-        summary.wrong_answers         ??
-        summary.total_wrong           ??
-        summary.incorrect_count       ??
-        attemptData.wrong_count       ??
-        attemptData.incorrect         ??
+        wrongCount                            ??
+        summary.wrong_count                   ??
+        summary.incorrect                     ??
+        summary.wrong                         ??
+        summary.wrong_answers                 ??
+        summary.total_wrong                   ??
+        summary.incorrect_count               ??
+        attemptData.wrong_count               ??
+        attemptData.incorrect                 ??
         0
     );
     const total = Number(
-        summary.total_questions       ??
-        summary.total                 ??
-        summary.item_count            ??
-        summary.question_count        ??
-        attemptData.total_questions   ??
-        attemptData.total             ??
-        (correct + wrong)             ??
+        totalItems                            ??
+        totalQuestions                        ??
+        summary.total_questions               ??
+        summary.total                         ??
+        summary.item_count                    ??
+        summary.question_count                ??
+        attemptData.total_questions           ??
+        attemptData.total                     ??
+        (correct + wrong)                     ??
         0
     );
     const points = Number(
-        summary.points_earned         ??
-        summary.points                ??
-        summary.score_points          ??
-        summary.earned_points         ??
-        summary.total_points          ??
-        attemptData.points_earned     ??
-        attemptData.points            ??
+        summary.points_earned                 ??
+        summary.points                        ??
+        summary.score_points                  ??
+        summary.earned_points                 ??
+        summary.total_points                  ??
+        attemptData.points_earned             ??
+        attemptData.points                    ??
         0
     );
     const coins = Number(
-        summary.coins_earned          ??
-        summary.coins                 ??
-        summary.coin                  ??
-        summary.earned_coins          ??
-        summary.total_coins           ??
-        attemptData.coins_earned      ??
-        attemptData.coins             ??
+        summary.coins_earned                  ??
+        summary.coins                         ??
+        summary.coin                          ??
+        summary.earned_coins                  ??
+        summary.total_coins                   ??
+        attemptData.coins_earned              ??
+        attemptData.coins                     ??
         0
     );
 
@@ -174,8 +184,6 @@ export const ResultsScreen = ({
     const attemptsRemaining = maxAttempts != null ? Math.max(0, maxAttempts - attemptsUsed) : null;
     const canRetry          = maxAttempts == null || attemptsRemaining > 0;
 
-    // ── Debug: log summary so dev can see what fields the backend actually sends
-    // Remove this in production if desired.
     useEffect(() => {
         console.debug('[ResultsScreen] summary received:', summary);
         console.debug('[ResultsScreen] parsed →', { isPassed, correct, wrong, total, points, coins });
@@ -244,7 +252,6 @@ export const ResultsScreen = ({
                                 <span className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-2">Score</span>
                             </>
                         ) : (
-                            // Fallback when total is 0 — show just correct count
                             <>
                                 <span className={`text-4xl font-black italic ${isPassed ? 'text-emerald-400' : 'text-rose-400'}`}>
                                     {correct}
@@ -405,13 +412,65 @@ const GameEngineui = ({
     submittedAnswerId,
     feedbackResult,
 }) => {
-    const choices = getChoices();
+const rawChoices = getChoices();
 
+// FIX: Force correct order for True/False
+const choices = React.useMemo(() => {
+    if (!rawChoices || rawChoices.length !== 2) return rawChoices;
+
+    const texts = rawChoices.map(c =>
+        (c.answer_text || c.text || '').toLowerCase().trim()
+    );
+
+    const isTrueFalse =
+        texts.includes('true') && texts.includes('false');
+
+    if (!isTrueFalse) return rawChoices;
+
+    return [...rawChoices].sort((a, b) => {
+        const aText = (a.answer_text || a.text || '').toLowerCase();
+        const bText = (b.answer_text || b.text || '').toLowerCase();
+
+        if (aText === 'true') return -1;
+        if (bText === 'true') return 1;
+        return 0;
+    });
+}, [rawChoices]);
     const gridClass = choices.length >= 2 && choices.length <= 4
         ? 'grid grid-cols-2 gap-3'
         : 'grid grid-cols-1 gap-3';
 
     const resolvedQuestionText = getQuestionText();
+
+    const correctAnswerLetter = React.useMemo(() => {   
+        if (!choices || !serverCorrectId) return null;
+
+        const index = choices.findIndex(choice => {
+            const id =
+                choice.activity_answer_id ??
+                choice.quest_activity_answer_id ??
+                choice.quiz_answer_id ??
+                choice.quest_quiz_answer_id ??
+                choice.answer_id ??
+                choice.id;
+
+            return String(id) === String(serverCorrectId);
+        });
+
+        if (index === -1) return null;
+
+        return String.fromCharCode(65 + index);
+    }, [choices, serverCorrectId]);
+
+    const isTrueFalse = React.useMemo(() => {
+        if (!choices || choices.length !== 2) return false;
+
+        const texts = choices.map(c =>
+            (c.answer_text || c.text || '').toLowerCase().trim()
+        );
+
+        return texts.includes('true') && texts.includes('false');
+    }, [choices]);
 
     return (
         <div className="min-h-screen bg-[#020617] relative font-sans text-white flex flex-col">
@@ -492,23 +551,25 @@ const GameEngineui = ({
                     }`}>
                         {userWasCorrect ? '✓ Correct!' : '✕ Incorrect'}
                     </p>
-                    {!userWasCorrect && correctAnswerText && (
-                        <p className="text-white/60 text-xs font-bold mt-1 uppercase tracking-wide">
-                            Correct answer:{' '}
-                            <span className="text-emerald-400 font-black">{correctAnswerText}</span>
-                        </p>
-                    )}
-                    <p className="text-white/30 text-[10px] font-bold mt-1 uppercase tracking-widest animate-pulse">
+             {!userWasCorrect && (correctAnswerLetter || correctAnswerText) && (
+    <p className="text-white/60 text-xs font-bold mt-1 uppercase tracking-wide">
+        Correct answer:{' '}
+        <span className="text-emerald-400 font-black">
+            {correctAnswerLetter || correctAnswerText}
+        </span>
+    </p>
+)}        
+ <p className="text-white/30 text-[10px] font-bold mt-1 uppercase tracking-widest animate-pulse">
                         {isLastItem ? 'Finishing mission...' : 'Next question coming...'}
                     </p>
                 </div>
             )}
 
             {/* ── Main content ── */}
-            <div className="relative z-10 flex-1 flex flex-col items-center justify-start px-5 pt-6 pb-36 max-w-4xl mx-auto w-full gap-6">
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-start px-5 pt-6 pb-36 max-w-4xl mx-auto w-full gap-10">
 
                 {/* Question card */}
-                <div className="w-full bg-white/[0.06] backdrop-blur-md rounded-[2rem] px-8 py-10 text-center shadow-[0_8px_40px_rgba(0,0,0,0.5)]">
+                <div className="w-full bg-white/[0.06] backdrop-blur-md rounded-[2rem] px-8 py-15 text-center shadow-[0_8px_40px_rgba(0,0,0,0.5)]">
                     <p className="text-indigo-400/70 font-black uppercase tracking-[0.35em] text-[9px] mb-5 italic">
                         — Current Objective —
                     </p>
@@ -524,8 +585,8 @@ const GameEngineui = ({
                 </div>
 
                 {/* ── Choices / Input ── */}
-                <div className="w-full">
-                    {isIdentification ? (
+<div className="w-full mt-10">                  
+      {isIdentification ? (
                         <div className="flex flex-col items-center gap-3">
                             <p className="text-[9px] font-black text-white/25 uppercase tracking-widest italic">
                                 {isFeedbackPhase ? 'Your answer' : 'Type your answer below'}
@@ -539,7 +600,7 @@ const GameEngineui = ({
                                     answerProvided &&
                                     !isSubmitting &&
                                     !isFeedbackPhase &&
-                                    handleSubmitAnswer(false)
+                                    handleSubmitAnswer(false)   
                                 }
                                 disabled={isFeedbackPhase || isSubmitting}
                                 placeholder="TYPE YOUR RESPONSE..."
@@ -608,10 +669,10 @@ const GameEngineui = ({
                                         : 'bg-white/10 text-white/40 group-hover:bg-white/20';
                                 }
 
-                                const badgeIcon =
-                                    isFeedbackPhase && isThisChoiceCorrect                  ? '✓' :
-                                    isFeedbackPhase && wasSubmitted && !isThisChoiceCorrect ? '✕' :
-                                    letter;
+                              const badgeIcon =
+    isFeedbackPhase && isThisChoiceCorrect                  ? '✓' :
+    isFeedbackPhase && wasSubmitted && !isThisChoiceCorrect ? '✕' :
+    (isTrueFalse ? '' : letter);
 
                                 const choiceText =
                                     choice.answer_text  ||
@@ -630,14 +691,19 @@ const GameEngineui = ({
                                             }
                                         }}
                                         disabled={isSubmitting || isFeedbackPhase || choiceId == null}
-                                        className={`group relative flex flex-col items-center justify-center gap-3 px-4 py-6 rounded-3xl border-2 text-center transition-all duration-200 disabled:pointer-events-none min-h-[110px] ${btnClass}`}
+                                      className={`group relative flex items-center gap-4 px-5 py-5 rounded-3xl border-2 text-left transition-all duration-200 disabled:pointer-events-none min-h-[80px] ${btnClass}`}
                                     >
-                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 transition-all ${badgeClass}`}>
-                                            {badgeIcon}
-                                        </div>
-                                        <span className="font-bold text-sm leading-snug uppercase tracking-tight w-full">
-                                            {choiceText}
-                                        </span>
+                                   {!isTrueFalse && (
+    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${badgeClass}`}>
+        {badgeIcon}
+    </div>
+)}
+
+<span className={`font-bold leading-snug uppercase tracking-tight ${
+    isTrueFalse ? 'text-center w-full' : 'text-left flex-1'
+}`}>
+    {choiceText}
+</span>
                                         {isFeedbackPhase && isThisChoiceCorrect && (
                                             <span className="text-[9px] font-black uppercase tracking-widest text-white/80 bg-white/15 px-2 py-0.5 rounded-full">
                                                 Correct

@@ -3,6 +3,13 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authAPI } from '../../services/APIservice';
 
+const QUIZ_MAX_ATTEMPTS = 3;
+
+const getAttemptCount = (content_id) => {
+    try { return parseInt(sessionStorage.getItem(`quiz_attempts_${content_id}`) || '0', 10); }
+    catch { return 0; }
+};
+
 const QuestLevels = () => {
     const { questId } = useParams();
     const navigate = useNavigate();
@@ -18,6 +25,8 @@ const QuestLevels = () => {
     const [countdown,          setCountdown]          = useState(3);
     const [prefetchedGameData, setPrefetchedGameData] = useState(null);
 
+    // ── Attempt-limit modal state ─────────────────────────────────────────────
+    const [isAttemptLimitModalOpen, setIsAttemptLimitModalOpen] = useState(false);
 
     const fetchQuestProgress = useCallback(async () => {
         try {
@@ -47,10 +56,6 @@ const QuestLevels = () => {
         }
     }, [questId]);
 
-    // FIX: Re-fetch every time location.key changes.
-    // location.key is a unique value React Router assigns to each navigation event.
-    // When the student navigates back here (from GameEngine), location.key changes,
-    // triggering a fresh fetch with the latest backend data.
     useEffect(() => {
         if (questId) fetchQuestProgress();
     }, [questId, fetchQuestProgress, location.key]);
@@ -93,6 +98,15 @@ const QuestLevels = () => {
             if (!content_id) {
                 alert(`Error: ${mode} ID missing from server response.`);
                 return;
+            }
+
+            // ── FIX: Check attempt limit for quiz BEFORE opening start modal ──
+            if (mode === 'quiz') {
+                const usedAttempts = getAttemptCount(content_id);
+                if (usedAttempts >= QUIZ_MAX_ATTEMPTS) {
+                    setIsAttemptLimitModalOpen(true);
+                    return;
+                }
             }
 
             setSelectedMission({
@@ -316,7 +330,7 @@ const QuestLevels = () => {
                 </div>
             </div>
 
-            {/* Mission Briefing Modal */}
+            {/* ── Mission Briefing Modal ── */}
             <AnimatePresence>
                 {isModalOpen && selectedMission && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -357,7 +371,41 @@ const QuestLevels = () => {
                 )}
             </AnimatePresence>
 
-            {/* Countdown Overlay */}
+            {/* ── Attempt Limit Modal ── */}
+            <AnimatePresence>
+                {isAttemptLimitModalOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setIsAttemptLimitModalOpen(false)} />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative bg-[#0f172a] border-2 border-amber-500/30 p-10 rounded-[3rem] shadow-[0_0_80px_rgba(245,158,11,0.15)] max-w-md w-full text-center"
+                        >
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
+                            <div className="text-5xl mb-4">🔒</div>
+                            <p className="text-amber-400 font-black tracking-[0.4em] uppercase text-[10px] mb-3">Quiz Locked</p>
+                            <h2 className="text-2xl font-black text-white mb-4 uppercase italic leading-tight">
+                                Attempt Limit Reached
+                            </h2>
+                            <p className="text-white/50 text-sm font-medium leading-relaxed mb-8">
+                                You have used all{' '}
+                                <span className="text-amber-400 font-black">{QUIZ_MAX_ATTEMPTS}</span>{' '}
+                                attempts for this quiz. No more retakes are available.
+                            </p>
+                            <button
+                                onClick={() => setIsAttemptLimitModalOpen(false)}
+                                className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-base transition-all active:scale-95 uppercase italic shadow-lg"
+                            >
+                                Back to Levels
+                            </button>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* ── Countdown Overlay ── */}
             <AnimatePresence>
                 {isCountingDown && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
