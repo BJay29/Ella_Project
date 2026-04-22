@@ -174,9 +174,9 @@ localStorage.removeItem('token');
                                 </div>
 
                                 <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-indigo-700 text-sm mb-8 flex items-start gap-3">
-                                    <span className="text-lg">📌</span>
+                                    <span className="text-lg"></span>
                                     <p className="leading-relaxed">
-                                        Uploaded materials are sent to **Admin** for content validation and approval before paggamit sa quest creation.
+
                                     </p>
                                 </div>
 

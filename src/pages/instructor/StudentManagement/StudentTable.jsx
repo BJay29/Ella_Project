@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { authAPI } from '../../../services/APIservice';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,6 +38,10 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [error, setError] = useState('');
+    
+    // ✅ Added Ref for File Upload
+    const fileInputRef = useRef(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     // ✅ Helper to clean token
     const getCleanToken = useCallback(() => {
@@ -94,6 +98,46 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
         fetchData(); 
     }, [fetchData]);
 
+    // ✅ Added: Handle Material Upload Trigger
+    const handleUploadClick = () => {
+        fileInputRef.current.click();
+    };
+
+    // ✅ Added: Handle File Change (Actual Upload Logic)
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Optional: Check file size (e.g., 10MB limit)
+        if (file.size > 10 * 1024 * 1024) {
+            alert("File is too large. Maximum size is 10MB.");
+            return;
+        }
+
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append('material', file);
+        formData.append('sectionId', sectionId);
+
+        try {
+            const token = getCleanToken();
+            // Note: Siguraduhin na may authAPI.uploadMaterial endpoint ka sa services mo
+            const res = await authAPI.uploadMaterial(formData, token);
+
+            if (res.ok) {
+                alert("Material uploaded successfully!");
+            } else {
+                alert("Failed to upload material.");
+            }
+        } catch (err) {
+            console.error("Upload Error:", err);
+            alert("An error occurred during upload.");
+        } finally {
+            setIsUploading(false);
+            e.target.value = null; // Reset input
+        }
+    };
+
     // ── Handle Action (Approve/Reject) - AUTO ACTION NO MODAL ────────────────
     const handleAction = async (requestId, action) => {
         const storedSection = localStorage.getItem('selectedSection');
@@ -107,14 +151,11 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
         const statusMapping = action === 'approve' ? 'approved' : 'rejected';
         
-        // REMOVED window.confirm HERE for automatic processing
-        
         try {
             const token = getCleanToken();
             const res = await authAPI.approveRejectStudent(sId, requestId, statusMapping, token);
 
             if (res.ok) {
-                // Refresh records para mawala sa modal at lumipat sa approved table
                 await fetchData(); 
             } else {
                 const errData = await res.json().catch(() => ({}));
@@ -165,12 +206,28 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                     </div>
 
                     <div className="flex gap-4">
-                        <div className="flex flex-col items-end px-6 py-2 bg-green-50/50 border border-green-100 rounded-2xl">
-                             <span className="text-[9px] font-black text-green-600 uppercase tracking-widest">Section Code</span>
-                             <span className="text-sm font-black text-gray-800 tracking-widest">{sectionCode || '---'}</span>
-                        </div>
+                        {/* Hidden File Input */}
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            onChange={handleFileChange} 
+                            className="hidden" 
+                        />
+
+                        {/* ✅ Added: Upload Material Button */}
                         <button 
-                            onClick={() => setIsModalOpen(true)}
+                            onClick={handleUploadClick}
+                            disabled={isUploading}
+                            className={`px-6 py-4 border-2 border-gray-900 text-gray-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-900 hover:text-white transition-all flex items-center gap-3 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {isUploading ? 'Uploading...' : 'Upload Material'}
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                        </button>
+
+                        <button 
+                            onClick={() => setIsModalOpen(true)} 
                             className="px-6 py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#22C55E] transition-all flex items-center gap-3 relative"
                         >
                             View Requests
