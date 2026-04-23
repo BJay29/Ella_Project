@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import ellaLogo from '../../assets/image.png';
+// Inalis ang import ng ellaLogo dito
 import ErrorModal from "../../components/modals/errormodal";
 import { authAPI } from '../../services/APIservice';
 
@@ -27,8 +27,8 @@ const SignupMethod = () => {
     try {
       // 1. NUCLEAR CLEANUP: Linisin ang lumang basura sa storage
       localStorage.removeItem('token');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userEmail');   
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userEmail');   
       sessionStorage.clear();
 
       // 2. IMPORTANT FIX: I-set ang intent PAGKATAPOS ng clear.
@@ -53,13 +53,9 @@ const SignupMethod = () => {
       {/* Main Card Container */}
       <div className="w-full max-w-[340px] bg-[#B8DBB8] rounded-[40px] p-10 flex flex-col items-center shadow-lg border border-black/10 animate-slideUp">
         
-        {/* Branding Logo */}
-        <div className="mb-4">
-          <img
-            src={ellaLogo}
-            alt="Ella Character"
-            className="w-32 h-32 object-contain drop-shadow-md"
-          />
+        {/* Branding Logo - Inalis ang Ella Character Image dito */}
+        <div className="mb-6 mt-4">
+          <div className="w-16 h-1 bg-gray-700/20 rounded-full mb-4 mx-auto"></div>
         </div>
 
         <h2 className="text-[12px] font-black tracking-[0.25em] text-gray-700 uppercase mb-2 text-center">

@@ -20,8 +20,8 @@ const normalise = (raw) => ({
   ss_id:         raw.ss_id         || raw.id               || raw.enrollment_id || Math.random(),
   section_id:    raw.section_id    || raw.id,
   course_id:     raw.course_id,
-  course_name:   raw.course_name   || raw.title            || raw.course_title  || 'Untitled Course',
-  section_name:  raw.section_name  || raw.name             || raw.section_title || 'Unassigned Section',
+  course_name:   raw.course_name   || raw.title             || raw.course_title  || 'Untitled Course',
+  section_name:  raw.section_name  || raw.name              || raw.section_title || 'Unassigned Section',
   section_code:  raw.section_code,
   program:       raw.program_name  || raw.program           || 'N/A',
   instructor:    raw.instructor_name || raw.instructor      || raw.teacher_name  || raw.prof || 'Instructor TBA',
@@ -108,7 +108,6 @@ const EnrollmentCard = ({ enroll, onClick, onUnenroll }) => {
           </svg>
         </button>
 
-        {/* Unenroll Button - Update: Tumatanggap na ng onUnenroll call */}
         {showOptions && (
           <div className="absolute right-0 mt-1 w-36 bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700 z-[60] py-1 animate-in fade-in zoom-in duration-150 origin-top-right">
             <button 
@@ -211,7 +210,6 @@ const MyCourses = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showPeopleModal, setShowPeopleModal] = useState(false);
 
-  // Success Toast State
   const [successToast, setSuccessToast] = useState({ show: false, message: '' });
 
   const currentUser = getUserFromToken();
@@ -239,11 +237,8 @@ const MyCourses = () => {
     try {
       const res = await authAPI.unenrollSection(sectionId, token);
       if (res.ok) {
-        // Show success toast
         setSuccessToast({ show: true, message: 'Successfully unenrolled from section.' });
-        // Auto hide toast after 3 seconds
         setTimeout(() => setSuccessToast({ show: false, message: '' }), 3000);
-        // Refresh list
         fetchEnrollments();
       } else {
         const data = await res.json();
@@ -306,8 +301,9 @@ const MyCourses = () => {
     const classmatesList = sectionDetails?.classmates || sectionDetails?.students || [];
 
     return (
-      <div className="max-w-5xl mx-auto relative overflow-hidden h-screen flex flex-col bg-white dark:bg-gray-900">
-        <div className="flex border-b border-gray-100 dark:border-gray-800 px-6 h-14 items-center justify-between bg-white dark:bg-gray-800 sticky top-0 z-30">
+      // INAYOS: Ginawang w-full at h-screen para sakop ang buong background
+      <div className="w-full h-screen flex flex-col bg-white dark:bg-gray-900 relative overflow-hidden">
+        <div className="flex border-b border-gray-100 dark:border-gray-800 px-8 h-16 items-center justify-between bg-white dark:bg-gray-800 sticky top-0 z-30">
           <button 
             onClick={() => setSelectedSectionId(null)} 
             className="group flex items-center gap-2 text-gray-400 hover:text-red-500 transition-all font-black text-xs uppercase"
@@ -322,69 +318,71 @@ const MyCourses = () => {
 
           <button 
             onClick={() => setShowPeopleModal(true)}
-            className="flex items-center gap-2 bg-[#4CAF50]/10 text-[#4CAF50] px-4 py-1.5 rounded-xl text-xs font-black uppercase hover:bg-[#4CAF50] hover:text-white transition-all shadow-sm"
+            className="flex items-center gap-2 bg-[#4CAF50]/10 text-[#4CAF50] px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-[#4CAF50] hover:text-white transition-all shadow-sm"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
-            Classmates ({classmatesList.length})
+            People ({classmatesList.length})
           </button>
         </div>
 
-        <div className="px-6 py-8 flex-grow overflow-y-auto bg-gray-50 dark:bg-gray-900/50">
-          {loadingDetails ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-4">
-              <div className="animate-spin w-10 h-10 border-4 border-[#4CAF50] border-t-transparent rounded-full" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              <div className="lg:col-span-4 bg-[#4CAF50] rounded-2xl p-8 text-white relative h-48 flex flex-col justify-end shadow-lg overflow-hidden border-4 border-white dark:border-gray-800 shadow-[0_0_20px_rgba(76,175,80,0.2)]">
-                  <div className="absolute top-0 left-1/4 w-full h-full bg-gradient-to-br from-white/5 to-transparent skew-x-12"></div>
-                  <h1 className="text-3xl font-black z-10 drop-shadow-md tracking-tight">
-                    {sectionDetails?.section?.course_name || sectionDetails?.course_name}
-                  </h1>
-                  <p className="text-lg z-10 font-bold opacity-90">{sectionDetails?.section?.section_name || sectionDetails?.section_name}</p>
-                  <div className="mt-3 flex gap-3 z-10">
-                    <span className="text-[10px] bg-white/20 px-2.5 py-1 rounded-lg border border-white/30 uppercase font-black tracking-widest">
-                        {sectionDetails?.section?.program_name || sectionDetails?.section?.program || sectionDetails?.program || 'N/A'}
-                    </span>
-                    <span className="text-[10px] bg-black/20 px-2.5 py-1 rounded-lg border border-white/10 font-black tracking-widest uppercase">
-                        CODE: {sectionDetails?.section?.section_code || sectionDetails?.section_code}
-                    </span>
-                  </div>
-                  <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
+        <div className="flex-grow overflow-y-auto bg-gray-50 dark:bg-gray-900/50">
+          <div className="max-w-7xl mx-auto px-8 py-10"> {/* Nilagyan ng inner container para pantay ang content pero ang bg ay full */}
+            {loadingDetails ? (
+              <div className="flex flex-col items-center justify-center py-24 gap-4">
+                <div className="animate-spin w-10 h-10 border-4 border-[#4CAF50] border-t-transparent rounded-full" />
               </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <div className="lg:col-span-4 bg-[#4CAF50] rounded-2xl p-8 text-white relative h-52 flex flex-col justify-end shadow-lg overflow-hidden border-4 border-white dark:border-gray-800">
+                    <div className="absolute top-0 left-1/4 w-full h-full bg-gradient-to-br from-white/5 to-transparent skew-x-12"></div>
+                    <h1 className="text-4xl font-black z-10 drop-shadow-md tracking-tight">
+                      {sectionDetails?.section?.course_name || sectionDetails?.course_name}
+                    </h1>
+                    <p className="text-xl z-10 font-bold opacity-90">{sectionDetails?.section?.section_name || sectionDetails?.section_name}</p>
+                    <div className="mt-4 flex gap-3 z-10">
+                      <span className="text-[10px] bg-white/20 px-3 py-1.5 rounded-lg border border-white/30 uppercase font-black tracking-widest">
+                          {sectionDetails?.section?.program_name || sectionDetails?.section?.program || sectionDetails?.program || 'N/A'}
+                      </span>
+                      <span className="text-[10px] bg-black/20 px-3 py-1.5 rounded-lg border border-white/10 font-black tracking-widest uppercase">
+                          CODE: {sectionDetails?.section?.section_code || sectionDetails?.section_code}
+                      </span>
+                    </div>
+                    <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
+                </div>
 
-              <div className="lg:col-span-1 lg:order-2 space-y-4">
-                  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-5 shadow-sm">
-                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Player Profile</h4>
-                      <div className="flex items-center gap-3">
-                          {currentUser?.profile_pic ? (
-                            <img src={currentUser.profile_pic} alt="Profile" className="w-12 h-12 rounded-xl object-cover border-2 border-[#4CAF50] shadow-sm" />
-                          ) : (
-                            <div className="w-12 h-12 bg-[#4CAF50] rounded-xl flex items-center justify-center text-white font-black text-lg shadow-sm uppercase">
-                               {currentUser?.full_name?.[0] || currentUser?.first_name?.[0] || 'S'}
+                <div className="lg:col-span-1 lg:order-2 space-y-6">
+                    <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Student Profile</h4>
+                        <div className="flex items-center gap-4">
+                            {currentUser?.profile_pic ? (
+                              <img src={currentUser.profile_pic} alt="Profile" className="w-14 h-14 rounded-xl object-cover border-2 border-[#4CAF50] shadow-sm" />
+                            ) : (
+                              <div className="w-14 h-14 bg-[#4CAF50] rounded-xl flex items-center justify-center text-white font-black text-xl shadow-sm uppercase">
+                                 {currentUser?.full_name?.[0] || currentUser?.first_name?.[0] || 'S'}
+                              </div>
+                            )}
+                            <div className="overflow-hidden">
+                                <p className="text-base font-black truncate text-gray-800 dark:text-white leading-tight">
+                                  {currentUser?.full_name || (currentUser?.first_name ? `${currentUser.first_name} ${currentUser.last_name}` : 'Student Name')}
+                                </p>
+                                <p className="text-[10px] text-gray-400 font-bold truncate mt-1 uppercase tracking-wider">Enrolled Student</p>
                             </div>
-                          )}
-                          <div className="overflow-hidden">
-                              <p className="text-sm font-black truncate text-gray-800 dark:text-white leading-tight">
-                                {currentUser?.full_name || (currentUser?.first_name ? `${currentUser.first_name} ${currentUser.last_name}` : 'Student Name')}
-                              </p>
-                              <p className="text-[10px] text-gray-400 font-bold truncate mt-0.5">ENROLLED STUDENT</p>
-                          </div>
-                      </div>
-                  </div>
-              </div>
+                        </div>
+                    </div>
+                </div>
 
-              <div className="lg:col-span-3 lg:order-1">
-                  <div className="bg-white dark:bg-gray-800 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-2xl p-20 flex flex-col items-center justify-center text-center shadow-inner">
-                      <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center text-4xl mb-6 shadow-sm">🏔️</div>
-                      <h3 className="text-xl font-black text-gray-700 dark:text-gray-300">Section Hub</h3>
-                      <p className="text-sm font-medium text-gray-400 max-w-xs mt-2">Welcome to your class space. Check your classmates or wait for announcements from your instructor.</p>
-                  </div>
+                <div className="lg:col-span-3 lg:order-1">
+                    <div className="bg-white dark:bg-gray-800 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-2xl py-28 flex flex-col items-center justify-center text-center shadow-inner">
+                        <div className="w-24 h-24 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center text-5xl mb-6 shadow-sm">🏔️</div>
+                        <h3 className="text-2xl font-black text-gray-700 dark:text-gray-300">Section Hub</h3>
+                        <p className="text-sm font-medium text-gray-400 max-w-sm mt-3 leading-relaxed">Welcome to your class space. Check your classmates or wait for announcements from your instructor.</p>
+                    </div>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {showPeopleModal && (
@@ -392,9 +390,7 @@ const MyCourses = () => {
             <div className="absolute inset-0 bg-black/40 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowPeopleModal(false)}></div>
             <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 h-full shadow-2xl animate-in slide-in-from-right duration-500 p-8 overflow-y-auto">
               <div className="flex justify-between items-center mb-10">
-                <div>
-                  <h3 className="text-2xl font-black text-gray-800 dark:text-white tracking-tight">People</h3>
-                </div>
+                <h3 className="text-2xl font-black text-gray-800 dark:text-white tracking-tight">People</h3>
                 <button onClick={() => setShowPeopleModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all">
                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -442,10 +438,10 @@ const MyCourses = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10 bg-gray-50/50 dark:bg-transparent min-h-screen relative">
-      {/* SUCCESS TOAST MODAL (Top Right) */}
+    // INAYOS: Full width container din para sa Main List
+    <div className="w-full min-h-screen bg-gray-50/50 dark:bg-gray-900 px-8 py-12 relative">
       {successToast.show && (
-        <div className="fixed top-6 right-6 z-[200] animate-in slide-in-from-top-4 fade-in duration-300">
+        <div className="fixed top-8 right-8 z-[200] animate-in slide-in-from-top-4 fade-in duration-300">
            <div className="bg-emerald-500 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border-b-4 border-emerald-700">
              <div className="bg-white/20 p-1 rounded-full">
                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -457,42 +453,44 @@ const MyCourses = () => {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-6 mb-12">
-        <div>
-          <h2 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">My Courses</h2>
-          <p className="text-gray-500 dark:text-gray-400 font-bold mt-1 uppercase text-[10px] tracking-[0.2em]">Your academic achievements and sections</p>
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-6 mb-16">
+          <div>
+            <h2 className="text-5xl font-black text-gray-900 dark:text-white tracking-tight">My Courses</h2>
+            <p className="text-gray-500 dark:text-gray-400 font-bold mt-2 uppercase text-[11px] tracking-[0.25em]">Your academic achievements and active sections</p>
+          </div>
+          <button 
+            onClick={() => setShowModal(true)} 
+            className="bg-[#4CAF50] text-white text-xs font-black px-10 py-5 rounded-2xl hover:bg-[#43A047] active:scale-95 transition-all shadow-[0_10px_25px_rgba(76,175,80,0.4)] uppercase tracking-widest"
+          >
+            + Join New Section
+          </button>
         </div>
-        <button 
-          onClick={() => setShowModal(true)} 
-          className="bg-[#4CAF50] text-white text-xs font-black px-8 py-4 rounded-2xl hover:bg-[#43A047] active:scale-95 transition-all shadow-[0_10px_20px_rgba(76,175,80,0.3)] uppercase tracking-widest"
-        >
-          + Join New Section
-        </button>
-      </div>
 
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-32 gap-4 text-gray-300">
-          <div className="animate-spin w-12 h-12 border-4 border-[#4CAF50] border-t-transparent rounded-full shadow-sm" />
-          <p className="text-[10px] font-black uppercase tracking-widest">Syncing Enrollment Data...</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {enrollments.map((enroll, idx) => (
-            <EnrollmentCard 
-              key={enroll.ss_id ?? idx} 
-              enroll={enroll} 
-              onClick={handleViewDetails} 
-              onUnenroll={handleUnenroll} // New Prop
-            />
-          ))}
-          {enrollments.length === 0 && !error && (
-            <div className="col-span-full bg-white dark:bg-gray-800 rounded-3xl p-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-700 shadow-sm">
-               <div className="text-5xl mb-4 opacity-20">📖</div>
-               <p className="text-gray-400 font-black uppercase text-xs tracking-widest">No active enrollments found.</p>
-            </div>
-          )}
-        </div>
-      )}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-40 gap-4 text-gray-300">
+            <div className="animate-spin w-14 h-14 border-4 border-[#4CAF50] border-t-transparent rounded-full shadow-sm" />
+            <p className="text-[10px] font-black uppercase tracking-widest mt-2">Syncing Enrollment Data...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {enrollments.map((enroll, idx) => (
+              <EnrollmentCard 
+                key={enroll.ss_id ?? idx} 
+                enroll={enroll} 
+                onClick={handleViewDetails} 
+                onUnenroll={handleUnenroll}
+              />
+            ))}
+            {enrollments.length === 0 && !error && (
+              <div className="col-span-full bg-white dark:bg-gray-800 rounded-3xl p-24 text-center border-2 border-dashed border-gray-100 dark:border-gray-700 shadow-sm">
+                 <div className="text-6xl mb-6 opacity-20">📖</div>
+                 <p className="text-gray-400 font-black uppercase text-sm tracking-widest">No active enrollments found.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {showModal && (
         <JoinModal

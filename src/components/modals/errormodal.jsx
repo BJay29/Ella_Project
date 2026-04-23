@@ -1,5 +1,5 @@
 import React from 'react';
-import ellaThinking from '../../assets/image.png';
+// Inalis ang import ng ellaThinking dito
 
 const ErrorModal = ({ isOpen, onClose, message, title }) => {
   if (!isOpen) return null;
@@ -18,20 +18,12 @@ const ErrorModal = ({ isOpen, onClose, message, title }) => {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 font-sans">
       
-      {/* MAIN CONTAINER FOR MODAL AND CHARACTER */}
+      {/* MAIN CONTAINER FOR MODAL */}
       <div className="relative animate-in fade-in zoom-in duration-300">
         
-        {/* CHARACTER IMAGE - PEEKING FROM BEHIND, TOP-RIGHT */}
-        <div className="absolute -right-8 -top-20 z-0 pointer-events-none">
-          <img 
-            src={ellaThinking} 
-            alt="Ella Peeking" 
-  
-            className="w-28 h-28 object-contain drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]" 
-          />
-        </div>
+        {/* CHARACTER IMAGE SECTION - TINANGGAL NA DITO */}
 
-        {/* MODAL BOX - SMALLER & MORE RELATIVE Z-INDEX */}
+        {/* MODAL BOX */}
         <div className="bg-white rounded-[40px] p-10 pt-12 shadow-2xl flex flex-col items-center relative z-10 border border-gray-100 max-w-[340px] w-full mx-auto">
           
           <div className="text-center mb-8 w-full">
@@ -40,7 +32,7 @@ const ErrorModal = ({ isOpen, onClose, message, title }) => {
               {displayTitle}
             </h2>
             
-            {/* Main Message - Liitan kunti ang text */}
+            {/* Main Message */}
             <p className="text-[#1A2E35] text-[11px] font-bold leading-tight uppercase px-1 italic">
               {displayMessage}
             </p>
