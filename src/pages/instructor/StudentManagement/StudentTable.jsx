@@ -169,6 +169,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
     const filteredStudents = useMemo(() => {
         return students.filter(s => {
+            // Helper para makuha ang name kahit anong format ang ibalik ng backend
             const fullName = (s.full_name || `${s.first_name || ''} ${s.last_name || ''}` || '').toLowerCase();
             const email = (s.email || '').toLowerCase();
             const sIdStr = (s.student_id || s.id || '').toString().toLowerCase();
@@ -278,45 +279,49 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                         {loading ? (
                             Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
                         ) : filteredStudents.length > 0 ? (
-                            filteredStudents.map((student) => (
-                                <tr key={student.ss_id || student.id} className="group hover:bg-[#F8FAFC] transition-all">
-                                    <td className="px-6 py-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-10 w-10 rounded-full bg-[#22C55E] flex items-center justify-center text-white text-[10px] font-black">
-                                                {(student.full_name || 'ST').substring(0, 2).toUpperCase()}
+                            filteredStudents.map((student) => {
+                                // FIXED: Define name display to avoid "ST" only
+                                const displayName = student.full_name || `${student.first_name || ''} ${student.last_name || ''}` || 'Unknown Student';
+                                return (
+                                    <tr key={student.ss_id || student.id} className="group hover:bg-[#F8FAFC] transition-all">
+                                        <td className="px-6 py-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-10 w-10 rounded-full bg-[#22C55E] flex items-center justify-center text-white text-[10px] font-black">
+                                                    {displayName.substring(0, 2).toUpperCase()}
+                                                </div>
+                                                <span className="text-sm font-black text-gray-800 uppercase italic tracking-tight group-hover:text-[#22C55E] transition-colors">
+                                                    {displayName}
+                                                </span>
                                             </div>
-                                            <span className="text-sm font-black text-gray-800 uppercase italic tracking-tight group-hover:text-[#22C55E] transition-colors">
-                                                {student.full_name}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-6">
-                                        <span className="text-[11px] font-bold text-gray-500 lowercase">{student.email}</span>
-                                    </td>
-                                    <td className="px-6 py-6">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                                <div 
-                                                    className="h-full bg-[#22C55E] rounded-full transition-all duration-1000"
-                                                    style={{ width: `${student.progress || 0}%` }}
-                                                />
+                                        </td>
+                                        <td className="px-6 py-6">
+                                            <span className="text-[11px] font-bold text-gray-500 lowercase">{student.email}</span>
+                                        </td>
+                                        <td className="px-6 py-6">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-[#22C55E] rounded-full transition-all duration-1000"
+                                                        style={{ width: `${student.progress || 0}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-[10px] font-black text-gray-400">{student.progress || 0}%</span>
                                             </div>
-                                            <span className="text-[10px] font-black text-gray-400">{student.progress || 0}%</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-6">
-                                        <StatusBadge status={student.status} />
-                                    </td>
-                                    <td className="px-6 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                        {student.last_active || 'Never'}
-                                    </td>
-                                    <td className="px-6 py-6 text-right">
-                                        <button className="px-5 py-2.5 bg-green-600 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-black transition-all shadow-lg shadow-green-100">
-                                            View Details
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
+                                        </td>
+                                        <td className="px-6 py-6">
+                                            <StatusBadge status={student.status} />
+                                        </td>
+                                        <td className="px-6 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                            {student.last_active || 'Never'}
+                                        </td>
+                                        <td className="px-6 py-6 text-right">
+                                            <button className="px-5 py-2.5 bg-green-600 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-black transition-all shadow-lg shadow-green-100">
+                                                View Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         ) : (
                             <tr>
                                 <td colSpan={6} className="py-32 text-center opacity-30 grayscale">
@@ -354,34 +359,37 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
                         <div className="flex-1 overflow-y-auto p-10 space-y-6">
                             {pendingRequests.length > 0 ? (
-                                pendingRequests.map((req) => (
-                                    <div key={req.ss_id || req.id} className="group p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-green-100 hover:bg-green-50/30 transition-all">
-                                        <div className="mb-4">
-                                            <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Student Name</span>
-                                            <h4 className="text-lg font-black text-gray-800 uppercase italic tracking-tight group-hover:text-[#22C55E]">
-                                                {req.full_name || req.name}
-                                            </h4>
+                                pendingRequests.map((req) => {
+                                    const reqName = req.full_name || req.name || `${req.first_name || ''} ${req.last_name || ''}` || 'Unknown Request';
+                                    return (
+                                        <div key={req.ss_id || req.id} className="group p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-green-100 hover:bg-green-50/30 transition-all">
+                                            <div className="mb-4">
+                                                <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Student Name</span>
+                                                <h4 className="text-lg font-black text-gray-800 uppercase italic tracking-tight group-hover:text-[#22C55E]">
+                                                    {reqName}
+                                                </h4>
+                                            </div>
+                                            <div className="mb-6">
+                                                <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Gbox Account</span>
+                                                <p className="text-xs font-bold text-gray-500 lowercase">{req.email || 'No email provided'}</p>
+                                            </div>
+                                            <div className="flex gap-3">
+                                                <button 
+                                                    onClick={() => handleAction(req.ss_id || req.id, 'approve')}
+                                                    className="flex-1 py-4 bg-[#22C55E] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-green-100"
+                                                >
+                                                    Confirm
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleAction(req.ss_id || req.id, 'deny')}
+                                                    className="px-6 py-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all"
+                                                >
+                                                    Deny
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="mb-6">
-                                            <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Gbox Account</span>
-                                            <p className="text-xs font-bold text-gray-500 lowercase">{req.email || 'No email provided'}</p>
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <button 
-                                                onClick={() => handleAction(req.ss_id || req.id, 'approve')}
-                                                className="flex-1 py-4 bg-[#22C55E] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-green-100"
-                                            >
-                                                Confirm
-                                            </button>
-                                            <button 
-                                                onClick={() => handleAction(req.ss_id || req.id, 'deny')}
-                                                className="px-6 py-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all"
-                                            >
-                                                Deny
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             ) : (
                                 <div className="h-full flex flex-col items-center justify-center text-center opacity-30 grayscale">
                                     <div className="text-5xl mb-4">✅</div>
