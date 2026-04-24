@@ -21,7 +21,7 @@ const normalise = (raw) => ({
   section_id:    raw.section_id    || raw.id,
   course_id:     raw.course_id,
   course_name:   raw.course_name   || raw.title             || raw.course_title  || 'Untitled Course',
-  section_name:  raw.section_name  || raw.name              || raw.section_title || 'Unassigned Section',
+  section_name:  raw.section_name  || raw.name               || raw.section_title || 'Unassigned Section',
   section_code:  raw.section_code,
   program:       raw.program_name  || raw.program           || 'N/A',
   instructor:    raw.instructor_name || raw.instructor      || raw.teacher_name  || raw.prof || 'Instructor TBA',
@@ -50,6 +50,320 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GClass Material Type Config
+// ─────────────────────────────────────────────────────────────────────────────
+const getMaterialConfig = (fileType = '') => {
+  const type = fileType.toLowerCase();
+  if (type.includes('pdf') || type === 'pdf') return {
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
+        <path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"/>
+      </svg>
+    ),
+    bg: 'bg-red-600',
+    label: 'PDF',
+    accent: 'text-red-600',
+  };
+  if (type.includes('video')) return {
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
+        <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+      </svg>
+    ),
+    bg: 'bg-blue-600',
+    label: 'Video',
+    accent: 'text-blue-600',
+  };
+  if (type.includes('audio')) return {
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
+        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+      </svg>
+    ),
+    bg: 'bg-purple-600',
+    label: 'Audio',
+    accent: 'text-purple-600',
+  };
+  if (type.includes('image')) return {
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
+        <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+      </svg>
+    ),
+    bg: 'bg-teal-600',
+    label: 'Image',
+    accent: 'text-teal-600',
+  };
+  return {
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
+        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+      </svg>
+    ),
+    bg: 'bg-gray-500',
+    label: 'File',
+    accent: 'text-gray-500',
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared Material Preview Modal (Student View)
+// ─────────────────────────────────────────────────────────────────────────────
+const MaterialPreviewModal = ({ material, onClose }) => {
+  if (!material) return null;
+
+  const config = getMaterialConfig(material.file_type || material.type || '');
+  const title = material.title || material.file_name || material.original_name || 'Material File';
+  const fileUrl = material.file_url || material.url || '';
+  const description = material.description || '';
+  const date = material.created_at
+    ? new Date(material.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : 'Recently posted';
+  const fileType = (material.file_type || material.type || '').toLowerCase();
+
+  const handleDownload = async () => {
+    if (!fileUrl) return;
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = title;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch {
+      window.open(fileUrl, '_blank');
+    }
+  };
+
+  const renderPreview = () => {
+    if (!fileUrl) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-400">
+          <svg className="w-12 h-12" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+          </svg>
+          <p className="text-[11px] font-black uppercase tracking-widest">File URL not available</p>
+        </div>
+      );
+    }
+
+    if (fileType.includes('pdf')) {
+      return (
+        <iframe
+          src={fileUrl}
+          className="w-full h-full rounded-lg border-0"
+          title={title}
+        />
+      );
+    }
+
+    if (fileType.includes('video')) {
+      return (
+        <video
+          src={fileUrl}
+          controls
+          className="w-full h-full rounded-lg object-contain bg-black"
+        >
+          Your browser does not support video playback.
+        </video>
+      );
+    }
+
+    if (fileType.includes('audio')) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full gap-8">
+          <div className={`w-28 h-28 ${config.bg} rounded-3xl flex items-center justify-center text-white shadow-2xl`}>
+            <div className="scale-150">{config.icon}</div>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-black text-gray-800 uppercase tracking-tight mb-1">{title}</p>
+            {description && <p className="text-xs text-gray-400">{description}</p>}
+          </div>
+          <audio src={fileUrl} controls className="w-full max-w-sm rounded-xl">
+            Your browser does not support audio playback.
+          </audio>
+        </div>
+      );
+    }
+
+    if (fileType.includes('image')) {
+      return (
+        <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+          <img
+            src={fileUrl}
+            alt={title}
+            className="max-w-full max-h-full object-contain rounded-lg shadow-md"
+          />
+        </div>
+      );
+    }
+
+    // Generic file — no preview
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-5 text-gray-500">
+        <div className={`w-24 h-24 ${config.bg} rounded-3xl flex items-center justify-center text-white shadow-xl`}>
+          <div className="scale-150">{config.icon}</div>
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-black text-gray-700 dark:text-gray-200 uppercase tracking-tight">No Preview Available</p>
+          <p className="text-xs text-gray-400 mt-1">Download the file to view its contents.</p>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div
+        className="relative w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700 flex flex-col"
+        style={{ height: '90vh', animation: 'previewModalIn 0.2s ease-out' }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className={`${config.bg} w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0`}>
+              <div className="scale-75">{config.icon}</div>
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight truncate leading-tight">{title}</h3>
+              <p className="text-[10px] text-gray-400 font-bold mt-0.5">{date} · {config.label}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+            {/* Open in new tab */}
+            {fileUrl && (
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
+                Open
+              </a>
+            )}
+
+            {/* Download */}
+            {fileUrl && (
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#4CAF50] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#43A047] transition-all shadow-sm"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Download
+              </button>
+            )}
+
+            {/* Close */}
+            <button
+              onClick={onClose}
+              className="h-9 w-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-white transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Description */}
+        {description && (
+          <div className="px-6 py-3 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+            <p className="text-[11px] text-gray-500 italic">{description}</p>
+          </div>
+        )}
+
+        {/* Preview Area */}
+        <div className="flex-1 overflow-hidden p-4 bg-white dark:bg-gray-900/20">
+          {renderPreview()}
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes previewModalIn {
+          from { opacity: 0; transform: scale(0.97) translateY(8px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GClassroom-style Material Row (Student View) — now clickable
+// ─────────────────────────────────────────────────────────────────────────────
+const GClassMaterialRow = ({ file, onView }) => {
+  const config = getMaterialConfig(file.file_type || file.type || '');
+  const title = file.title || file.original_name || file.file_name || 'Material File';
+  const description = file.description || '';
+  const date = file.created_at
+    ? new Date(file.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : 'Recently posted';
+
+  return (
+    <div
+      onClick={() => onView(file)}
+      className="group flex items-stretch bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:shadow-md hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 cursor-pointer"
+    >
+      {/* Left color banner */}
+      <div className={`${config.bg} w-14 flex-shrink-0 flex flex-col items-center justify-center text-white gap-1 py-4`}>
+        {config.icon}
+        <span className="text-[7px] font-black uppercase tracking-wider opacity-90">{config.label}</span>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 px-5 py-4 min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h4 className="text-[13px] font-black text-gray-900 dark:text-white uppercase tracking-tight truncate leading-tight group-hover:text-[#4CAF50] transition-colors">
+              {title}
+            </h4>
+            {description && (
+              <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-1 italic">{description}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-[9px] font-bold text-gray-400 whitespace-nowrap">{date}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 mt-3">
+          <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest ${config.accent}`}>
+            {config.label}
+          </span>
+          {file.file_size && (
+            <span className="text-[9px] font-bold text-gray-400">{file.file_size}</span>
+          )}
+          <span className="ml-auto text-[9px] font-black text-[#4CAF50] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+            View
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── ENROLLMENT CARD COMPONENT ──
 const EnrollmentCard = ({ enroll, onClick, onUnenroll }) => {
   const isApproved = enroll.status?.toLowerCase() === 'approved' || enroll.status?.toLowerCase() === 'active';
@@ -70,7 +384,6 @@ const EnrollmentCard = ({ enroll, onClick, onUnenroll }) => {
     <div 
       className={`group bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm transition-all hover:shadow-xl flex flex-col h-[240px] relative ${isApproved ? 'cursor-default' : 'opacity-80'}`}
     >
-      {/* Header Banner */}
       <div 
         onClick={() => isApproved && onClick(enroll.section_id)}
         className="h-28 bg-[#4CAF50] p-5 text-white relative rounded-t-2xl overflow-hidden cursor-pointer"
@@ -97,7 +410,6 @@ const EnrollmentCard = ({ enroll, onClick, onUnenroll }) => {
         </p>
       </div>
 
-      {/* 3 Dots Button */}
       <div className="absolute top-4 right-4 z-30" ref={optionsRef}>
         <button 
           onClick={(e) => { e.stopPropagation(); setShowOptions(!showOptions); }}
@@ -127,7 +439,6 @@ const EnrollmentCard = ({ enroll, onClick, onUnenroll }) => {
         )}
       </div>
 
-      {/* Body: Stats and Info */}
       <div className="p-5 flex-grow flex flex-col justify-between bg-white dark:bg-gray-800 rounded-b-2xl">
         <div className="space-y-3">
             <div className="flex justify-between items-center">
@@ -207,10 +518,15 @@ const MyCourses = () => {
 
   const [selectedSectionId, setSelectedSectionId] = useState(null);
   const [sectionDetails, setSectionDetails] = useState(null);
+  const [materials, setMaterials] = useState([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showPeopleModal, setShowPeopleModal] = useState(false);
 
   const [successToast, setSuccessToast] = useState({ show: false, message: '' });
+
+  // ── Material Preview State ──
+  const [previewMaterial, setPreviewMaterial] = useState(null);
+  const [isFetchingMaterial, setIsFetchingMaterial] = useState(false);
 
   const currentUser = getUserFromToken();
 
@@ -231,6 +547,19 @@ const MyCourses = () => {
       setLoading(false);
     }
   }, []);
+
+  const fetchMaterials = async (sectionId) => {
+    const token = getToken();
+    try {
+      const res = await authAPI.getSectionMaterials(sectionId, token);
+      if (res.ok) {
+        const data = await res.json();
+        setMaterials(data.materials || data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching materials:", err);
+    }
+  };
 
   const handleUnenroll = async (sectionId) => {
     const token = getToken();
@@ -258,11 +587,48 @@ const MyCourses = () => {
       if (!res.ok) throw new Error('Failed to load section details.');
       const data = await res.json();
       setSectionDetails(data);
+      fetchMaterials(sectionId);
     } catch (err) {
       console.error(err);
     } finally {
       setLoadingDetails(false);
     }
+  };
+
+  // ── Handle View Specific Material ──
+  const handleViewMaterial = async (file) => {
+    // If file already has a URL, show immediately
+    if (file.file_url || file.url) {
+      setPreviewMaterial(file);
+      return;
+    }
+
+    const materialId = file.id || file.material_id;
+    if (!selectedSectionId || !materialId) {
+      setPreviewMaterial(file);
+      return;
+    }
+
+    setIsFetchingMaterial(true);
+    try {
+      const token = getToken();
+      const res = await authAPI.getSpecificMaterial(selectedSectionId, materialId, token);
+      if (res.ok) {
+        const data = await res.json();
+        setPreviewMaterial({ ...file, ...data });
+      } else {
+        setPreviewMaterial(file);
+      }
+    } catch (err) {
+      console.error("Error fetching specific material:", err);
+      setPreviewMaterial(file);
+    } finally {
+      setIsFetchingMaterial(false);
+    }
+  };
+
+  const handleClosePreview = () => {
+    setPreviewMaterial(null);
   };
 
   useEffect(() => {
@@ -297,12 +663,13 @@ const MyCourses = () => {
     }
   };
 
+  // ── SECTION DETAIL VIEW ──
   if (selectedSectionId && !loading) {
     const classmatesList = sectionDetails?.classmates || sectionDetails?.students || [];
 
     return (
-      // INAYOS: Ginawang w-full at h-screen para sakop ang buong background
       <div className="w-full h-screen flex flex-col bg-white dark:bg-gray-900 relative overflow-hidden">
+        {/* Top Nav */}
         <div className="flex border-b border-gray-100 dark:border-gray-800 px-8 h-16 items-center justify-between bg-white dark:bg-gray-800 sticky top-0 z-30">
           <button 
             onClick={() => setSelectedSectionId(null)} 
@@ -328,13 +695,14 @@ const MyCourses = () => {
         </div>
 
         <div className="flex-grow overflow-y-auto bg-gray-50 dark:bg-gray-900/50">
-          <div className="max-w-7xl mx-auto px-8 py-10"> {/* Nilagyan ng inner container para pantay ang content pero ang bg ay full */}
+          <div className="max-w-7xl mx-auto px-8 py-10">
             {loadingDetails ? (
               <div className="flex flex-col items-center justify-center py-24 gap-4">
                 <div className="animate-spin w-10 h-10 border-4 border-[#4CAF50] border-t-transparent rounded-full" />
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                {/* Course Banner */}
                 <div className="lg:col-span-4 bg-[#4CAF50] rounded-2xl p-8 text-white relative h-52 flex flex-col justify-end shadow-lg overflow-hidden border-4 border-white dark:border-gray-800">
                     <div className="absolute top-0 left-1/4 w-full h-full bg-gradient-to-br from-white/5 to-transparent skew-x-12"></div>
                     <h1 className="text-4xl font-black z-10 drop-shadow-md tracking-tight">
@@ -352,6 +720,7 @@ const MyCourses = () => {
                     <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
                 </div>
 
+                {/* Right Sidebar */}
                 <div className="lg:col-span-1 lg:order-2 space-y-6">
                     <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
                         <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Student Profile</h4>
@@ -371,13 +740,69 @@ const MyCourses = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Quick Stats Panel */}
+                    <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Course Info</h4>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-gray-400">Materials</span>
+                            <span className="text-xs font-black text-gray-700 dark:text-white">{materials.length}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-gray-400">Classmates</span>
+                            <span className="text-xs font-black text-gray-700 dark:text-white">{classmatesList.length}</span>
+                          </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="lg:col-span-3 lg:order-1">
-                    <div className="bg-white dark:bg-gray-800 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-2xl py-28 flex flex-col items-center justify-center text-center shadow-inner">
-                        <div className="w-24 h-24 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center text-5xl mb-6 shadow-sm">🏔️</div>
-                        <h3 className="text-2xl font-black text-gray-700 dark:text-gray-300">Section Hub</h3>
-                        <p className="text-sm font-medium text-gray-400 max-w-sm mt-3 leading-relaxed">Welcome to your class space. Check your classmates or wait for announcements from your instructor.</p>
+                {/* Main Content */}
+                <div className="lg:col-span-3 lg:order-1 space-y-8">
+                    {/* ── GCLASSROOM-STYLE MATERIALS ── */}
+                    <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
+                        {/* Materials Header */}
+                        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 dark:border-gray-700">
+                          <div>
+                            <h3 className="text-xl font-black text-gray-800 dark:text-white tracking-tight">Classwork</h3>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                              {materials.length} material{materials.length !== 1 ? 's' : ''} · Click to view or download
+                            </p>
+                          </div>
+                          <div className="p-2.5 bg-[#4CAF50]/10 rounded-xl">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#4CAF50]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                          </div>
+                        </div>
+
+                        {materials.length > 0 ? (
+                          <div className="px-8 py-6 space-y-3">
+                            <div className="flex items-center gap-4 mb-4">
+                              <div className="h-px flex-1 bg-gray-100 dark:bg-gray-700" />
+                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">All Materials</span>
+                              <div className="h-px flex-1 bg-gray-100 dark:bg-gray-700" />
+                            </div>
+
+                            {materials.map((file, idx) => (
+                              <GClassMaterialRow
+                                key={file.id || idx}
+                                file={file}
+                                onView={handleViewMaterial}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-20 text-center px-8">
+                              <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-9 w-9 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                                </svg>
+                              </div>
+                              <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest">No Materials Yet</h4>
+                              <p className="text-xs font-medium text-gray-400 mt-2 max-w-[250px]">Your instructor hasn't uploaded any study materials for this section yet.</p>
+                          </div>
+                        )}
                     </div>
                 </div>
               </div>
@@ -385,6 +810,28 @@ const MyCourses = () => {
           </div>
         </div>
 
+        {/* ── Loading overlay while fetching specific material ── */}
+        {isFetchingMaterial && (
+          <div className="fixed inset-0 z-[190] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl px-8 py-6 flex items-center gap-4 shadow-2xl">
+              <svg className="w-5 h-5 animate-spin text-[#4CAF50]" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              <span className="text-[11px] font-black text-gray-700 dark:text-gray-200 uppercase tracking-widest">Loading file...</span>
+            </div>
+          </div>
+        )}
+
+        {/* ── Material Preview Modal ── */}
+        {previewMaterial && (
+          <MaterialPreviewModal
+            material={previewMaterial}
+            onClose={handleClosePreview}
+          />
+        )}
+
+        {/* People Slide-Over */}
         {showPeopleModal && (
           <div className="fixed inset-0 z-[100] flex justify-end">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowPeopleModal(false)}></div>
@@ -437,8 +884,8 @@ const MyCourses = () => {
     );
   }
 
+  // ── MAIN COURSES GRID VIEW ──
   return (
-    // INAYOS: Full width container din para sa Main List
     <div className="w-full min-h-screen bg-gray-50/50 dark:bg-gray-900 px-8 py-12 relative">
       {successToast.show && (
         <div className="fixed top-8 right-8 z-[200] animate-in slide-in-from-top-4 fade-in duration-300">
@@ -496,7 +943,7 @@ const MyCourses = () => {
         <JoinModal
           sectionCode={sectionCode}
           setSectionCode={setSectionCode}
-          joinStatus={joinStatus}
+          joinStatus={joinStatus} 
           setJoinStatus={setJoinStatus}
           onJoin={handleJoin}
           onClose={() => setShowModal(false)}

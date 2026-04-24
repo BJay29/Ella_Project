@@ -706,7 +706,7 @@ const GameEngine = () => {
         <div className="min-h-screen bg-[#020617] flex items-center justify-center fixed inset-0 z-[100]">
             <div className="text-center">
                 <p className="text-indigo-400 font-black tracking-[0.5em] mb-6 uppercase animate-pulse italic text-sm">
-                    Get Ready
+                 
                 </p>
                 <h1 className="text-[10rem] font-black text-white drop-shadow-[0_0_40px_rgba(99,102,241,0.6)] italic leading-none">
                     {retakeCountdown > 0 ? retakeCountdown : 'GO!'}

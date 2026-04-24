@@ -234,6 +234,46 @@ unenrollSection: async (sectionId, token) => {
         );
     },
 
+    uploadMaterial: async (sectionId, formData, token) => {
+        try {
+            const response = await fetch(`${BASE_URL}/api/instructor/sections/${sectionId}/materials`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: formData,
+            });
+            return response;
+        } catch (error) {
+            console.error("API Upload Error:", error);
+            throw error;
+        }
+    },
+getMaterials: async (sectionId, token) => {
+    return await fetch(`${BASE_URL}/api/instructor/sections/${sectionId}/materials`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+},
+
+getSpecificMaterial: async (sectionId, materialId, token) => {
+    try {
+        const response = await fetch(`${BASE_URL}/instructor/sections/${sectionId}/materials/${materialId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        return response;
+    } catch (error) {
+        console.error("Error fetching specific material:", error);
+        throw error;
+    }
+},
     // ─────────────────────────────────────────────────────────────────────────
     // CM ASSIGN QUEST MODAL
     // ─────────────────────────────────────────────────────────────────────────
@@ -942,4 +982,38 @@ unenrollSection: async (sectionId, token) => {
       throw error;
     }
   },
+
+  // Student get material from instructor //
+  getSectionMaterials: async (sectionId, token) => {
+        try {
+            const response = await fetch(`${BASE_URL}/api/student/sections/${sectionId}/materials`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return response;
+        } catch (error) {
+            console.error("Error fetching section materials:", error);
+            throw error;
+        }
+    },
+
+    getMaterialById: async (sectionId, materialId, token) => {
+        try {
+            const response = await fetch(`${BASE_URL}/api/student/sections/${sectionId}/materials/${materialId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return response;
+        } catch (error) {
+            console.error("Error fetching material details:", error);
+            throw error;
+        }
+    },
+ 
 };
