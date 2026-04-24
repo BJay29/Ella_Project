@@ -91,35 +91,40 @@ const getMaterialConfig = (fileType = '') => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Material Preview Modal
+// Material Preview Modal — Fixed to use Google Docs viewer for PDFs
 // ─────────────────────────────────────────────────────────────────────────────
 const MaterialPreviewModal = ({ material, onClose }) => {
     if (!material) return null;
 
-    const config = getMaterialConfig(material.file_type || material.type || '');
-    const title = material.file_name || material.title || 'Untitled Material';
+    // ── Derive file type robustly (same logic as MyCourses.jsx) ──
+    const getFileTypeFromUrl = (url = '') => {
+        const ext = url.split('.').pop()?.split('?')[0]?.toLowerCase();
+        return ext || '';
+    };
+
+    const rawFileType = material.file_type || material.type || '';
     const fileUrl = material.file_url || material.url || '';
+    const fileType = (rawFileType || getFileTypeFromUrl(fileUrl)).toLowerCase();
+
+    const config = getMaterialConfig(fileType);
+    const title = material.file_name || material.title || 'Untitled Material';
     const description = material.description || '';
     const date = material.created_at
         ? new Date(material.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
         : 'Recently posted';
-    const fileType = (material.file_type || material.type || '').toLowerCase();
 
+    // ── Download handler (same as MyCourses.jsx) ──
     const handleDownload = async () => {
         if (!fileUrl) return;
         try {
-            const response = await fetch(fileUrl);
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = title;
+            a.href = fileUrl;
+            a.setAttribute('download', `${title}.${getFileTypeFromUrl(fileUrl) || 'pdf'}`);
             document.body.appendChild(a);
             a.click();
-            window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
-        } catch {
-            // fallback: open in new tab
+        } catch (err) {
+            console.error('Download failed:', err);
             window.open(fileUrl, '_blank');
         }
     };
@@ -136,16 +141,31 @@ const MaterialPreviewModal = ({ material, onClose }) => {
             );
         }
 
-        if (fileType.includes('pdf')) {
+        // ── PDF: Use Google Docs viewer (same as MyCourses.jsx) ──
+        if (fileType.includes('pdf') || fileUrl.endsWith('.pdf')) {
             return (
-                <iframe
-                    src={fileUrl}
-                    className="w-full h-full rounded-lg border-0"
-                    title={title}
-                />
+                <div className="w-full h-full relative">
+                    <iframe
+                        src={`https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`}
+                        className="w-full h-full border-0 rounded-lg"
+                        title={title}
+                    />
+                    {/* Fallback button in case iframe fails */}
+                    <div className="absolute bottom-4 right-4 z-10">
+                        <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-lg shadow-lg hover:bg-red-700 transition-colors"
+                        >
+                            Open PDF in New Tab
+                        </a>
+                    </div>
+                </div>
             );
         }
 
+        // ── Video ──
         if (fileType.includes('video')) {
             return (
                 <video
@@ -158,11 +178,12 @@ const MaterialPreviewModal = ({ material, onClose }) => {
             );
         }
 
+        // ── Audio ──
         if (fileType.includes('audio')) {
             return (
                 <div className="flex flex-col items-center justify-center h-full gap-8">
                     <div className={`w-28 h-28 ${config.bg} rounded-3xl flex items-center justify-center text-white shadow-2xl`}>
-                        {config.icon}
+                        <div className="scale-150">{config.icon}</div>
                     </div>
                     <div className="text-center">
                         <p className="text-sm font-black text-gray-800 uppercase tracking-tight mb-1">{title}</p>
@@ -175,7 +196,8 @@ const MaterialPreviewModal = ({ material, onClose }) => {
             );
         }
 
-        if (fileType.includes('image')) {
+        // ── Image ──
+        if (fileType.includes('image') || ['jpg','jpeg','png','gif','webp','svg'].includes(getFileTypeFromUrl(fileUrl))) {
             return (
                 <div className="flex items-center justify-center h-full bg-gray-50 rounded-lg p-4">
                     <img
@@ -187,11 +209,11 @@ const MaterialPreviewModal = ({ material, onClose }) => {
             );
         }
 
-        // Generic file - no preview
+        // ── Generic file — no preview ──
         return (
             <div className="flex flex-col items-center justify-center h-full gap-5 text-gray-500">
                 <div className={`w-24 h-24 ${config.bg} rounded-3xl flex items-center justify-center text-white shadow-xl`}>
-                    {config.icon}
+                    <div className="scale-150">{config.icon}</div>
                 </div>
                 <div className="text-center">
                     <p className="text-sm font-black text-gray-700 uppercase tracking-tight">No Preview Available</p>
@@ -215,7 +237,7 @@ const MaterialPreviewModal = ({ material, onClose }) => {
                 style={{ height: '90vh', animation: 'modalIn 0.2s ease-out' }}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0 bg-white">
                     <div className="flex items-center gap-4 min-w-0">
                         <div className={`${config.bg} w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0`}>
                             <div className="scale-75">{config.icon}</div>
@@ -275,7 +297,7 @@ const MaterialPreviewModal = ({ material, onClose }) => {
                 )}
 
                 {/* Preview Area */}
-                <div className="flex-1 overflow-hidden p-4">
+                <div className="flex-1 overflow-hidden p-4 bg-white">
                     {renderPreview()}
                 </div>
             </div>
@@ -343,7 +365,11 @@ const MaterialCard = ({ material, onDelete, onView }) => {
                         <span className="text-[9px] font-bold text-gray-400">{material.file_size}</span>
                     )}
                     <span className="ml-auto text-[9px] font-black text-[#16a34a] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                        View →
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View
                     </span>
                 </div>
             </div>
@@ -497,20 +523,20 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    // ── Handle View Specific Material ──
+    // ── Handle View Specific Material — Fixed logic matching MyCourses.jsx ──
     const handleViewMaterial = async (material) => {
         const storedSection = localStorage.getItem('selectedSection');
         const activeSection = storedSection ? JSON.parse(storedSection) : null;
         const sId = sectionId || activeSection?.section_id || activeSection?.id;
         const materialId = material.id || material.material_id;
 
-        // If we already have file_url, show it directly
+        // If we already have file_url or url, show it directly
         if (material.file_url || material.url) {
             setPreviewMaterial(material);
             return;
         }
 
-        // Otherwise fetch the specific material details
+        // Otherwise fetch the specific material details to get the URL
         if (!sId || !materialId) {
             setPreviewMaterial(material);
             return;
