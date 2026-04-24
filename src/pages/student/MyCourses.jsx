@@ -120,25 +120,30 @@ const MaterialPreviewModal = ({ material, onClose }) => {
   const date = material.created_at
     ? new Date(material.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : 'Recently posted';
-  const fileType = (material.file_type || material.type || '').toLowerCase();
+const getFileTypeFromUrl = (url = '') => {
+  const ext = url.split('.').pop()?.toLowerCase();
+  return ext || '';
+};
 
-  const handleDownload = async () => {
-    if (!fileUrl) return;
-    try {
-      const response = await fetch(fileUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = title;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch {
-      window.open(fileUrl, '_blank');
-    }
-  };
+const fileType = (
+  material.file_type ||
+  material.type ||
+  getFileTypeFromUrl(fileUrl)
+).toLowerCase();
+const handleDownload = async () => {
+  if (!fileUrl) return;
+
+  try {
+    const a = document.createElement('a');
+    a.href = fileUrl;
+a.setAttribute('download', `${title}.pdf`);    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (err) {
+    console.error("Download failed:", err);
+    window.open(fileUrl, '_blank');
+  }
+};
 
   const renderPreview = () => {
     if (!fileUrl) {
@@ -152,23 +157,36 @@ const MaterialPreviewModal = ({ material, onClose }) => {
       );
     }
 
-    if (fileType.includes('pdf')) {
-      return (
-        <iframe
-          src={fileUrl}
-          className="w-full h-full rounded-lg border-0"
-          title={title}
-        />
-      );
-    }
+ if (fileType.includes('pdf') || fileUrl.endsWith('.pdf')) {
+  return (
+    <div className="w-full h-full">
+      <iframe
+        src={`https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`}
+        className="w-full h-full border-0"
+        title={title}
+      />
+      
+      {/* Fallback if PDF fails */}
+      <div className="absolute bottom-4 right-4">
+        <a
+          href={fileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-lg shadow"
+        >
+          Open PDF in New Tab
+        </a>
+      </div>
+    </div>
+  );
+}
 
     if (fileType.includes('video')) {
       return (
         <video
           src={fileUrl}
           controls
-          className="w-full h-full rounded-lg object-contain bg-black"
-        >
+className="w-full h-full object-contain bg-black"        >
           Your browser does not support video playback.
         </video>
       );
@@ -197,8 +215,7 @@ const MaterialPreviewModal = ({ material, onClose }) => {
           <img
             src={fileUrl}
             alt={title}
-            className="max-w-full max-h-full object-contain rounded-lg shadow-md"
-          />
+className="w-full h-full object-contain rounded-lg"          />
         </div>
       );
     }
