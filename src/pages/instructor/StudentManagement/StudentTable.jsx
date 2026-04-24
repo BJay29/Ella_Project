@@ -16,7 +16,6 @@ const StatusBadge = ({ status }) => {
     const s = (status || 'active').toLowerCase();
     const isAtRisk = s === 'at risk' || s === 'at-risk';
     const isPending = s === 'pending';
-
     return (
         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border ${
             isAtRisk ? 'bg-red-50 text-red-700 border-red-200' :
@@ -42,6 +41,7 @@ const getMaterialConfig = (fileType = '') => {
         bg: 'bg-red-600',
         label: 'PDF',
         accent: 'bg-red-50 text-red-700 border-red-100',
+        badgeBg: 'bg-red-50 text-red-700 border border-red-100',
         previewable: true,
     };
     if (type.includes('video')) return {
@@ -53,6 +53,7 @@ const getMaterialConfig = (fileType = '') => {
         bg: 'bg-blue-600',
         label: 'Video',
         accent: 'bg-blue-50 text-blue-700 border-blue-100',
+        badgeBg: 'bg-blue-50 text-blue-700 border border-blue-100',
         previewable: true,
     };
     if (type.includes('audio')) return {
@@ -64,6 +65,7 @@ const getMaterialConfig = (fileType = '') => {
         bg: 'bg-purple-600',
         label: 'Audio',
         accent: 'bg-purple-50 text-purple-700 border-purple-100',
+        badgeBg: 'bg-purple-50 text-purple-700 border border-purple-100',
         previewable: true,
     };
     if (type.includes('image')) return {
@@ -75,6 +77,7 @@ const getMaterialConfig = (fileType = '') => {
         bg: 'bg-teal-600',
         label: 'Image',
         accent: 'bg-teal-50 text-teal-700 border-teal-100',
+        badgeBg: 'bg-teal-50 text-teal-700 border border-teal-100',
         previewable: true,
     };
     return {
@@ -86,185 +89,267 @@ const getMaterialConfig = (fileType = '') => {
         bg: 'bg-gray-600',
         label: 'File',
         accent: 'bg-gray-50 text-gray-700 border-gray-200',
+        badgeBg: 'bg-gray-50 text-gray-700 border border-gray-200',
         previewable: false,
     };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Material Preview Modal — Fixed to use Google Docs viewer for PDFs
+// Google Classroom-style Full-Screen Material Viewer Modal
+// — Same design & logic as MyCourses.jsx MaterialViewerModal
 // ─────────────────────────────────────────────────────────────────────────────
-const MaterialPreviewModal = ({ material, onClose }) => {
+const MaterialViewerModal = ({ material, onClose }) => {
     if (!material) return null;
 
-    // ── Derive file type robustly (same logic as MyCourses.jsx) ──
-    const getFileTypeFromUrl = (url = '') => {
-        const ext = url.split('.').pop()?.split('?')[0]?.toLowerCase();
-        return ext || '';
-    };
-
-    const rawFileType = material.file_type || material.type || '';
-    const fileUrl = material.file_url || material.url || '';
-    const fileType = (rawFileType || getFileTypeFromUrl(fileUrl)).toLowerCase();
-
-    const config = getMaterialConfig(fileType);
+    const config = getMaterialConfig(material.file_type || material.type || '');
     const title = material.file_name || material.title || 'Untitled Material';
+    const fileUrl = material.file_url || material.url || '';
     const description = material.description || '';
-    const date = material.created_at
-        ? new Date(material.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-        : 'Recently posted';
+    const fileType = (material.file_type || material.type || '').toLowerCase();
+    const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
 
-    // ── Download handler (same as MyCourses.jsx) ──
+    // ── Derive ext from URL as fallback ──
+    const getExtFromUrl = (url = '') => url.split('.').pop()?.split('?')[0]?.toLowerCase() || '';
+    const resolvedFileType = fileType || getExtFromUrl(fileUrl);
+
+    // ── Escape key closes viewer ──
+    useEffect(() => {
+        const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [onClose]);
+
+    // ── Fetch PDF as blob to avoid CORS / mixed-content issues ──
+    useEffect(() => {
+        let objectUrl = null;
+
+        const loadPdf = async () => {
+            if (!fileUrl) return;
+            try {
+                const res = await fetch(fileUrl);
+                const blob = await res.blob();
+                const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+                objectUrl = URL.createObjectURL(pdfBlob);
+                setPdfBlobUrl(objectUrl);
+            } catch (err) {
+                console.error('PDF blob load error:', err);
+            }
+        };
+
+        if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
+            loadPdf();
+        }
+
+        return () => {
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [fileUrl, resolvedFileType]);
+
     const handleDownload = async () => {
         if (!fileUrl) return;
         try {
+            const response = await fetch(fileUrl);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = fileUrl;
-            a.setAttribute('download', `${title}.${getFileTypeFromUrl(fileUrl) || 'pdf'}`);
+            a.href = blobUrl;
+            a.download = title;
             document.body.appendChild(a);
             a.click();
+            window.URL.revokeObjectURL(blobUrl);
             document.body.removeChild(a);
-        } catch (err) {
-            console.error('Download failed:', err);
+        } catch {
             window.open(fileUrl, '_blank');
         }
     };
 
-    const renderPreview = () => {
+    const renderContent = () => {
         if (!fileUrl) {
             return (
-                <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-400">
-                    <svg className="w-12 h-12" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-400">
+                    <svg className="w-16 h-16 opacity-30" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                     </svg>
-                    <p className="text-[11px] font-black uppercase tracking-widest">File URL not available</p>
+                    <p className="text-sm font-black uppercase tracking-widest text-gray-400">File not available</p>
+                    <p className="text-xs text-gray-400">No URL was returned from the server.</p>
                 </div>
             );
         }
 
-        // ── PDF: Use Google Docs viewer (same as MyCourses.jsx) ──
-        if (fileType.includes('pdf') || fileUrl.endsWith('.pdf')) {
-            return (
-                <div className="w-full h-full relative">
-                    <iframe
-                        src={`https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`}
-                        className="w-full h-full border-0 rounded-lg"
-                        title={title}
-                    />
-                    {/* Fallback button in case iframe fails */}
-                    <div className="absolute bottom-4 right-4 z-10">
-                        <a
-                            href={fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-lg shadow-lg hover:bg-red-700 transition-colors"
-                        >
-                            Open PDF in New Tab
-                        </a>
-                    </div>
+        // ── PDF: blob iframe — no new tab, no toolbar ──
+        if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
+            return pdfBlobUrl ? (
+                <iframe
+                    src={pdfBlobUrl}
+                    className="w-full h-full border-0"
+                    title={title}
+                />
+            ) : (
+                <div className="flex flex-col items-center justify-center h-full gap-4">
+                    <svg className="w-8 h-8 animate-spin text-red-500" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    <span className="text-sm text-gray-400 font-black uppercase tracking-widest">Loading PDF...</span>
                 </div>
             );
         }
 
-        // ── Video ──
-        if (fileType.includes('video')) {
+        // ── VIDEO: object-contain, native controls ──
+        if (resolvedFileType.includes('video') || ['mp4','webm','mov','avi','mkv'].includes(resolvedFileType)) {
             return (
-                <video
-                    src={fileUrl}
-                    controls
-                    className="w-full h-full rounded-lg object-contain bg-black"
-                >
-                    Your browser does not support video playback.
-                </video>
+                <div className="flex items-center justify-center h-full bg-black">
+                    <video
+                        src={fileUrl}
+                        controls
+                        autoPlay={false}
+                        className="w-full h-full object-contain"
+                    >
+                        Your browser does not support video playback.
+                    </video>
+                </div>
             );
         }
 
-        // ── Audio ──
-        if (fileType.includes('audio')) {
+        // ── AUDIO: centered player with icon ──
+        if (resolvedFileType.includes('audio') || ['mp3','wav','ogg','flac','aac'].includes(resolvedFileType)) {
             return (
-                <div className="flex flex-col items-center justify-center h-full gap-8">
-                    <div className={`w-28 h-28 ${config.bg} rounded-3xl flex items-center justify-center text-white shadow-2xl`}>
-                        <div className="scale-150">{config.icon}</div>
+                <div className="flex flex-col items-center justify-center h-full gap-10 bg-gray-50 px-8">
+                    <div className={`w-32 h-32 ${config.bg} rounded-3xl flex items-center justify-center text-white shadow-2xl`}>
+                        <svg viewBox="0 0 24 24" className="w-14 h-14" fill="currentColor">
+                            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                        </svg>
                     </div>
                     <div className="text-center">
-                        <p className="text-sm font-black text-gray-800 uppercase tracking-tight mb-1">{title}</p>
-                        {description && <p className="text-xs text-gray-400">{description}</p>}
+                        <p className="text-base font-black text-gray-800 uppercase tracking-tight">{title}</p>
+                        {description && <p className="text-xs text-gray-400 mt-1 italic">{description}</p>}
                     </div>
-                    <audio src={fileUrl} controls className="w-full max-w-sm rounded-xl">
+                    <audio src={fileUrl} controls className="w-full max-w-md rounded-2xl shadow-sm">
                         Your browser does not support audio playback.
                     </audio>
                 </div>
             );
         }
 
-        // ── Image ──
-        if (fileType.includes('image') || ['jpg','jpeg','png','gif','webp','svg'].includes(getFileTypeFromUrl(fileUrl))) {
+        // ── IMAGE: inline display, object-contain, no new tab ──
+        if (
+            resolvedFileType.includes('image') ||
+            ['jpg','jpeg','png','gif','webp','svg','bmp','tiff'].includes(resolvedFileType)
+        ) {
             return (
-                <div className="flex items-center justify-center h-full bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center justify-center h-full w-full bg-gray-50 p-6 overflow-auto">
                     <img
                         src={fileUrl}
                         alt={title}
-                        className="max-w-full max-h-full object-contain rounded-lg shadow-md"
+                        className="max-w-full max-h-full object-contain rounded-xl shadow-lg select-none"
+                        draggable={false}
+                        onError={(e) => {
+                            e.target.style.display = 'none';
+                            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                        }}
                     />
+                    {/* Fallback if image fails to load */}
+                    <div className="hidden flex-col items-center justify-center gap-4 text-gray-400">
+                        <svg className="w-16 h-16 opacity-30" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                        </svg>
+                        <p className="text-sm font-black uppercase tracking-widest">Image failed to load</p>
+                        <button
+                            onClick={() => window.open(fileUrl, '_blank')}
+                            className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-teal-700 transition-all"
+                        >
+                            Open in New Tab
+                        </button>
+                    </div>
                 </div>
             );
         }
 
-        // ── Generic file — no preview ──
+        // ── GENERIC: no preview, download prompt ──
         return (
-            <div className="flex flex-col items-center justify-center h-full gap-5 text-gray-500">
-                <div className={`w-24 h-24 ${config.bg} rounded-3xl flex items-center justify-center text-white shadow-xl`}>
-                    <div className="scale-150">{config.icon}</div>
+            <div className="flex flex-col items-center justify-center h-full gap-6 bg-gray-50 px-8">
+                <div className={`w-28 h-28 ${config.bg} rounded-3xl flex items-center justify-center text-white shadow-2xl`}>
+                    <svg viewBox="0 0 24 24" className="w-12 h-12" fill="currentColor">
+                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                    </svg>
                 </div>
                 <div className="text-center">
-                    <p className="text-sm font-black text-gray-700 uppercase tracking-tight">No Preview Available</p>
-                    <p className="text-xs text-gray-400 mt-1">Download the file to view its contents.</p>
+                    <p className="text-base font-black text-gray-700 uppercase tracking-tight">Preview Not Available</p>
+                    <p className="text-sm text-gray-400 mt-2 max-w-xs">This file type cannot be previewed in the browser. Use the Download button to open it.</p>
                 </div>
+                <button
+                    onClick={handleDownload}
+                    className="flex items-center gap-2 px-8 py-3 bg-[#16a34a] text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-green-700 transition-all shadow-lg"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    Download File
+                </button>
             </div>
         );
     };
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            {/* Backdrop */}
+        <>
+            {/* ── Full-screen fixed overlay ── */}
             <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                onClick={onClose}
-            />
-
-            {/* Modal */}
-            <div
-                className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col"
-                style={{ height: '90vh', animation: 'modalIn 0.2s ease-out' }}
+                className="fixed inset-0 z-[300] flex flex-col bg-white"
+                style={{ animation: 'gclassViewerIn 0.2s ease-out' }}
             >
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0 bg-white">
+                {/* ── Top Navigation Bar ── */}
+                <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm">
+
+                    {/* Left: Close + File Info */}
                     <div className="flex items-center gap-4 min-w-0">
-                        <div className={`${config.bg} w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0`}>
-                            <div className="scale-75">{config.icon}</div>
-                        </div>
-                        <div className="min-w-0">
-                            <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight truncate leading-tight">{title}</h3>
-                            <p className="text-[10px] text-gray-400 font-bold mt-0.5">{date} · {config.label}</p>
+                        {/* Close button */}
+                        <button
+                            onClick={onClose}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-all font-black text-[10px] uppercase tracking-widest flex-shrink-0"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Close
+                        </button>
+
+                        {/* Divider */}
+                        <div className="h-6 w-px bg-gray-200 flex-shrink-0" />
+
+                        {/* File type badge + title */}
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className={`${config.bg} w-8 h-8 rounded-lg flex items-center justify-center text-white flex-shrink-0`}>
+                                <div className="scale-[0.65]">{config.icon}</div>
+                            </div>
+                            <div className="min-w-0">
+                                <h2 className="text-sm font-black text-gray-900 uppercase tracking-tight truncate leading-tight">
+                                    {title}
+                                </h2>
+                                {description && (
+                                    <p className="text-[10px] text-gray-400 italic truncate mt-0.5">{description}</p>
+                                )}
+                            </div>
+                            <span className={`hidden sm:inline-flex flex-shrink-0 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${config.badgeBg}`}>
+                                {config.label}
+                            </span>
                         </div>
                     </div>
 
+                    {/* Right: Action buttons */}
                     <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                        {/* Open in new tab */}
                         {fileUrl && (
                             <a
                                 href={fileUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all"
+                                className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all"
                             >
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                                 </svg>
-                                Open
+                                Open Tab
                             </a>
                         )}
-
-                        {/* Download */}
                         {fileUrl && (
                             <button
                                 onClick={handleDownload}
@@ -276,50 +361,37 @@ const MaterialPreviewModal = ({ material, onClose }) => {
                                 Download
                             </button>
                         )}
-
-                        {/* Close */}
-                        <button
-                            onClick={onClose}
-                            className="h-9 w-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
                     </div>
                 </div>
 
-                {/* Description (if any) */}
-                {description && (
-                    <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex-shrink-0">
-                        <p className="text-[11px] text-gray-500 italic">{description}</p>
-                    </div>
-                )}
-
-                {/* Preview Area */}
-                <div className="flex-1 overflow-hidden p-4 bg-white">
-                    {renderPreview()}
+                {/* ── Main Content Area ── */}
+                <div className="flex-1 overflow-hidden">
+                    {renderContent()}
                 </div>
             </div>
 
             <style>{`
-                @keyframes modalIn {
-                    from { opacity: 0; transform: scale(0.97) translateY(8px); }
-                    to { opacity: 1; transform: scale(1) translateY(0); }
+                @keyframes gclassViewerIn {
+                    from { opacity: 0; transform: scale(0.99) translateY(6px); }
+                    to   { opacity: 1; transform: scale(1) translateY(0); }
                 }
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             `}</style>
-        </div>
+        </>
     );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GClassroom-style Material Card
+// GClassroom-style Material Card (Instructor View) — clickable
 // ─────────────────────────────────────────────────────────────────────────────
 const MaterialCard = ({ material, onDelete, onView }) => {
     const config = getMaterialConfig(material.file_type || material.type || '');
     const title = material.file_name || material.title || 'Untitled Material';
     const description = material.description || '';
-    const date = material.created_at ? new Date(material.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently posted';
+    const date = material.created_at
+        ? new Date(material.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'Recently posted';
 
     return (
         <div
@@ -336,7 +408,9 @@ const MaterialCard = ({ material, onDelete, onView }) => {
             <div className="flex-1 px-5 py-4 min-w-0">
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                        <h4 className="text-[13px] font-black text-gray-900 uppercase tracking-tight truncate leading-tight group-hover:text-[#16a34a] transition-colors">{title}</h4>
+                        <h4 className="text-[13px] font-black text-gray-900 uppercase tracking-tight truncate leading-tight group-hover:text-[#16a34a] transition-colors">
+                            {title}
+                        </h4>
                         {description && (
                             <p className="text-[11px] text-gray-500 mt-1 line-clamp-1 italic">{description}</p>
                         )}
@@ -365,11 +439,7 @@ const MaterialCard = ({ material, onDelete, onView }) => {
                         <span className="text-[9px] font-bold text-gray-400">{material.file_size}</span>
                     )}
                     <span className="ml-auto text-[9px] font-black text-[#16a34a] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        View
+                        View →
                     </span>
                 </div>
             </div>
@@ -447,8 +517,8 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
 
-    // ── Material Preview State ──
-    const [previewMaterial, setPreviewMaterial] = useState(null);
+    // ── Material Viewer State ──
+    const [viewerMaterial, setViewerMaterial] = useState(null);
     const [isFetchingMaterial, setIsFetchingMaterial] = useState(false);
 
     // Form State for Upload Modal
@@ -477,7 +547,6 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
         setLoading(true);
         try {
             const token = getCleanToken();
-
             const [detailsRes, pendingRes] = await Promise.all([
                 authAPI.getSectionDetails(sId, token),
                 authAPI.getPendingStudents(sId, token),
@@ -495,7 +564,6 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 const approvedOnly = allStudents.filter(s => s.status?.toLowerCase() === 'approved');
                 setStudents(approvedOnly);
             }
-
         } catch (err) {
             console.error("Fetch Error:", err);
             setError('Failed to sync data.');
@@ -523,22 +591,22 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    // ── Handle View Specific Material — Fixed logic matching MyCourses.jsx ──
+    // ── Open material viewer — fetch specific material if no URL yet ──
     const handleViewMaterial = async (material) => {
         const storedSection = localStorage.getItem('selectedSection');
         const activeSection = storedSection ? JSON.parse(storedSection) : null;
         const sId = sectionId || activeSection?.section_id || activeSection?.id;
         const materialId = material.id || material.material_id;
 
-        // If we already have file_url or url, show it directly
+        // If we already have a file URL, open immediately
         if (material.file_url || material.url) {
-            setPreviewMaterial(material);
+            setViewerMaterial(material);
             return;
         }
 
-        // Otherwise fetch the specific material details to get the URL
+        // Otherwise fetch specific material details to get the URL
         if (!sId || !materialId) {
-            setPreviewMaterial(material);
+            setViewerMaterial(material);
             return;
         }
 
@@ -548,22 +616,16 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
             const res = await authAPI.getSpecificMaterial(sId, materialId, token);
             if (res.ok) {
                 const data = await res.json();
-                // Merge fetched data with existing material data as fallback
-                setPreviewMaterial({ ...material, ...data });
+                setViewerMaterial({ ...material, ...data });
             } else {
-                // Fallback to what we already have
-                setPreviewMaterial(material);
+                setViewerMaterial(material);
             }
         } catch (err) {
             console.error("Error fetching specific material:", err);
-            setPreviewMaterial(material);
+            setViewerMaterial(material);
         } finally {
             setIsFetchingMaterial(false);
         }
-    };
-
-    const handleClosePreview = () => {
-        setPreviewMaterial(null);
     };
 
     const handleInputChange = (e) => {
@@ -772,7 +834,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
             </div>
 
             {/* ── MAIN CONTENT AREA ── */}
-            <div className="flex-1 overflow-auto px-10 py-2">
+            <div className="flex-1 overflow-auto px-10 py-2 no-scrollbar">
                 {activeTab === 'students' ? (
                     <table className="w-full text-left">
                         <thead>
@@ -818,7 +880,12 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                                     </tr>
                                 ))
                             ) : (
-                                <tr><td colSpan={6} className="py-32 text-center text-gray-900"><div className="text-6xl mb-4">🔍</div><p className="text-[10px] font-black uppercase tracking-[0.3em]">No approved students found</p></td></tr>
+                                <tr>
+                                    <td colSpan={6} className="py-32 text-center text-gray-900">
+                                        <div className="text-6xl mb-4">🔍</div>
+                                        <p className="text-[10px] font-black uppercase tracking-[0.3em]">No approved students found</p>
+                                    </td>
+                                </tr>
                             )}
                         </tbody>
                     </table>
@@ -832,7 +899,6 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">All Materials</span>
                                     <div className="h-px flex-1 bg-gray-200" />
                                 </div>
-
                                 {materials.map((m, idx) => (
                                     <MaterialCard
                                         key={m.id || idx}
@@ -851,7 +917,10 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                                 </div>
                                 <p className="text-[11px] font-black text-gray-700 uppercase tracking-[0.3em] mb-1">No Materials Yet</p>
                                 <p className="text-[10px] text-gray-400 mb-5">Upload your first course resource to get started.</p>
-                                <button onClick={() => setIsUploadModalOpen(true)} className="px-5 py-2.5 bg-[#16a34a] text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 transition-all">
+                                <button
+                                    onClick={() => setIsUploadModalOpen(true)}
+                                    className="px-5 py-2.5 bg-[#16a34a] text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 transition-all"
+                                >
                                     Add First Material
                                 </button>
                             </div>
@@ -862,22 +931,22 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
             {/* ── LOADING OVERLAY (while fetching specific material) ── */}
             {isFetchingMaterial && (
-                <div className="fixed inset-0 z-[190] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[290] flex items-center justify-center bg-black/30 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl px-8 py-6 flex items-center gap-4 shadow-2xl">
                         <svg className="w-5 h-5 animate-spin text-[#16a34a]" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                         </svg>
-                        <span className="text-[11px] font-black text-gray-700 uppercase tracking-widest">Loading file...</span>
+                        <span className="text-[11px] font-black text-gray-700 uppercase tracking-widest">Opening file...</span>
                     </div>
                 </div>
             )}
 
-            {/* ── MATERIAL PREVIEW MODAL ── */}
-            {previewMaterial && (
-                <MaterialPreviewModal
-                    material={previewMaterial}
-                    onClose={handleClosePreview}
+            {/* ── GClass-style Full-Screen Material Viewer ── */}
+            {viewerMaterial && (
+                <MaterialViewerModal
+                    material={viewerMaterial}
+                    onClose={() => setViewerMaterial(null)}
                 />
             )}
 
@@ -890,10 +959,10 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
                         onClick={closeUploadModal}
                     />
-
-                    <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100"
-                        style={{ animation: 'modalIn 0.2s ease-out' }}>
-
+                    <div
+                        className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100"
+                        style={{ animation: 'modalIn 0.2s ease-out' }}
+                    >
                         {isUploading && (
                             <div className="absolute top-0 left-0 right-0 h-0.5 bg-gray-100 z-10 overflow-hidden">
                                 <div
@@ -958,9 +1027,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                                         className="w-full appearance-none pl-11 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a] transition-all cursor-pointer"
                                     >
                                         {FILE_TYPES.map(ft => (
-                                            <option key={ft.value} value={ft.value}>
-                                                {ft.label}
-                                            </option>
+                                            <option key={ft.value} value={ft.value}>{ft.label}</option>
                                         ))}
                                     </select>
                                     <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center">
@@ -980,7 +1047,8 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
                             <div>
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
-                                    Description <span className="text-gray-300 font-bold normal-case tracking-normal">(optional)</span>
+                                    Description{' '}
+                                    <span className="text-gray-300 font-bold normal-case tracking-normal">(optional)</span>
                                 </label>
                                 <textarea
                                     name="description"
@@ -1036,41 +1104,69 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
             {/* ── SLIDE-OVER: JOIN REQUESTS ── */}
             {isRequestsModalOpen && (
                 <div className="fixed inset-0 z-[100] flex justify-end">
-                    <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsRequestsModalOpen(false)} />
+                    <div
+                        className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-300"
+                        onClick={() => setIsRequestsModalOpen(false)}
+                    />
                     <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500 border-l border-gray-100">
                         <div className="p-10 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <div>
                                 <h3 className="text-3xl font-black italic uppercase text-gray-900 tracking-tighter">Join Requests</h3>
                                 <p className="text-[10px] font-black text-[#16a34a] uppercase tracking-widest mt-1">Verification Needed</p>
                             </div>
-                            <button onClick={() => setIsRequestsModalOpen(false)} className="h-12 w-12 flex items-center justify-center rounded-2xl bg-white border border-gray-200 text-gray-900 hover:bg-black hover:text-white transition-all font-bold">✕</button>
+                            <button
+                                onClick={() => setIsRequestsModalOpen(false)}
+                                className="h-12 w-12 flex items-center justify-center rounded-2xl bg-white border border-gray-200 text-gray-900 hover:bg-black hover:text-white transition-all font-bold"
+                            >
+                                ✕
+                            </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-10 space-y-6">
+                        <div className="flex-1 overflow-y-auto p-10 space-y-6 no-scrollbar">
                             {pendingRequests.length > 0 ? (
                                 pendingRequests.map((req) => (
                                     <div key={req.ss_id || req.id} className="group p-6 bg-white border border-gray-200 rounded-3xl hover:border-black transition-all">
                                         <div className="mb-4">
                                             <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Student Name</span>
-                                            <h4 className="text-lg font-black text-gray-900 uppercase italic tracking-tight group-hover:text-[#16a34a]">{req.full_name || `${req.first_name} ${req.last_name}`}</h4>
+                                            <h4 className="text-lg font-black text-gray-900 uppercase italic tracking-tight group-hover:text-[#16a34a]">
+                                                {req.full_name || `${req.first_name} ${req.last_name}`}
+                                            </h4>
                                         </div>
                                         <div className="mb-6">
                                             <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Gbox Account</span>
                                             <p className="text-xs font-bold text-gray-800 lowercase">{req.email}</p>
                                         </div>
                                         <div className="flex gap-3">
-                                            <button onClick={() => handleAction(req.ss_id || req.id, 'approve')} className="flex-1 py-4 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#16a34a] transition-all">Confirm</button>
-                                            <button onClick={() => handleAction(req.ss_id || req.id, 'deny')} className="px-6 py-4 bg-white border border-gray-200 text-gray-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all">Deny</button>
+                                            <button
+                                                onClick={() => handleAction(req.ss_id || req.id, 'approve')}
+                                                className="flex-1 py-4 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#16a34a] transition-all"
+                                            >
+                                                Confirm
+                                            </button>
+                                            <button
+                                                onClick={() => handleAction(req.ss_id || req.id, 'deny')}
+                                                className="px-6 py-4 bg-white border border-gray-200 text-gray-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
+                                            >
+                                                Deny
+                                            </button>
                                         </div>
                                     </div>
                                 ))
                             ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-center text-gray-900"><div className="text-5xl mb-4">✅</div><p className="text-[10px] font-black uppercase tracking-[0.3em]">No Pending Joiners</p></div>
+                                <div className="h-full flex flex-col items-center justify-center text-center text-gray-900">
+                                    <div className="text-5xl mb-4">✅</div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.3em]">No Pending Joiners</p>
+                                </div>
                             )}
                         </div>
 
                         <div className="p-10 border-t border-gray-100 bg-gray-50">
-                            <button onClick={() => setIsRequestsModalOpen(false)} className="w-full py-4 border-2 border-dashed border-gray-300 text-gray-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:border-gray-900 hover:text-black transition-all">Close Panel</button>
+                            <button
+                                onClick={() => setIsRequestsModalOpen(false)}
+                                className="w-full py-4 border-2 border-dashed border-gray-300 text-gray-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:border-gray-900 hover:text-black transition-all"
+                            >
+                                Close Panel
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1081,6 +1177,12 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                     from { opacity: 0; transform: scale(0.97) translateY(8px); }
                     to { opacity: 1; transform: scale(1) translateY(0); }
                 }
+                @keyframes gclassViewerIn {
+                    from { opacity: 0; transform: scale(0.99) translateY(6px); }
+                    to   { opacity: 1; transform: scale(1) translateY(0); }
+                }
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             `}</style>
         </div>
     );
