@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { authAPI } from '../../../services/APIservice';
 
-const DeptForm = ({ courseId, onNext }) => {
+/**
+ * DeptForm Component
+ * The entry point of the Academic Structure.
+ * Manages Departments and navigates to Programs.
+ */
+const DeptForm = ({ onNext }) => {
+    // --- STATE MANAGEMENT ---
     const [departments, setDepartments] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
@@ -11,25 +17,28 @@ const DeptForm = ({ courseId, onNext }) => {
     const [editingId, setEditingId] = useState(null);
     const [error, setError] = useState('');
     
+    // Initial state for Department form
     const [newDept, setNewDept] = useState({
         department_name: '',
         department_code: '',
-        description: ''
+        department_description: '' 
     });
 
+    // --- FETCH DATA ---
+    /**
+     * Fetches all departments from the database.
+     * Note: courseId is removed as Department is now the root.
+     */
     const fetchDepts = async () => {
-        if (!courseId) {
-            console.error("Missing courseId in fetchDepts");
-            return;
-        }
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await authAPI.getDepartments(courseId, token);
+            // Ensure your APIservice.getDepartments no longer strictly requires a courseId
+            const response = await authAPI.getDepartments(token); 
             if (response.ok) {
                 const data = await response.json();
+                // Handle different possible API response structures
                 const deptsArray = Array.isArray(data) ? data : (data.departments || []);
-                console.log("RAW DEPT DATA RECEIVED:", deptsArray);
                 setDepartments(deptsArray);
             } else {    
                 const errorData = await response.json().catch(() => ({}));
@@ -43,19 +52,21 @@ const DeptForm = ({ courseId, onNext }) => {
     };
 
     useEffect(() => {
-        if (courseId) fetchDepts();
-    }, [courseId]);
+        fetchDepts();
+    }, []);
 
+    /**
+     * Helper to extract the unique ID from a department object
+     * regardless of backend naming conventions.
+     */
     const getDeptId = (dept) => {
         return dept.dept_id ?? dept.id ?? dept._id ?? dept.department_id ?? null;
     };
 
+    // --- CREATE / UPDATE HANDLER ---
     const handleAddDept = async (e) => {
         e.preventDefault();
-        if (!courseId) {
-            setError("Error: Course ID is missing.");
-            return;
-        }
+        
         if (!newDept.department_name.trim() || !newDept.department_code.trim()) {
             setError("Please fill in all required fields.");
             return;
@@ -67,16 +78,19 @@ const DeptForm = ({ courseId, onNext }) => {
         const payload = {
             department_name: newDept.department_name.trim(),
             department_code: newDept.department_code.trim().toUpperCase(),
-            description: newDept.description?.trim() || ""
+            department_description: newDept.department_description?.trim() || ""
         };
 
         try {
             const token = localStorage.getItem('token');
             let response;
+            
             if (editingId) {
-                response = await authAPI.updateDepartment(courseId, editingId, payload, token);
+                // Update existing department
+                response = await authAPI.updateDepartment(editingId, payload, token);
             } else {
-                response = await authAPI.createDepartment(courseId, payload, token);
+                // Create new department
+                response = await authAPI.createDepartment(payload, token);
             }
 
             if (response.ok) {
@@ -93,8 +107,9 @@ const DeptForm = ({ courseId, onNext }) => {
         }
     };
 
+    // --- DELETE HANDLERS ---
     const confirmDelete = (e, dept) => {
-        e.stopPropagation();
+        e.stopPropagation(); // Prevent triggering onNext navigation
         setDeptToDelete(dept);
         setIsDeleteModalOpen(true);
     };
@@ -106,7 +121,7 @@ const DeptForm = ({ courseId, onNext }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await authAPI.deleteDepartment(courseId, id, token);
+            const response = await authAPI.deleteDepartment(id, token);
             if (response.ok) {
                 await fetchDepts();
                 setIsDeleteModalOpen(false);
@@ -122,14 +137,15 @@ const DeptForm = ({ courseId, onNext }) => {
         }
     };
 
+    // --- MODAL CONTROLS ---
     const openEditModal = (e, dept) => {
-        e.stopPropagation();
+        e.stopPropagation(); // Prevent triggering onNext navigation
         const id = getDeptId(dept);
         setEditingId(id);
         setNewDept({
             department_name: dept.department_name,
             department_code: dept.department_code,
-            description: dept.description || ''
+            department_description: dept.department_description || dept.description || '' 
         });
         setError('');
         setIsModalOpen(true);
@@ -139,9 +155,10 @@ const DeptForm = ({ courseId, onNext }) => {
         setIsModalOpen(false);
         setEditingId(null);
         setError('');
-        setNewDept({ department_name: '', department_code: '', description: '' });
+        setNewDept({ department_name: '', department_code: '', department_description: '' });
     };
 
+    // --- SEARCH FILTER ---
     const filteredDepts = departments.filter(dept =>
         dept.department_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         dept.department_code?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -149,13 +166,14 @@ const DeptForm = ({ courseId, onNext }) => {
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 text-left">
                 <div>
-                    <h2 className="text-2xl font-black text-gray-800 tracking-tight uppercase italic text-left">
+                    <h2 className="text-2xl font-black text-gray-800 tracking-tight uppercase italic">
                         Departments
                     </h2>
-                    <p className="text-sm text-gray-400 font-medium tracking-tight text-left">
-                        Select a college department for this subject
+                    <p className="text-sm text-gray-400 font-medium tracking-tight">
+                        Primary Academic Units
                     </p>
                 </div>
                 <div className="flex gap-3 w-full md:w-auto">
@@ -163,11 +181,11 @@ const DeptForm = ({ courseId, onNext }) => {
                         <input
                             type="text"
                             placeholder="Search department..."
-                            className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-none rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-left placeholder:text-gray-400"
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-none rounded-xl text-sm text-gray-900 font-medium focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-400"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
-                        <span className="absolute left-3 top-3 opacity-30 text-xs text-black">🔍</span>
+                        <span className="absolute left-3 top-3 opacity-30 text-xs">🔍</span>
                     </div>
                     <button
                         onClick={() => { setError(''); setIsModalOpen(true); }}
@@ -178,6 +196,7 @@ const DeptForm = ({ courseId, onNext }) => {
                 </div>
             </div>
 
+            {/* List Section */}
             {loading && departments.length === 0 ? (
                 <div className="py-24 text-center font-black text-gray-300 uppercase tracking-widest animate-pulse">Loading Departments...</div>
             ) : filteredDepts.length === 0 ? (
@@ -185,7 +204,7 @@ const DeptForm = ({ courseId, onNext }) => {
                     <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-3xl mb-4">🏫</div>
                     <h3 className="text-xl font-bold text-gray-800">No Departments Found</h3>
                     <p className="text-gray-400 text-sm mt-1 max-w-[250px] text-center">
-                        Click <strong>"+ Add Dept"</strong> to add one.
+                        Add a department to start building the academic structure.
                     </p>
                 </div>
             ) : (
@@ -195,14 +214,8 @@ const DeptForm = ({ courseId, onNext }) => {
                         return (
                             <div
                                 key={deptId || dept.department_code}
-                                onClick={() => {
-                                    if (!deptId) {
-                                        alert("Error: Department ID is missing.");
-                                        return;
-                                    }
-                                    onNext(deptId, dept.department_name);
-                                }}
-                                className="group relative bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 cursor-pointer overflow-hidden"
+                                onClick={() => deptId && onNext(deptId, dept.department_name)}
+                                className="group relative bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 cursor-pointer overflow-hidden text-left"
                             >
                                 <div className="absolute top-0 left-0 w-full h-2 bg-indigo-500" />
                                 <div className="absolute top-6 right-8 flex gap-4 z-20">
@@ -222,16 +235,13 @@ const DeptForm = ({ courseId, onNext }) => {
                                 <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-2xl shadow-sm mb-6 group-hover:scale-110 transition-transform">
                                     🏢
                                 </div>
-                                <div className="space-y-2 text-left">
+                                <div className="space-y-2">
                                     <h3 className="text-3xl font-black text-gray-800 tracking-tighter uppercase italic group-hover:text-indigo-600 transition-colors">
                                         {dept.department_code}
                                     </h3>
                                     <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
                                         {dept.department_name}
                                     </p>
-                                    {dept.description && (
-                                        <p className="text-[10px] text-gray-300 line-clamp-2 italic font-medium">{dept.description}</p>
-                                    )}
                                 </div>
                                 <div className="mt-10 pt-6 border-t border-gray-50 flex justify-between items-center">
                                     <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Select Department</span>
@@ -248,12 +258,12 @@ const DeptForm = ({ courseId, onNext }) => {
             {/* CREATE / EDIT MODAL */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left">
-                    <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
+                    <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden animate-in zoom-in duration-200 shadow-2xl">
                         <div className="bg-indigo-600 p-6 text-white text-center">
                             <h3 className="text-xl font-black uppercase tracking-tighter italic">
-                                {editingId ? 'Edit Department' : 'Create Department'}
+                                {editingId ? 'Update Department' : 'Create Department'}
                             </h3>
-                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-1">University Structure</p>
+                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-1">Academic Unit Management</p>
                         </div>
                         <form onSubmit={handleAddDept} className="p-8 space-y-5">
                             {error && (
@@ -266,7 +276,7 @@ const DeptForm = ({ courseId, onNext }) => {
                                 <input
                                     required
                                     type="text"
-                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-indigo-500 transition-all text-left placeholder:text-gray-400"
+                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-400"
                                     placeholder="Enter abbreviation..."
                                     value={newDept.department_code}
                                     onChange={(e) => setNewDept({...newDept, department_code: e.target.value.toUpperCase()})}
@@ -277,7 +287,7 @@ const DeptForm = ({ courseId, onNext }) => {
                                 <input
                                     required
                                     type="text"
-                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-indigo-500 transition-all text-left placeholder:text-gray-400"
+                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-400"
                                     placeholder="Enter full name..."
                                     value={newDept.department_name}
                                     onChange={(e) => setNewDept({...newDept, department_name: e.target.value})}
@@ -286,11 +296,11 @@ const DeptForm = ({ courseId, onNext }) => {
                             <div>
                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Description (Optional)</label>
                                 <textarea
-                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 transition-all text-left resize-none placeholder:text-gray-400"
+                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 transition-all resize-none placeholder:text-gray-400"
                                     placeholder="Tell something about this college..."
                                     rows="3"
-                                    value={newDept.description}
-                                    onChange={(e) => setNewDept({...newDept, description: e.target.value})}
+                                    value={newDept.department_description}
+                                    onChange={(e) => setNewDept({...newDept, department_description: e.target.value})}
                                 />
                             </div>
                             <div className="flex gap-3 pt-2">
@@ -314,20 +324,18 @@ const DeptForm = ({ courseId, onNext }) => {
                 </div>
             )}
 
-            {/* DELETE CONFIRMATION MODAL */}
+            {/* DELETE MODAL */}
             {isDeleteModalOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left">
-                    <div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
+                    <div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden animate-in zoom-in duration-200 shadow-2xl">
                         <div className="bg-red-500 p-6 text-white text-center">
                             <div className="text-3xl mb-2">⚠️</div>
-                            <h3 className="text-xl font-black uppercase tracking-tighter italic">
-                                Delete Department?
-                            </h3>
+                            <h3 className="text-xl font-black uppercase tracking-tighter italic">Delete Dept?</h3>
                         </div>
                         <div className="p-8 text-center">
                             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-6">
                                 Are you sure you want to delete <span className="font-black text-gray-800">"{deptToDelete?.department_code}"</span>? 
-                                This action cannot be undone.
+                                All programs under this department may be affected.
                             </p>
                             <div className="flex gap-3">
                                 <button
@@ -335,14 +343,14 @@ const DeptForm = ({ courseId, onNext }) => {
                                     onClick={() => setIsDeleteModalOpen(false)}
                                     className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 font-black rounded-2xl text-[10px] uppercase tracking-widest transition-all"
                                 >
-                                    Cancel
+                                    No
                                 </button>
                                 <button
                                     onClick={handleDelete}
                                     disabled={loading}
-                                    className="flex-1 py-4 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-red-100 transition-all active:scale-95 disabled:opacity-50"
+                                    className="flex-1 py-4 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-red-100 transition-all active:scale-95"
                                 >
-                                    {loading ? 'Deleting...' : 'Confirm Delete'}
+                                    Yes, Delete
                                 </button>
                             </div>
                         </div>

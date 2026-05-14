@@ -329,73 +329,123 @@ getSpecificMaterial: async (sectionId, materialId, token) => {
     // COURSES (CM)
     // ─────────────────────────────────────────────────────────────────────────
 
-    getMyCourses: async (token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/my-courses`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
+getCourses: async (deptId, programId, yearLevelId, token) => {
+        validateParams({ deptId, programId, yearLevelId });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}/year-levels/${yearLevelId}/courses`, 
+            {
+                method: 'GET',
+                headers: { 
+                    'Authorization': `Bearer ${token}`, 
+                    'Content-Type': 'application/json' 
+                }
+            }
+        );
     },
 
-    createCourse: async (payload, token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/courses`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
+    // --- CREATE NEW COURSE ---
+    createCourse: async (deptId, programId, yearLevelId, courseData, token) => {
+        validateParams({ deptId, programId, yearLevelId });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}/year-levels/${yearLevelId}/courses`, 
+            {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`, 
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify(courseData),
+            }
+        );
     },
 
-    updateCourse: async (courseId, data, token) => {
-        validateParams({ courseId });
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}`, {
-            method: 'PUT',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-        });
+    // --- UPDATE COURSE ---
+    updateCourse: async (deptId, programId, yearLevelId, courseId, courseData, token) => {
+        validateParams({ deptId, programId, yearLevelId, courseId });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}/year-levels/${yearLevelId}/courses/${courseId}`, 
+            {
+                method: 'PUT',
+                headers: { 
+                    'Authorization': `Bearer ${token}`, 
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify(courseData),
+            }
+        );
     },
 
-    deleteCourse: async (courseId, token) => {
-        validateParams({ courseId });
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
+    // --- DELETE COURSE ---
+    deleteCourse: async (deptId, programId, yearLevelId, courseId, token) => {
+        validateParams({ deptId, programId, yearLevelId, courseId });
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}/year-levels/${yearLevelId}/courses/${courseId}`, 
+            {
+                method: 'DELETE',
+                headers: { 
+                    'Authorization': `Bearer ${token}`, 
+                    'Content-Type': 'application/json' 
+                }
+            }
+        );
     },
-
-    // ─────────────────────────────────────────────────────────────────────────
+   // ─────────────────────────────────────────────────────────────────────────
     // DEPARTMENTS
     // ─────────────────────────────────────────────────────────────────────────
 
-    getDepartments: async (courseId, token) => {
-        validateParams({ courseId });
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments`, {
+    /**
+     * Fetch all departments
+     */
+    getDepartments: async (token) => {
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments`, {
             method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },
         });
     },
 
-    createDepartment: async (courseId, deptData, token) => {
-        validateParams({ courseId });
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments`, {
+    /**
+     * Create a new department
+     */
+    createDepartment: async (deptData, token) => {
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },
             body: JSON.stringify(deptData),
         });
     },
 
-    updateDepartment: async (courseId, deptId, deptData, token) => {
-        validateParams({ courseId, deptId });
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments/${deptId}`, {
+    /**
+     * Update an existing department
+     */
+    updateDepartment: async (deptId, deptData, token) => {
+        validateParams({ deptId }); 
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}`, {
             method: 'PUT',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },
             body: JSON.stringify(deptData),
         });
     },
 
-    deleteDepartment: async (courseId, deptId, token) => {
-        validateParams({ courseId, deptId });
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments/${deptId}`, {
+    /**
+     * Delete a department
+     */
+    deleteDepartment: async (deptId, token) => {
+        validateParams({ deptId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}`, {
             method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },
         });
     },
 
@@ -403,112 +453,191 @@ getSpecificMaterial: async (sectionId, materialId, token) => {
     // PROGRAMS
     // ─────────────────────────────────────────────────────────────────────────
 
-    getPrograms: async (courseId, deptId, token) => {
-        validateParams({ courseId, deptId });
-        return await fetchWithTimeout(`${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs`, {
+    /**
+     * Fetch all programs under a specific department
+     */
+    getPrograms: async (deptId, token) => {
+        validateParams({ deptId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs`, {
             method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },
         });
     },
 
-    createProgram: async (courseId, deptId, programData, token) => {
-        validateParams({ courseId, deptId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs`,
-            {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(programData),
-            }
-        );
+    /**
+     * Create a new program under a department
+     */
+    createProgram: async (deptId, programData, token) => {
+        validateParams({ deptId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(programData),
+        });
     },
 
-    updateProgram: async (courseId, deptId, programId, programData, token) => {
-        validateParams({ courseId, deptId, programId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}`,
-            {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(programData),
-            }
-        );
+    /**
+     * Update a program within a department
+     */
+    updateProgram: async (deptId, programId, programData, token) => {
+        validateParams({ deptId, programId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}`, {
+            method: 'PUT',
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(programData),
+        });
     },
 
-    deleteProgram: async (courseId, deptId, programId, token) => {
-        validateParams({ courseId, deptId, programId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}`,
-            {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            }
-        );
+    /**
+     * Delete a program
+     */
+    deleteProgram: async (deptId, programId, token) => {
+        validateParams({ deptId, programId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}`, {
+            method: 'DELETE',
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },
+        });
     },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // YEAR LEVELS
+    // ─────────────────────────────────────────────────────────────────────────
+
+getYearLevels: async (deptId, programId, token) => {
+    // Check if required IDs are present before fetching
+    if (!deptId || !programId) throw new Error("Missing Department or Program ID");
+    
+    return await fetch(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}/year-levels`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+},
+
+/**
+ * Create a new Year Level
+ * Signature: (deptId, programId, payload, token)
+ */
+createYearLevel: async (deptId, programId, payload, token) => {
+    if (!deptId || !programId) throw new Error("Missing Department or Program ID");
+    
+    return await fetch(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}/year-levels`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+},
+
+/**
+ * Update an existing Year Level
+ * Signature: (deptId, programId, yearLevelId, payload, token)
+ */
+updateYearLevel: async (deptId, programId, yearLevelId, payload, token) => {
+    if (!deptId || !programId || !yearLevelId) throw new Error("Missing required IDs");
+    
+    return await fetch(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}/year-levels/${yearLevelId}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+},
+
+/**
+ * Delete a Year Level
+ * Signature: (deptId, programId, yearLevelId, token)
+ */
+deleteYearLevel: async (deptId, programId, yearLevelId, token) => {
+    if (!deptId || !programId || !yearLevelId) throw new Error("Missing required IDs");
+    
+    return await fetch(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}/year-levels/${yearLevelId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+},
 
     // ─────────────────────────────────────────────────────────────────────────
     // SECTIONS
     // ─────────────────────────────────────────────────────────────────────────
 
-    getSectionsByProgram: async (courseId, deptId, programId, token) => {
-        validateParams({ courseId, deptId, programId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections`,
-            {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    /**
+     * Fetch all sections for a specific year level
+     */
+    getSections: async (deptId, programId, yearLevelId, token) => {
+        validateParams({ deptId, programId, yearLevelId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}/year-levels/${yearLevelId}/sections`, {
+            method: 'GET',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json' 
             }
-        );
+        });
     },
 
-    getSections: async (courseId, deptId, programId, token) => {
-        validateParams({ courseId, deptId, programId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections`,
-            {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            }
-        );
+    /**
+     * Create a new section
+     */
+    createSection: async (deptId, programId, yearLevelId, sectionData, token) => {
+        validateParams({ deptId, programId, yearLevelId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}/year-levels/${yearLevelId}/sections`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(sectionData),
+        });
     },
 
-    createSection: async (courseId, deptId, programId, sectionData, token) => {
-        validateParams({ courseId, deptId, programId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections`,
-            {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    section_name: sectionData.section_name,
-                    school_year:  sectionData.school_year,
-                    semester:     sectionData.semester,
-                }),
-            }
-        );
+    /**
+     * Update an existing section
+     */
+    updateSection: async (deptId, programId, yearLevelId, sectionId, sectionData, token) => {
+        validateParams({ deptId, programId, yearLevelId, sectionId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}/year-levels/${yearLevelId}/sections/${sectionId}`, {
+            method: 'PUT',
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(sectionData),
+        });
     },
 
-    updateSection: async (courseId, deptId, programId, sectionId, sectionData, token) => {
-        validateParams({ courseId, deptId, programId, sectionId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections/${sectionId}`,
-            {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(sectionData),
+    /**
+     * Delete a section
+     */
+    deleteSection: async (deptId, programId, yearLevelId, sectionId, token) => {
+        validateParams({ deptId, programId, yearLevelId, sectionId });
+        return await fetchWithTimeout(`${BASE_URL}/api/curriculum-manager/departments/${deptId}/programs/${programId}/year-levels/${yearLevelId}/sections/${sectionId}`, {
+            method: 'DELETE',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json' 
             }
-        );
-    },
-
-    deleteSection: async (courseId, deptId, programId, sectionId, token) => {
-        validateParams({ courseId, deptId, programId, sectionId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/courses/${courseId}/departments/${deptId}/programs/${programId}/sections/${sectionId}`,
-            {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            }
-        );
+        });
     },
 
     // ─────────────────────────────────────────────────────────────────────────

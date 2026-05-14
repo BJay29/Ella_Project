@@ -62,6 +62,7 @@ const Login = () => {
     return () => clearInterval(nextMessageInterval);
   }, []);
 
+  // Check URL parameters for errors redirected from other pages
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const infoType = params.get('info');
@@ -73,6 +74,7 @@ const Login = () => {
     }
   }, [location, navigate]);
 
+  // Initial API ping
   useEffect(() => {
     authAPI.ping();
   }, []);
@@ -82,6 +84,7 @@ const Login = () => {
     setLoginData({ ...loginData, [name]: value });
   };
 
+  // Manual Login Handler (For Instructors, Admins, and CMs)
   const handleLogin = async (e) => {
     e.preventDefault();
     const { email, password } = loginData;
@@ -102,21 +105,20 @@ const Login = () => {
         const rawRole = data.role || data.user?.role || data.userRole || 'student';
         const normalizedRole = rawRole.toLowerCase().trim();
 
-        // --- FIXED LOGIC START ---
-        // Sinisigurado nating tanging auth keys lang ang tinatanggal
+        // Clear existing auth keys before setting new ones
         localStorage.removeItem('token');
         localStorage.removeItem('userRole');
         localStorage.removeItem('userEmail');
-        // --- FIXED LOGIC END ---
 
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', normalizedRole);
         
+        // Redirect based on the normalized role
         if (normalizedRole === 'instructor') {
           navigate('/instructor/dashboard', { replace: true });
         } else if (normalizedRole === 'admin') {
           navigate('/admin/dashboard', { replace: true });
-        } else if (normalizedRole === 'curriculum_manager') { 
+        } else if (normalizedRole === 'curriculum_manager' || normalizedRole === 'cm') { 
           navigate('/cm/dashboard', { replace: true });
         } else {
           navigate('/student/dashboard', { replace: true });
@@ -133,8 +135,10 @@ const Login = () => {
     }
   };
 
+  // Google SSO Handler
   const handleGoogleLogin = () => {
     try {
+      // Set intent to login (GoogleCallback will handle auto-registration if user is new)
       sessionStorage.setItem('sso_intent', 'login');
       authAPI.initiateGoogleLogin();
     } catch (error) {
@@ -150,9 +154,11 @@ const Login = () => {
 
   return (
     <div className="h-screen w-screen bg-[#C8E6C0] flex flex-col items-center justify-center font-sans relative overflow-hidden p-4">
+      {/* Background Decorative Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/20 rounded-full blur-3xl"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#7a9e50]/10 rounded-full blur-3xl"></div>
 
+      {/* Brand Section */}
       <div className="relative mb-6 flex flex-col items-center z-10">
         <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white px-5 py-2 rounded-2xl shadow-xl border-2 border-[#7a9e50] animate-bounce-subtle z-20 min-w-[120px] flex justify-center items-center transition-all duration-300">
           <p className="text-[10px] font-black text-[#7a9e50] tracking-widest whitespace-nowrap uppercase italic min-h-[14px]">
@@ -178,6 +184,7 @@ const Login = () => {
         </h1>
       </div>
 
+      {/* Login Container */}
       <div className="w-full max-w-[320px] flex flex-col relative z-10">
         <div className="w-full text-left mb-2 pl-2">
           <h2 className="text-[11px] font-black tracking-[0.3em] text-gray-700 uppercase inline-block relative">
@@ -186,6 +193,7 @@ const Login = () => {
           </h2>
         </div>
 
+        {/* Login Form */}
         <form onSubmit={handleLogin} className="w-full flex flex-col gap-2.5">
           <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-md focus-within:ring-2 focus-within:ring-white/50">
             <div className="pl-4 pr-2 py-2.5 flex items-center justify-center">
@@ -241,6 +249,7 @@ const Login = () => {
             {isLoading ? '...' : 'LOGIN'}
           </button>
 
+          {/* SSO Section */}
           <div className="flex items-center my-1 w-full px-4">
             <div className="flex-grow border-t border-black/10"></div>
             <span className="px-3 text-[8px] text-gray-500 font-black opacity-60 uppercase tracking-widest">OR</span>
@@ -255,26 +264,26 @@ const Login = () => {
             <div className="bg-white p-2 rounded-full">
               <FcGoogle className="w-4 h-4" /> 
             </div>
-            <span className="flex-1 pr-8 text-[11px] font-medium font-sans text-gray-700 tracking-normal">
+            <span className="flex-1 pr-8 text-[11px] font-medium font-sans text-gray-700 tracking-normal text-center">
               Continue with Google
             </span>
           </button>
 
+          {/* Footnote - Removed manual Register link for students as it's now automated via SSO */}
           <div className="text-center mt-2">
-            <p className="text-[9px] text-gray-600 font-bold">
-              Don't have an Account?{' '}
-              <Link to="/signup" className="text-[#3B82F6] font-black hover:underline">
-                Register Here
-              </Link>
+            <p className="text-[9px] text-gray-600 font-bold opacity-70 italic uppercase tracking-tighter">
+              Instant entry for students via Google SSO
             </p>
           </div>
         </form>
       </div>
 
+      {/* Application Tagline */}
       <p className="absolute bottom-4 text-center text-[8px] text-gray-500 px-10 max-w-sm leading-tight font-bold opacity-50 uppercase tracking-tighter">
         An interactive language center engaging students through active learning tools and encouraging consistent practice.
       </p>
 
+      {/* Feedback Modal */}
       <ErrorModal isOpen={showErrorModal} message={errorMessage} onClose={() => setShowErrorModal(false)} />
 
       <style>{`

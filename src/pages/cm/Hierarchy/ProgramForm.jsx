@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authAPI } from '../../../services/APIservice';
 
-const ProgramForm = ({ courseId, deptId, onNext }) => {
+const ProgramForm = ({ deptId, onNext }) => {
     const [programs, setPrograms] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
@@ -17,22 +17,31 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
         description: ''
     });
 
-    // ✅ Helper to get ID regardless of backend field name
+    /**
+     * Helper to extract the program ID regardless of the field name 
+     * returned by the backend (id, _id, or program_id).
+     */
     const getProgId = (prog) => {
-        return prog.prog_id ?? prog.id ?? prog._id ?? prog.program_id ?? null;
+        return prog.id ?? prog._id ?? prog.program_id ?? prog.prog_id ?? null;
     };
 
+    /**
+     * Fetch programs from the new curriculum-manager endpoint
+     */
     const fetchPrograms = async () => {
         if (!deptId) {
-            console.error("ProgramForm: deptId is missing, cannot fetch programs.");
+            console.error("ProgramForm: deptId is missing.");
             return;
         }
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await authAPI.getPrograms(courseId, deptId, token);
+            // Updated call: courseId is removed to match new API service
+            const response = await authAPI.getPrograms(deptId, token);
+            
             if (response.ok) {
                 const data = await response.json();
+                // Handle different possible response structures
                 const programsArray = Array.isArray(data) ? data : (data.programs || []);
                 setPrograms(programsArray);
             } else {
@@ -50,11 +59,14 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
         if (deptId) fetchPrograms();
     }, [deptId]);
 
+    /**
+     * Handle Create and Update operations
+     */
     const handleAddProgram = async (e) => {
         e.preventDefault();
 
         if (!deptId) {
-            setError("Department is not selected. Please go back and select a department first.");
+            setError("Department context is missing.");
             return;
         }
 
@@ -75,9 +87,11 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
 
             let response;
             if (editingId) {
-                response = await authAPI.updateProgram(courseId, deptId, editingId, payload, token);
+                // Update existing program using the new curriculum path
+                response = await authAPI.updateProgram(deptId, editingId, payload, token);
             } else {
-                response = await authAPI.createProgram(courseId, deptId, payload, token);
+                // Create new program using the new curriculum path
+                response = await authAPI.createProgram(deptId, payload, token);
             }
 
             if (response.ok) {
@@ -85,7 +99,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
                 closeModal();
             } else {
                 const data = await response.json().catch(() => ({}));
-                setError(data.message || "Operation failed. Check backend logs.");
+                setError(data.message || "Operation failed.");
             }
         } catch (err) {
             setError("Error: " + err.message);
@@ -94,12 +108,9 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
         }
     };
 
-    const confirmDelete = (e, prog) => {
-        e.stopPropagation();
-        setProgToDelete(prog);
-        setIsDeleteModalOpen(true);
-    };
-
+    /**
+     * Handle Program Deletion
+     */
     const handleDelete = async () => {
         const id = getProgId(progToDelete);
         if (!deptId || !id) return;
@@ -107,7 +118,8 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await authAPI.deleteProgram(courseId, deptId, id, token);
+            const response = await authAPI.deleteProgram(deptId, id, token);
+            
             if (response.ok) {
                 await fetchPrograms();
                 setIsDeleteModalOpen(false);
@@ -121,6 +133,12 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const confirmDelete = (e, prog) => {
+        e.stopPropagation();
+        setProgToDelete(prog);
+        setIsDeleteModalOpen(true);
     };
 
     const openEditModal = (e, prog) => {
@@ -148,6 +166,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
         prog.program_code?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Render warning if deptId is missing
     if (!deptId) {
         return (
             <div className="flex flex-col items-center justify-center py-24 bg-white border-2 border-dashed border-red-100 rounded-[3rem]">
@@ -162,7 +181,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* --- HEADER --- */}
+            {/* --- HEADER SECTION --- */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 text-left">
                 <div>
                     <h2 className="text-2xl font-black text-gray-800 tracking-tight uppercase italic">
@@ -193,7 +212,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
                 </div>
             </div>
 
-            {/* --- CONTENT --- */}
+            {/* --- PROGRAM LIST CONTENT --- */}
             {loading && programs.length === 0 ? (
                 <div className="py-24 text-center font-black text-gray-300 uppercase tracking-widest animate-pulse">Loading Programs...</div>
             ) : filteredPrograms.length === 0 ? (
@@ -211,13 +230,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
                         return (
                             <div
                                 key={progId || prog.program_code}
-                                onClick={() => {
-                                    if (!progId) {
-                                        alert("Error: Program ID is missing.");
-                                        return;
-                                    }
-                                    onNext(progId, prog.program_name);
-                                }}
+                                onClick={() => progId && onNext(progId, prog.program_name)}
                                 className="group relative bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 cursor-pointer overflow-hidden text-left"
                             >
                                 <div className="absolute top-0 left-0 w-full h-2 bg-indigo-400" />
@@ -261,7 +274,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
                 </div>
             )}
 
-            {/* --- MODAL (ADD/EDIT) --- */}
+            {/* --- ADD/EDIT MODAL --- */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left">
                     <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
@@ -343,7 +356,7 @@ const ProgramForm = ({ courseId, deptId, onNext }) => {
                         <div className="p-8 text-center">
                             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-6">
                                 Are you sure you want to delete <span className="font-black text-gray-800">"{progToDelete?.program_code}"</span>?
-                                This action cannot be undone.
+                                <br />This action cannot be undone.
                             </p>
                             <div className="flex gap-3">
                                 <button

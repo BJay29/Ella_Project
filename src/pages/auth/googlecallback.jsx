@@ -1,15 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import ErrorModal from "../../components/modals/errormodal"; // Import the modal
+import ErrorModal from "../../components/modals/errormodal";
 
 /**
  * GoogleCallback Component
- * Flow: 
- * 1. Gmail Verified via SSO (Auth Server)
- * 2. If New User -> Save Token -> Go to Register Form (to set password)
- * 3. If Existing User -> 
- * - If intent was 'register': Show Modal -> On Close -> Redirect to Login
- * - If intent was 'login': Direct to Dashboard
+ * Final Flow: 
+ * 1. Receive SSO Token and User Data from Backend
+ * 2. Save credentials to LocalStorage immediately
+ * 3. Redirect directly to the appropriate Dashboard based on Role
+ * Note: Registration is now handled silently by the Backend (Just-in-Time Provisioning)
  */
 const GoogleCallback = () => {
   const navigate = useNavigate();
@@ -18,7 +17,7 @@ const GoogleCallback = () => {
   // Ref to prevent double execution in React Strict Mode
   const initialized = useRef(false);
 
-  // State para sa modal control sa loob ng callback page
+  // Modal states for error handling
   const [showError, setShowError] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -29,128 +28,83 @@ const GoogleCallback = () => {
 
     console.log("--- GOOGLE CALLBACK INITIATED ---");
     
-    // 1. Extract parameters mula sa URL
+    // 1. Extract parameters from URL
     const params = new URLSearchParams(location.search);
     const token = params.get('token');
     const email = params.get('email');
-    const isNewUser = params.get('isNewUser'); 
     
-    // Fallback para sa mga parameter names galing backend
-    const firstName = params.get('firstName') || params.get('firstname') || '';
-    const lastName = params.get('lastName') || params.get('lastname') || '';
-    
-    // Kunin ang role
+    // Role extraction and normalization
     const rawRole = params.get('role');
     const role = rawRole ? rawRole.toLowerCase().trim() : 'student';
 
-    /**
-     * IMPORTANTE: 
-     * Kunin ang intent (login or register). 
-     * Siguraduhin na sa Signup page ay may: sessionStorage.setItem('sso_intent', 'register')
-     */
-    const intent = sessionStorage.getItem('sso_intent') || 'login';
-
-    console.log("Parsed SSO Data:", { hasToken: !!token, role, isNewUser, email, intent });
+    console.log("Parsed SSO Data:", { hasToken: !!token, role, email });
 
     if (token) {
-      const isNew = String(isNewUser).toLowerCase() === 'true';
+      // --- DIRECT ENTRY LOGIC ---
+      // We no longer check if 'isNewUser' is true because registration is automatic.
+      console.log("Authentication successful. Saving credentials...");
 
-      // --- STEP 1: SEGREGATION NG LOGIC ---
-      
-      if (isNew) {
-        // --- CASE A: TALAGANG BAGONG USER ---
-        console.log("Action: NEW USER. Proceeding to Register Form.");
-        
-        localStorage.setItem('token', token);
-        localStorage.removeItem('userRole'); 
-        sessionStorage.removeItem('sso_intent'); 
+      // Store Authentication Data
+      localStorage.setItem('token', token);
+      localStorage.setItem('userRole', role);
+      localStorage.setItem('userEmail', email);
 
-        navigate('/register', { 
-          state: { 
-            googleUser: { email, firstName, lastName, role },
-            isFromSSO: true 
-          },
-          replace: true 
-        });
-      } 
-      else {
-        // --- CASE B: EXISTING ACCOUNT NA ---
+      // Clear temporary session intent if any exists
+      sessionStorage.removeItem('sso_intent');
 
-        // Siguraduhin nating hindi ito mag-a-auto dashboard sa pamamagitan ng pag-clear ng storage muna
-        // bago pumasok sa condition ng intent
-        if (intent === 'register') {
-          console.log("Action: EXISTING USER during registration. Triggering Modal.");
-          
-          // CRITICAL: Burahin ang lahat para hindi mahabol ng ProtectedRoute
-         localStorage.removeItem('token');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userEmail');   
-          sessionStorage.clear();
-          
-          setErrorMsg("THIS ACCOUNT IS ALREADY REGISTERED. PLEASE LOGIN TO YOUR ACCOUNT.");
-          setShowError(true);
-          
-          // STOP: Wag nang mag-navigate, hayaan lang sa state na ito hanggang ma-close ang modal.
-          return; 
-        } 
-        else {
-          // NORMAL LOGIN FLOW
-          console.log("Action: EXISTING USER login. Directing to Dashboard.");
-          
-          localStorage.setItem('token', token);
-          localStorage.setItem('userRole', role);
-          sessionStorage.removeItem('sso_intent');
+      // Determine Dashboard Path based on User Role
+      let dashboardPath = `/${role}/dashboard`;
 
-          // Determine Dashboard Path
-          let dashboardPath = `/${role}/dashboard`;
-          if (role === 'curriculum_manager' || role === 'cm') {
-            dashboardPath = '/cm/dashboard';
-          } else if (role === 'instructor') {
-            dashboardPath = '/instructor/dashboard';
-          } else if (role === 'admin') {
-            dashboardPath = '/admin/dashboard';
-          }
-            
-          navigate(dashboardPath, { replace: true });
-        }
+      if (role === 'curriculum_manager' || role === 'cm') {
+        dashboardPath = '/cm/dashboard';
+      } else if (role === 'instructor') {
+        dashboardPath = '/instructor/dashboard';
+      } else if (role === 'admin') {
+        dashboardPath = '/admin/dashboard';
+      } else if (role === 'student') {
+        dashboardPath = '/student/dashboard';
       }
 
+      console.log(`Action: Redirecting to ${role} dashboard.`);
+      
+      // Redirect to the main application
+      navigate(dashboardPath, { replace: true });
+
     } else {
+      // --- ERROR HANDLING ---
       console.error("AUTH ERROR: No token received from Google SSO.");
-      navigate('/login', { replace: true });
+      setErrorMsg("AUTHENTICATION FAILED. PLEASE TRY LOGGING IN AGAIN.");
+      setShowError(true);
     }
   }, [location, navigate]);
 
-  // Handler para sa pag-close ng modal - Dito na mangyayari ang redirect sa Login
+  // Handler for closing the error modal
   const handleModalClose = () => {
     setShowError(false);
-    // Double check clean up
-  localStorage.removeItem('token');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userEmail');   
+    localStorage.clear();
     sessionStorage.clear();
     navigate('/login', { replace: true });
   };
 
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#C8E6C0]">
-      {/* Loading Spinner */}
+      {/* Loading Spinner and Status UI */}
       <div className="flex flex-col items-center gap-4 animate-in fade-in duration-500">
         <div className="w-12 h-12 border-4 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
         <div className="text-center">
           <h2 className="text-[11px] font-black tracking-widest text-gray-700 uppercase animate-pulse">
-            {showError ? "Notice" : "Verifying Account..."}
+            {showError ? "Authentication Error" : "Synchronizing Access..."}
           </h2>
           <p className="text-[10px] text-gray-500 italic mt-1 font-bold">
-            {showError ? "Account already exists." : "Checking records, please wait."}
+            {showError ? "Something went wrong." : "Preparing your workspace, please wait."}
           </p>
         </div>
       </div>
 
-      {/* Error Modal */}
+      {/* Error Modal Component */}
       <ErrorModal 
         isOpen={showError} 
-        title="Account Exists"
+        title="Auth Failed"
         message={errorMsg} 
         onClose={handleModalClose} 
       />
