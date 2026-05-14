@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
-import DeptForm from './DeptForm';     
+import DeptForm from './DeptForm';    
 import ProgramForm from './ProgramForm'; 
 import YearLevelForm from './YearLevelForm'; 
 import SectionForm from './SectionForm'; 
-import CourseForm from './CourseForm'; // New Import
+import CourseForm from './CourseForm'; 
 import QuestBuilder from '../QuestBuilder/QuestBuilder';
 
 const HierarchyManager = () => {
     // --- MODE MANAGEMENT ---
-    // 'VIEW' for the standard Quest flow, 'CREATE_COURSE' for the new Course assignment flow
     const [mode, setMode] = useState('VIEW'); 
 
     // --- STEP MANAGEMENT ---
-    // Flow: DEPT -> PROGRAM -> YEAR_LEVEL -> SECTION/COURSE -> QUESTS
     const [step, setStep] = useState('DEPT');
     
     // --- SELECTION STATE ---
@@ -29,7 +27,6 @@ const HierarchyManager = () => {
 
     /**
      * Resets the entire flow and selection state.
-     * Used when switching modes or starting over.
      */
     const resetFlow = (newMode = 'VIEW') => {
         setMode(newMode);
@@ -43,20 +40,16 @@ const HierarchyManager = () => {
     };
 
     /**
-     * handleNext logic:
-     * Manages progression. Preserves parent IDs while setting the new child ID.
+     * FIXED handleNext logic:
+     * Sinisiguro nito na ang numeric ID ay mapupunta sa tamang ID field
+     * at ang string Name ay mapupunta sa tamang Name field.
      */
     const handleNext = (nextStep, id, name = '') => {
-        const resetBelow = {
-            programId: nextStep === 'PROGRAM' ? id : null,
-            programName: nextStep === 'PROGRAM' ? name : '',
-            yearLevelId: (nextStep === 'YEAR_LEVEL') ? id : (nextStep === 'PROGRAM' ? null : undefined),
-            yearLevelName: (nextStep === 'YEAR_LEVEL') ? name : (nextStep === 'PROGRAM' ? '' : undefined),
-        };
-
         if (nextStep === 'PROGRAM') {
             setSelection(prev => ({ 
-                ...prev, deptId: id, deptName: name,
+                ...prev, 
+                deptId: id, 
+                deptName: name,
                 programId: null, programName: '',
                 yearLevelId: null, yearLevelName: '',
                 sectionId: null, sectionName: ''
@@ -64,30 +57,38 @@ const HierarchyManager = () => {
             setStep('PROGRAM');
         } else if (nextStep === 'YEAR_LEVEL') {
             setSelection(prev => ({ 
-                ...prev, programId: id, programName: name,
+                ...prev, 
+                programId: id, 
+                programName: name,
                 yearLevelId: null, yearLevelName: '',
                 sectionId: null, sectionName: ''
             }));
             setStep('YEAR_LEVEL');
         } else if (nextStep === 'SECTION') {
+            // DITO ANG FIX: Siguraduhing 'id' (Integer) ang mapupunta sa yearLevelId
             setSelection(prev => ({ 
-                ...prev, yearLevelId: id, yearLevelName: name,
-                sectionId: null, sectionName: ''
+                ...prev, 
+                yearLevelId: id, 
+                yearLevelName: name, 
+                sectionId: null, 
+                sectionName: ''
             }));
             
-            // If in CREATE_COURSE mode, we stop at Year Level to show the Course Form
-            // If in VIEW mode, we proceed to Section selection for Quests
+            // Lipat sa tamang step base sa mode
             setStep(mode === 'CREATE_COURSE' ? 'COURSE_INPUT' : 'SECTION');
 
         } else if (nextStep === 'QUESTS') {
-            setSelection(prev => ({ ...prev, sectionId: id, sectionName: name }));
+            setSelection(prev => ({ 
+                ...prev, 
+                sectionId: id, 
+                sectionName: name 
+            }));
             setStep('QUESTS');
         }
     };
 
     /**
-     * handleBack logic:
-     * Returns to a previous step and clears data forward from that point.
+     * handleBack logic
      */
     const handleBack = (targetStep) => {
         setStep(targetStep);
@@ -110,13 +111,11 @@ const HierarchyManager = () => {
                 {selection.yearLevelId && <><span className="text-slate-300">/</span><span className={`cursor-pointer ${step === 'SECTION' || step === 'COURSE_INPUT' ? 'text-indigo-600' : 'text-slate-400'}`}>{selection.yearLevelName}</span></>}
             </div>
 
-            {/* Mode Switcher Button */}
             {step === 'DEPT' && (
                 <button 
                     onClick={() => resetFlow(mode === 'VIEW' ? 'CREATE_COURSE' : 'VIEW')}
                     className={`text-[10px] font-black px-4 py-2 rounded-full border-2 transition-all ${mode === 'CREATE_COURSE' ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-indigo-50 border-indigo-200 text-indigo-600'}`}
                 >
-                    {mode === 'VIEW' ? '⚡ ASSIGN SUBJECT' : '⬅ BACK TO QUESTS'}
                 </button>
             )}
         </div>
@@ -130,12 +129,7 @@ const HierarchyManager = () => {
                 {/* STEP 1: DEPARTMENT */}
                 {step === 'DEPT' && (
                     <div className="animate-in fade-in slide-in-from-bottom-4">
-                        <div className="mb-4">
-                            <h1 className="text-2xl font-black text-slate-900 uppercase italic">
-                                {mode === 'CREATE_COURSE' ? 'Select Target Department' : 'Course Workshop'}
-                            </h1>
-                            <p className="text-xs font-bold text-slate-400 uppercase">Step 1: Choose the department to begin mapping</p>
-                        </div>
+                     
                         <DeptForm onNext={(id, name) => handleNext('PROGRAM', id, name)} />
                     </div>
                 )}
@@ -167,12 +161,13 @@ const HierarchyManager = () => {
                         <YearLevelForm 
                             deptId={selection.deptId} 
                             programId={selection.programId} 
+                            // Sinisiguradong 'SECTION' ang nextStep para ma-trigger ang logic sa handleNext
                             onNext={(id, name) => handleNext('SECTION', id, name)} 
                         />
                     </div>
                 )}
 
-                {/* STEP 4 (A): COURSE INPUT FORM (Only if in CREATE_COURSE Mode) */}
+                {/* STEP 4 (A): COURSE INPUT FORM */}
                 {step === 'COURSE_INPUT' && mode === 'CREATE_COURSE' && (
                     <div className="animate-in zoom-in-95 duration-300">
                          <div className="bg-slate-900 text-white rounded-3xl p-6 mb-6 shadow-xl">
@@ -185,12 +180,12 @@ const HierarchyManager = () => {
                             deptId={selection.deptId}
                             programId={selection.programId}
                             yearLevelId={selection.yearLevelId}
-                            onSuccess={() => resetFlow('VIEW')} // Go back to view mode after success
+                            onSuccess={() => resetFlow('VIEW')} 
                         />
                     </div>
                 )}
 
-                {/* STEP 4 (B): SECTION SELECTION (Only if in VIEW Mode) */}
+                {/* STEP 4 (B): SECTION SELECTION */}
                 {step === 'SECTION' && mode === 'VIEW' && (
                     <div className="animate-in fade-in slide-in-from-bottom-4">
                         <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-3 mb-4">

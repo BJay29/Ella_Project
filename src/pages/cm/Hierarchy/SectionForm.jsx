@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../../../services/APIservice';
 
 /**
  * SectionForm handles CRUD operations for Sections.
- * This version aligns with the APIservice hierarchy: Dept -> Program -> Year Level.
+ * Follows the API hierarchy: Department -> Program -> Year Level -> Section.
  */
 const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
     const [sections, setSections] = useState([]);
@@ -17,36 +17,34 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
 
     const [formData, setFormData] = useState({
         section_name: '',
-        school_year:  '2025-2026',
-        semester:     '1st Semester'
+        school_year: '2025-2026',
+        semester: '1st Semester'
     });
 
-    // --- Helper to extract ID from dynamic backend responses ---
+    // Helper to resolve different ID naming conventions from backend
     const getSectionId = (section) => {
         return section?.section_id ?? section?.id ?? section?._id ?? null;
     };
 
-    // --- Fetch sections using the hierarchy path defined in APIservice.js ---
-    const fetchSections = async () => {
-        // Validation: Ensure all parent IDs exist
+    /**
+     * Fetches sections based on the current hierarchy path.
+     * UseCallback prevents unnecessary re-renders when passed to effects.
+     */
+    const fetchSections = useCallback(async () => {
         if (!deptId || !programId || !yearLevelId) {
-            console.warn("Fetch blocked: Missing hierarchy IDs", { deptId, programId, yearLevelId });
+            console.warn("Fetch aborted: Hierarchy IDs are incomplete.", { deptId, programId, yearLevelId });
             return;
         }
 
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            /**
-             * MATCHING APIservice.js: 
-             * getSections(deptId, programId, yearLevelId, token)
-             */
             const response = await authAPI.getSections(deptId, programId, yearLevelId, token);
             
             if (response.ok) {
                 const result = await response.json();
                 
-                // Flexible mapping for different API response structures
+                // Normalizing API response structure
                 let finalData = [];
                 if (Array.isArray(result)) {
                     finalData = result;
@@ -61,19 +59,21 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                 setSections([]);
             }
         } catch (err) {
-            console.error("Fetch sections error:", err);
+            console.error("Error fetching sections:", err);
             setSections([]);
         } finally {
             setLoading(false);
         }
-    };
-
-    // Refresh list when hierarchy changes
-    useEffect(() => {
-        fetchSections();
     }, [deptId, programId, yearLevelId]);
 
-    // --- Create or Update Section ---
+    // Trigger fetch when the parent hierarchy changes
+    useEffect(() => {
+        fetchSections();
+    }, [fetchSections]);
+
+    /**
+     * Handles both Create and Update operations.
+     */
     const handleSaveSection = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -81,18 +81,21 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
             const token = localStorage.getItem('token');
             let response;
 
+            // Prepare payload: trim whitespace and ensure uppercase for consistency
+            const payload = {
+                ...formData,
+                section_name: formData.section_name.trim().toUpperCase()
+            };
+
             if (editingId) {
-                // Update call: ensure parameters match APIservice.js updateSection definition
+                // UPDATE: Hierarchy order matches APIservice
                 response = await authAPI.updateSection(
-                    deptId, programId, yearLevelId, editingId, formData, token
+                    deptId, programId, yearLevelId, editingId, payload, token
                 );
             } else {
-                /**
-                 * MATCHING APIservice.js: 
-                 * createSection(deptId, programId, yearLevelId, sectionData, token)
-                 */
+                // CREATE: Hierarchy order matches APIservice
                 response = await authAPI.createSection(
-                    deptId, programId, yearLevelId, formData, token
+                    deptId, programId, yearLevelId, payload, token
                 );
             }
 
@@ -100,6 +103,7 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                 const result = await response.json();
                 const newCode = result.section_code || result.data?.section_code;
                 
+                // If creating and a code is returned, show the success screen
                 if (!editingId && newCode) {
                     setGeneratedCode(newCode);
                 } else {
@@ -108,26 +112,26 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                 fetchSections(); 
             } else {
                 const errorData = await response.json().catch(() => ({}));
-                alert(errorData.message || "Failed to save section.");
+                alert(errorData.message || "Failed to save the section. Please check your inputs.");
             }
         } catch (err) {
             console.error("Save section error:", err);
-            alert("An error occurred while saving.");
+            alert("A network error occurred. Please try again.");
         } finally {
             setLoading(false);
         }
     };
 
-    // --- Delete Section ---
+    /**
+     * Handles deletion of a specific section.
+     */
     const handleDelete = async () => {
         if (!sectionToDelete) return;
         const sectionId = getSectionId(sectionToDelete);
-        if (!sectionId) return;
 
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            // Matching hierarchy order for delete
             const response = await authAPI.deleteSection(
                 deptId, programId, yearLevelId, sectionId, token
             );
@@ -138,16 +142,18 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                 setSectionToDelete(null);
             } else {
                 const data = await response.json().catch(() => ({}));
-                alert(data.message || "Delete failed.");
+                alert(data.message || "Unable to delete section.");
             }
         } catch (err) {
-            console.error("Delete section error:", err);
+            console.error("Delete error:", err);
+            alert("Could not reach the server.");
         } finally {
             setLoading(false);
         }
     };
 
-    // --- UI Logic Helpers ---
+    // --- UI State Management ---
+
     const confirmDelete = (e, section) => {
         e.stopPropagation();
         setSectionToDelete(section);
@@ -180,7 +186,7 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header */}
+            {/* Header and Search */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
                 <div>
                     <h2 className="text-2xl font-black text-gray-800 tracking-tight uppercase italic text-left">
@@ -192,7 +198,7 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                 </div>
 
                 <div className="flex gap-3 w-full md:w-auto">
-                    <div className="relative flex-1 md:w-64 text-left">
+                    <div className="relative flex-1 md:w-64">
                         <input
                             type="text"
                             placeholder="Search section or code..."
@@ -211,7 +217,7 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                 </div>
             </div>
 
-            {/* List Display */}
+            {/* Main List Area */}
             {loading && sections.length === 0 ? (
                 <div className="py-24 text-center font-black text-gray-200 italic animate-pulse tracking-widest">
                     LOADING SECTIONS...
@@ -232,6 +238,7 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                                 onClick={() => onNext(sectionId, section.section_name)}
                                 className="group relative bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden text-center"
                             >
+                                {/* Row Actions */}
                                 <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                                     <button
                                         onClick={(e) => openEditModal(e, section)}
@@ -270,7 +277,7 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                 </div>
             )}
 
-            {/* Modal for Create/Edit */}
+            {/* Create/Edit Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left text-gray-800">
                     <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden animate-in zoom-in duration-200 shadow-2xl">
@@ -281,7 +288,7 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                                         {editingId ? 'Edit Section' : 'Create Section'}
                                     </h3>
                                     <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-1">
-                                        Assigned to selected Year Level
+                                        Assigning to specific Year Level
                                     </p>
                                 </div>
 
@@ -296,7 +303,7 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                                             className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-left"
                                             placeholder="e.g., BSIT-4A"
                                             value={formData.section_name}
-                                            onChange={(e) => setFormData({ ...formData, section_name: e.target.value.toUpperCase() })}
+                                            onChange={(e) => setFormData({ ...formData, section_name: e.target.value })}
                                         />
                                     </div>
 
@@ -376,7 +383,7 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                 </div>
             )}
 
-            {/* Modal for Delete Confirmation */}
+            {/* Delete Modal */}
             {isDeleteModalOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left text-gray-800">
                     <div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
@@ -388,7 +395,7 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-6">
                                 Are you sure you want to delete{' '}
                                 <span className="font-black text-gray-800">"{sectionToDelete?.section_name || sectionToDelete?.name}"</span>?
-                                Students will lose access to this section.
+                                Students will lose access to this class.
                             </p>
                             <div className="flex gap-3">
                                 <button

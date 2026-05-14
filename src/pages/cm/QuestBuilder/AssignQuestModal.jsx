@@ -2,241 +2,225 @@ import React, { useState, useEffect } from 'react';
 import { authAPI } from '../../../services/APIservice';
 
 const AssignQuestModal = ({ isOpen, onClose, quest, onSuccess }) => {
-    // States for Data
-    const [courses, setCourses] = useState([]);
+    // --- Data States ---
     const [departments, setDepartments] = useState([]);
     const [programs, setPrograms] = useState([]);
+    const [yearLevels, setYearLevels] = useState([]);
     const [sections, setSections] = useState([]);
+    const [courses, setCourses] = useState([]);
 
-    // States for Selections
-    const [selectedCourseId, setSelectedCourseId] = useState('');
+    // --- Selection States ---
     const [selectedDeptId, setSelectedDeptId] = useState('');
     const [selectedProgramId, setSelectedProgramId] = useState('');
+    const [selectedYearId, setSelectedYearId] = useState('');
     const [selectedSectionIds, setSelectedSectionIds] = useState([]);
+    const [selectedCourseIds, setSelectedCourseIds] = useState([]);
 
-    // Loading & UI States
+    // --- UI & Feedback States ---
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [loadingCourses, setLoadingCourses] = useState(false);
-    const [loadingDepartments, setLoadingDepartments] = useState(false);
-    const [loadingPrograms, setLoadingPrograms] = useState(false);
-    const [loadingSections, setLoadingSections] = useState(false);
     const [showToast, setShowToast] = useState(false);
+    const [loading, setLoading] = useState({
+        depts: false, programs: false, years: false, sections: false, courses: false
+    });
 
-    // Error States
-    const [courseError, setCourseError] = useState('');
-    const [deptError, setDeptError] = useState('');
-    const [programError, setProgramError] = useState('');
-    const [sectionError, setSectionError] = useState('');
-
-    // Triggered when modal opens
+    // Reset states and fetch initial data when modal opens
     useEffect(() => {
         if (isOpen) {
             resetAll();
-            fetchCourses();
+            fetchDepartments();
         }
     }, [isOpen]);
 
-    // Step 1: When Course changes
-    useEffect(() => {
-        if (selectedCourseId) {
-            setSelectedDeptId('');
-            setSelectedProgramId('');
-            setDepartments([]);
-            setPrograms([]);
-            setSections([]);
-            setSelectedSectionIds([]);
-            setDeptError('');
-            fetchDepartmentsByCourse(selectedCourseId);
-        }
-    }, [selectedCourseId]);
-
-    // Step 2: When Department changes
+    // Cascade 1: Fetch Programs when Department changes
     useEffect(() => {
         if (selectedDeptId) {
-            setSelectedProgramId('');
-            setPrograms([]);
-            setSections([]);
-            setSelectedSectionIds([]);
-            setProgramError('');
             fetchProgramsByDept(selectedDeptId);
+        } else {
+            setPrograms([]);
         }
+        setSelectedProgramId('');
+        setSelectedYearId('');
+        setSelectedSectionIds([]);
     }, [selectedDeptId]);
 
-    // Step 3: When Program changes
+    // Cascade 2: Fetch Year Levels when Program changes
     useEffect(() => {
-        if (selectedProgramId) {
-            setSections([]);
-            setSelectedSectionIds([]);
-            setSectionError('');
-            fetchSectionsByProgram(selectedProgramId);
+        if (selectedProgramId && selectedDeptId) {
+            fetchYearLevelsByProgram(selectedDeptId, selectedProgramId);
+        } else {
+            setYearLevels([]);
         }
-    }, [selectedProgramId]);
+        setSelectedYearId('');
+        setSelectedSectionIds([]);
+    }, [selectedProgramId, selectedDeptId]);
+
+    // Cascade 3: Fetch Sections when Year Level changes
+    useEffect(() => {
+        if (selectedYearId && selectedProgramId && selectedDeptId) {
+            fetchSectionsByYear(selectedDeptId, selectedProgramId, selectedYearId);
+        } else {
+            setSections([]);
+        }
+        setSelectedSectionIds([]);
+    }, [selectedYearId, selectedProgramId, selectedDeptId]);
+
+    // Cascade 4: Fetch Courses when Sections are toggled
+    useEffect(() => {
+        if (selectedSectionIds.length > 0) {
+            fetchAllCoursesForSelectedSections();
+        } else {
+            setCourses([]);
+            setSelectedCourseIds([]);
+        }
+    }, [selectedSectionIds]);
 
     const resetAll = () => {
-        setSelectedCourseId('');
         setSelectedDeptId('');
         setSelectedProgramId('');
+        setSelectedYearId('');
         setSelectedSectionIds([]);
-        setCourses([]);
+        setSelectedCourseIds([]);
         setDepartments([]);
         setPrograms([]);
+        setYearLevels([]);
         setSections([]);
-        setCourseError('');
-        setDeptError('');
-        setProgramError('');
-        setSectionError('');
+        setCourses([]);
     };
 
-    // --- API FETCHERS ---
+    // --- API Fetching Logic ---
 
-    const fetchCourses = async () => {
-        setLoadingCourses(true);
-        setCourseError('');
+    const fetchDepartments = async () => {
+        setLoading(prev => ({ ...prev, depts: true }));
         try {
             const token = localStorage.getItem('token');
-            const res = await authAPI.getAllCoursesAssign(token); 
+            const res = await authAPI.getAllDepartments(token);
             if (res.ok) {
-                const rawData = await res.json();
-                const arr = Array.isArray(rawData) ? rawData : (rawData.courses || rawData.data || []);
-                setCourses(arr.map(c => ({
-                    id: c.course_id || c.id,
-                    name: c.course_name || c.name || 'Unknown Course'
-                })));
-            } else {
-                setCourseError(`Error loading courses (${res.status})`);
+                const result = await res.json();
+                const data = result.departments || result.data || result;
+                setDepartments(Array.isArray(data) ? data : []);
             }
         } catch (err) {
-            setCourseError('Connection error loading courses.');
-            console.error(err);
+            console.error("Dept Fetch Error:", err);
+            setDepartments([]);
         } finally {
-            setLoadingCourses(false);
-        }
-    };
-
-    const fetchDepartmentsByCourse = async (courseId) => {
-        setLoadingDepartments(true);
-        setDeptError('');
-        try {
-            const token = localStorage.getItem('token');
-            const res = await authAPI.getDepartmentsByCourse(courseId, token); 
-            if (res.ok) {
-                const rawData = await res.json();
-                const arr = Array.isArray(rawData) ? rawData : (rawData.departments || rawData.data || []);
-                setDepartments(arr.map(d => ({
-                    id: d.dept_id || d.department_id || d.id,
-                    name: d.department_name || d.dept_name || d.name || 'Unknown'
-                })));
-            } else {
-                setDeptError('Error loading departments.');
-            }
-        } catch (err) {
-            setDeptError('Connection error.');
-        } finally {
-            setLoadingDepartments(false);
+            setLoading(prev => ({ ...prev, depts: false }));
         }
     };
 
     const fetchProgramsByDept = async (deptId) => {
-        setLoadingPrograms(true);
-        setProgramError('');
+        setLoading(prev => ({ ...prev, programs: true }));
         try {
             const token = localStorage.getItem('token');
             const res = await authAPI.getProgramsByDept(deptId, token);
             if (res.ok) {
-                const rawData = await res.json();
-                const arr = Array.isArray(rawData) ? rawData : (rawData.programs || rawData.data || []);
-                setPrograms(arr.map(p => ({
-                    id: p.program_id || p.id,
-                    name: p.program_name || p.name || 'Unknown'
-                })));
-            } else {
-                setProgramError('Error loading programs.');
+                const result = await res.json();
+                const data = result.programs || result.data || result;
+                setPrograms(Array.isArray(data) ? data : []);
             }
         } catch (err) {
-            setProgramError('Connection error.');
+            setPrograms([]);
         } finally {
-            setLoadingPrograms(false);
+            setLoading(prev => ({ ...prev, programs: false }));
         }
     };
 
-    const fetchSectionsByProgram = async (programId) => {
-        setLoadingSections(true);
-        setSectionError('');
+    const fetchYearLevelsByProgram = async (deptId, progId) => {
+        setLoading(prev => ({ ...prev, years: true }));
         try {
             const token = localStorage.getItem('token');
-            const res = await authAPI.getSectionsByProgramId(programId, token);
+            const res = await authAPI.getYearLevelsByProgram(deptId, progId, token);
             if (res.ok) {
-                const rawData = await res.json();
-                const arr = Array.isArray(rawData) ? rawData : (rawData.sections || rawData.data || []);
-                setSections(arr);
-            } else {
-                setSectionError('Error loading sections.');
+                const result = await res.json();
+                // Ensure we capture the array regardless of the key returned by backend
+                const data = result.year_levels || result.yearLevels || result.data || result;
+                setYearLevels(Array.isArray(data) ? data : []);
             }
         } catch (err) {
-            setSectionError('Connection error.');
+            console.error("Year Level Fetch Error:", err);
+            setYearLevels([]);
         } finally {
-            setLoadingSections(false);
+            setLoading(prev => ({ ...prev, years: false }));
         }
     };
 
-    // --- UI HELPERS ---
-
-    const toggleSection = (sectionId) => {
-        setSelectedSectionIds(prev =>
-            prev.includes(sectionId)
-                ? prev.filter(id => id !== sectionId)
-                : [...prev, sectionId]
-        );
-    };
-
-    const selectAll = () => {
-        if (selectedSectionIds.length === sections.length && sections.length > 0) {
-            setSelectedSectionIds([]);
-        } else {
-            setSelectedSectionIds(sections.map(s => s.section_id || s.id));
+    const fetchSectionsByYear = async (deptId, progId, yearId) => {
+        setLoading(prev => ({ ...prev, sections: true }));
+        try {
+            const token = localStorage.getItem('token');
+            const res = await authAPI.getSectionsByYear(deptId, progId, yearId, token);
+            if (res.ok) {
+                const result = await res.json();
+                const data = result.sections || result.data || result;
+                setSections(Array.isArray(data) ? data : []);
+            }
+        } catch (err) {
+            setSections([]);
+        } finally {
+            setLoading(prev => ({ ...prev, sections: false }));
         }
     };
 
-    // --- SUBMIT HANDLER ---
+    const fetchAllCoursesForSelectedSections = async () => {
+        setLoading(prev => ({ ...prev, courses: true }));
+        try {
+            const token = localStorage.getItem('token');
+            const coursePromises = selectedSectionIds.map(secId =>
+                authAPI.getCoursesBySection(selectedDeptId, selectedProgramId, selectedYearId, secId, token)
+            );
+
+            const responses = await Promise.all(coursePromises);
+            let allCourses = [];
+
+            for (const res of responses) {
+                if (res.ok) {
+                    const result = await res.json();
+                    const courseList = result.courses || result.data || result;
+                    allCourses = [...allCourses, ...(Array.isArray(courseList) ? courseList : [])];
+                }
+            }
+
+            // Deduplicate courses using 'course_id' as the unique key
+            const uniqueCourses = Array.from(new Map(allCourses.map(item => [item.course_id, item])).values());
+            setCourses(uniqueCourses);
+        } catch (err) {
+            console.error("Course Batch Fetch Error:", err);
+            setCourses([]);
+        } finally {
+            setLoading(prev => ({ ...prev, courses: false }));
+        }
+    };
+
+    // --- Interaction Handlers ---
+
+    const toggleSelection = (id, list, setList) => {
+        const numericId = Number(id);
+        setList(prev => prev.includes(numericId) ? prev.filter(i => i !== numericId) : [...prev, numericId]);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedSectionIds.length) return alert('Please select at least one section.');
+        if (selectedCourseIds.length === 0) return alert("Please select at least one course.");
 
         setIsSubmitting(true);
         try {
             const token = localStorage.getItem('token');
             const questId = quest?.quest_id || quest?.id;
 
-            // 1. Publishing Logic: publish the quest if not yet published
-            if (quest?.status !== 'published') {
-                const publishRes = await authAPI.toggleQuestPublish(questId, token);
-                if (!publishRes.ok) {
-                    const pubErr = await publishRes.json().catch(() => ({}));
-                    throw new Error(pubErr.message || 'Failed to publish quest. Please try again.');
-                }
-            }
-            
-            // 2. Assignment Logic
-            const response = await authAPI.assignQuestToSection(
-                questId, 
-                selectedSectionIds, 
-                token
-            );
+            const response = await authAPI.assignQuestToCourses(questId, selectedCourseIds, token);
 
             if (response.ok) {
                 setShowToast(true);
                 setTimeout(() => {
-                    if (onSuccess) onSuccess(); 
                     setShowToast(false);
-                    onClose(); 
-                }, 2000);
+                    if (onSuccess) onSuccess();
+                    onClose();
+                }, 2500);
             } else {
-                const errorData = await response.json().catch(() => ({}));
-                alert(errorData.message || 'Assignment failed. The quest might already be assigned to these sections.');
+                const errorData = await response.json();
+                alert(`Error: ${errorData.message || 'Failed to assign'}`);
             }
         } catch (err) {
-            console.error("Submit Error:", err);
-            alert(err.message || 'An error occurred during assignment.');
+            alert("Network error. Failed to assign quest.");
         } finally {
             setIsSubmitting(false);
         }
@@ -245,168 +229,179 @@ const AssignQuestModal = ({ isOpen, onClose, quest, onSuccess }) => {
     if (!isOpen) return null;
 
     return (
-        <>
-            {/* --- SUCCESS TOAST (TOP RIGHT) --- */}
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            
             {showToast && (
-                <div className="fixed top-5 right-5 z-[200] animate-in slide-in-from-right duration-300">
-                    <div className="bg-emerald-500 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border-b-4 border-emerald-700">
-                        <div className="bg-white/20 p-2 rounded-full">
-                            <span className="text-xl">✓</span>
-                        </div>
-                        <div>
-                            <p className="font-black text-[11px] uppercase tracking-tighter italic">Success!</p>
-                            <p className="text-[10px] font-bold opacity-90">Quest published & assigned.</p>
-                        </div>
+                <div className="fixed top-5 right-5 z-[200] bg-emerald-500 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce">
+                    <span className="text-xl">✅</span>
+                    <div>
+                        <p className="font-black uppercase text-xs italic">Success!</p>
+                        <p className="text-[10px] font-bold opacity-90 uppercase">Quest assigned successfully.</p>
                     </div>
                 </div>
             )}
 
-            <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                <div className="bg-white w-full max-w-md rounded-[24px] shadow-2xl border border-gray-100 animate-in fade-in zoom-in duration-200 overflow-hidden">
+            <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden border border-white/20 animate-in zoom-in duration-300">
+                
+                {/* Modal Header */}
+                <div className="bg-indigo-600 p-8 text-white relative">
+                    <h3 className="text-2xl font-black uppercase italic tracking-tighter">Assign Quest</h3>
+                    <p className="text-indigo-200 text-[10px] font-bold uppercase tracking-widest mt-1">Hierarchical Selection</p>
+                    <button type="button" onClick={onClose} className="absolute top-6 right-6 text-white/50 hover:text-white">✕</button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-8 space-y-5 max-h-[75vh] overflow-y-auto no-scrollbar">
                     
-                    {/* Header */}
-                    <div className="bg-indigo-600 p-6 text-white">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <h3 className="text-xl font-black uppercase tracking-tighter italic">Assign Quest</h3>
-                                <p className="text-indigo-200 text-[10px] font-bold uppercase tracking-widest mt-1">
-                                    Link this quest to specific sections
-                                </p>
-                            </div>
-                            <button onClick={onClose} className="text-white/50 hover:text-white font-bold text-xl transition-colors">✕</button>
+                    <style>{`.no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+
+                    {/* Step 1: Department Selection */}
+                    <div>
+                        <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Step 1: Department</label>
+                        <select 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold text-black outline-none focus:ring-4 focus:ring-indigo-100 transition-all appearance-none"
+                            value={selectedDeptId} 
+                            onChange={(e) => setSelectedDeptId(e.target.value)}
+                        >
+                            <option value="">{loading.depts ? 'Loading...' : 'Select Department'}</option>
+                            {departments.map(d => (
+                                <option key={d.dept_id} value={d.dept_id}>
+                                    {d.department_name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Step 2 & 3: Program & Year Selection */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Step 2: Program</label>
+                            <select 
+                                disabled={!selectedDeptId || loading.programs}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold text-black disabled:opacity-50 outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                value={selectedProgramId} 
+                                onChange={(e) => setSelectedProgramId(e.target.value)}
+                            >
+                                <option value="">{loading.programs ? 'Loading...' : 'Select Program'}</option>
+                                {programs.map(p => (
+                                    <option key={p.program_id} value={p.program_id}>
+                                        {p.program_name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Step 3: Year Level</label>
+                            <select 
+                                disabled={!selectedProgramId || loading.years}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold text-black disabled:opacity-50 outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                value={selectedYearId} 
+                                onChange={(e) => setSelectedYearId(e.target.value)}
+                            >
+                                <option value="">{loading.years ? 'Loading' : 'Select Year Level'}</option>
+                                {yearLevels.map(y => (
+                                    <option key={y.year_level_id} value={y.year_level_id}>
+                                        {/* Added fallbacks for different property names */}
+                                        {y.year_level || y.year_name || `Year ${y.year_level_id}`}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="p-6 space-y-4">
-
-                        {/* Step 1: Course */}
-                        <div>
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 block">
-                                Step 1: Select Course
-                            </label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                                value={selectedCourseId}
-                                onChange={(e) => setSelectedCourseId(e.target.value)}
-                                disabled={loadingCourses}
-                                required
-                            >
-                                <option value="" disabled className="text-gray-400">{loadingCourses ? 'Loading...' : 'Choose a course...'}</option>
-                                {courses.map(course => (
-                                    <option key={course.id} value={course.id} className="text-gray-900">{course.name}</option>
-                                ))}
-                            </select>
-                            {courseError && <p className="text-[9px] text-red-500 mt-1 font-bold">{courseError}</p>}
-                        </div>
-
-                        {/* Step 2: Department */}
-                        <div>
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 block">
-                                Step 2: Select Department
-                            </label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                                value={selectedDeptId}
-                                onChange={(e) => setSelectedDeptId(e.target.value)}
-                                disabled={!selectedCourseId || loadingDepartments}
-                                required
-                            >
-                                <option value="" disabled className="text-gray-400">
-                                    {!selectedCourseId ? 'Select course first' : loadingDepartments ? 'Loading...' : 'Choose a department...'}
-                                </option>
-                                {departments.map(dept => (
-                                    <option key={dept.id} value={dept.id} className="text-gray-900">{dept.name}</option>
-                                ))}
-                            </select>
-                            {deptError && <p className="text-[9px] text-red-500 mt-1 font-bold">{deptError}</p>}
-                        </div>
-
-                        {/* Step 3: Program */}
-                        <div>
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 block">
-                                Step 3: Select Program
-                            </label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                                value={selectedProgramId}
-                                onChange={(e) => setSelectedProgramId(e.target.value)}
-                                disabled={!selectedDeptId || loadingPrograms}
-                                required
-                            >
-                                <option value="" disabled className="text-gray-400">
-                                    {!selectedDeptId ? 'Select department first' : loadingPrograms ? 'Loading...' : 'Choose a program...'}
-                                </option>
-                                {programs.map(prog => (
-                                    <option key={prog.id} value={prog.id} className="text-gray-900">{prog.name}</option>
-                                ))}
-                            </select>
-                            {programError && <p className="text-[9px] text-red-500 mt-1 font-bold">{programError}</p>}
-                        </div>
-
-                        {/* Step 4: Sections */}
-                        <div>
-                            <div className="flex justify-between items-center mb-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                    Step 4: Select Sections
-                                </label>
-                                {selectedProgramId && sections.length > 0 && !loadingSections && (
-                                    <button type="button" onClick={selectAll} className="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-700">
-                                        {selectedSectionIds.length === sections.length ? 'Deselect All' : 'Select All'}
+                    {/* Step 4: Multi-Select Sections */}
+                    <div>
+                        <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Step 4: Select Sections</label>
+                        <div className="flex flex-wrap gap-2">
+                            {sections.length === 0 ? (
+                                <p className="text-[10px] italic text-slate-300 uppercase py-2">
+                                    {loading.sections ? 'Loading...' : 'Select Year Level first'}
+                                </p>
+                            ) : (
+                                sections.map(s => (
+                                    <button
+                                        key={s.section_id}
+                                        type="button"
+                                        onClick={() => toggleSelection(s.section_id, selectedSectionIds, setSelectedSectionIds)}
+                                        className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase border-2 transition-all ${
+                                            selectedSectionIds.includes(Number(s.section_id)) 
+                                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' 
+                                            : 'bg-white border-slate-100 text-slate-500 hover:border-indigo-200'
+                                        }`}
+                                    >
+                                        {s.section_name}
                                     </button>
-                                )}
-                            </div>
-
-                            <div className="bg-gray-50 border border-gray-200 rounded-xl max-h-40 overflow-y-auto">
-                                {!selectedProgramId ? (
-                                    <p className="text-center text-gray-400 text-xs font-bold uppercase py-6 italic">Select program first</p>
-                                ) : loadingSections ? (
-                                    <p className="text-center text-indigo-500 text-xs font-bold uppercase py-6 animate-pulse">Loading sections...</p>
-                                ) : sections.length === 0 ? (
-                                    <p className="text-center text-gray-400 text-xs font-bold uppercase py-6">No sections found</p>
-                                ) : (
-                                    <div className="divide-y divide-gray-100">
-                                        {sections.map(sec => {
-                                            const secId = sec.section_id || sec.id;
-                                            const isChecked = selectedSectionIds.includes(secId);
-                                            return (
-                                                <div
-                                                    key={secId}
-                                                    onClick={() => toggleSection(secId)}
-                                                    className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${isChecked ? 'bg-indigo-50' : 'hover:bg-gray-100'}`}
-                                                >
-                                                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
-                                                        {isChecked && <span className="text-white text-[8px]">✓</span>}
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-xs font-bold text-gray-800">{sec.section_name || sec.name}</p>
-                                                        <p className="text-[9px] text-gray-400 font-bold uppercase">{sec.school_year} {sec.semester && `• ${sec.semester}`}</p>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                            {sectionError && <p className="text-[9px] text-red-500 mt-1 font-bold">{sectionError}</p>}
+                                ))
+                            )}
                         </div>
+                    </div>
 
-                        {/* Footer Buttons */}
-                        <div className="flex gap-3 pt-2">
-                            <button type="button" onClick={onClose} className="flex-1 px-6 py-3 border border-gray-200 rounded-xl font-black text-gray-500 text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all">
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={isSubmitting || selectedSectionIds.length === 0}
-                                className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
-                            >
-                                {isSubmitting ? 'Processing...' : 'Confirm Assignment'}
-                            </button>
+                    {/* Step 5: Grouped Course Selection */}
+                    <div className="space-y-4">
+                        <label className="text-[10px] font-black uppercase text-slate-400 block">Step 5: Select Courses per Section</label>
+                        <div className="space-y-6 bg-slate-50 rounded-[28px] p-5 border border-slate-100">
+                            {selectedSectionIds.length === 0 ? (
+                                <p className="text-center py-6 text-[10px] text-slate-400 font-bold uppercase tracking-widest">Awaiting section selection...</p>
+                            ) : (
+                                selectedSectionIds.map(secId => {
+                                    const section = sections.find(s => Number(s.section_id) === Number(secId));
+                                    const filteredCourses = courses.filter(c => Number(c.section_id) === Number(secId));
+
+                                    return (
+                                        <div key={secId} className="space-y-2">
+                                            <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-tighter ml-1">
+                                                Section: {section?.section_name || 'Loading...'}
+                                            </h4>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {loading.courses ? (
+                                                    <p className="text-[9px] text-slate-400 animate-pulse ml-1">Fetching Courses...</p>
+                                                ) : filteredCourses.length > 0 ? (
+                                                    filteredCourses.map(c => (
+                                                        <div 
+                                                            key={c.course_id} 
+                                                            onClick={() => toggleSelection(c.course_id, selectedCourseIds, setSelectedCourseIds)}
+                                                            className={`flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all border ${
+                                                                selectedCourseIds.includes(Number(c.course_id)) 
+                                                                ? 'bg-white border-indigo-500 shadow-md ring-4 ring-indigo-50' 
+                                                                : 'bg-white/60 border-transparent hover:border-slate-200'
+                                                            }`}
+                                                        >
+                                                            <div className="flex flex-col">
+                                                                <span className="text-xs font-black text-black uppercase leading-none">{c.course_name}</span>
+                                                                <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase">{c.course_code}</span>
+                                                            </div>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={selectedCourseIds.includes(Number(c.course_id))}
+                                                                readOnly
+                                                                className="w-5 h-5 rounded-lg border-2 border-slate-200 checked:bg-indigo-600"
+                                                            />
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <p className="text-[9px] text-slate-400 italic ml-1">No courses found for this section.</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
                         </div>
-                    </form>
-                </div>
+                    </div>
+
+                    {/* Modal Footer Actions */}
+                    <div className="flex gap-4 pt-4 pb-2">
+                        <button type="button" onClick={onClose} className="flex-1 py-4 text-[11px] font-black uppercase text-slate-400 hover:text-slate-600">Cancel</button>
+                        <button 
+                            type="submit" 
+                            disabled={isSubmitting || selectedCourseIds.length === 0}
+                            className="flex-1 py-4 text-[11px] font-black uppercase bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-100 active:scale-95 disabled:opacity-50 transition-all"
+                        >
+                            {isSubmitting ? 'Assigning...' : 'Confirm'}
+                        </button>
+                    </div>
+                </form>
             </div>
-        </>
+        </div>
     );
 };
 

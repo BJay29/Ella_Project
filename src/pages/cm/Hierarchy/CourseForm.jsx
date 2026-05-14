@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { authAPI } from '../../../services/APIservice';
+// 1. Import Toast for modern notifications
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 /**
  * CourseForm Component
- * Handles the input for Course Name, Code, and Description.
- * Data is pushed to the API using the 4-tier academic hierarchy IDs.
+ * Manages the creation of courses within a specific academic hierarchy.
+ * Replaced window.alert with Top-Right Toast notifications.
  */
-const CourseForm = ({ deptId, programId, yearLevelId, onSuccess }) => {
+const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) => {
     // --- LOCAL STATE ---
     const [formData, setFormData] = useState({
         course_name: '',
         course_code: '',
-        description: '' // Added description to state
+        description: ''
     });
 
     const [loading, setLoading] = useState(false);
@@ -22,9 +25,15 @@ const CourseForm = ({ deptId, programId, yearLevelId, onSuccess }) => {
         e.preventDefault();
         setError('');
 
-        // Basic Validation: Ensure all fields are filled
+        // Validation: Ensure all form fields are filled
         if (!formData.course_name || !formData.course_code || !formData.description) {
             setError("Please provide Course Name, Code, and Description.");
+            return;
+        }
+
+        // Validation: Ensure the full hierarchy is selected from the parent
+        if (!deptId || !programId || !yearLevelId || !sectionId) {
+            setError("Hierarchy incomplete. Please ensure Dept, Program, Year, and Section are selected.");
             return;
         }
 
@@ -32,35 +41,52 @@ const CourseForm = ({ deptId, programId, yearLevelId, onSuccess }) => {
         try {
             const token = localStorage.getItem('token');
             
-            // Constructing the payload for the API
-            const payload = {
+            const courseData = {
                 course_name: formData.course_name.trim(),
                 course_code: formData.course_code.trim().toUpperCase(),
-                description: formData.description.trim()
+                description: formData.description.trim(),
+                section_id: parseInt(sectionId) 
             };
 
-            /**
-             * API Call using the hierarchy path:
-             * /departments/:deptId/programs/:programId/year-levels/:yearLevelId/courses
-             */
             const res = await authAPI.createCourse(
-                deptId, 
-                programId, 
-                yearLevelId, 
-                payload, 
+                parseInt(deptId), 
+                parseInt(programId), 
+                parseInt(yearLevelId), 
+                parseInt(sectionId),
+                courseData, 
                 token
             );
 
             if (res.ok) {
-                // Trigger success callback to refresh the parent view
-                onSuccess(); 
+                // Clear local form state
+                setFormData({ course_name: '', course_code: '', description: '' });
+                
+                // 2. Trigger Top-Right Toast Notification
+                toast.success("Course successfully created and assigned!", {
+                    position: "top-right",
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true,
+                    theme: "colored",
+                });
+
+                // Trigger parent refresh callback
+                if (onSuccess) onSuccess(); 
             } else {
                 const errData = await res.json();
-                setError(errData.message || "Failed to create course. Please check your data.");
+                
+                // Handle API error messages
+                if (typeof errData === 'string' && errData.includes("<!DOCTYPE")) {
+                    setError("Endpoint Error: The API route structure was not recognized.");
+                } else {
+                    setError(errData.message || "Failed to create course.");
+                }
             }
         } catch (err) {
-            setError("Network error. Please check your server connection.");
-            console.error("Course Submission Error:", err);
+            setError("Connection failed. Please check your backend server.");
+            console.error("Submission Error:", err);
         } finally {
             setLoading(false);
         }
@@ -68,16 +94,19 @@ const CourseForm = ({ deptId, programId, yearLevelId, onSuccess }) => {
 
     return (
         <div className="max-w-2xl mx-auto bg-white p-8 md:p-12 rounded-[2.5rem] shadow-xl border border-slate-100 text-left">
+            {/* 3. Toast Container to render the notifications */}
+            <ToastContainer />
+
             <div className="mb-8">
                 <h3 className="text-xl font-black italic uppercase tracking-tight text-slate-900">
-                    Subject Details
+                    Create New Course
                 </h3>
                 <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
-                    Enter the specific information for this new course
+                    Assign a syllabus entry to the selected academic section
                 </p>
             </div>
 
-            {/* Error Message Display */}
+            {/* Error Feedback */}
             {error && (
                 <div className="mb-6 p-4 bg-rose-50 border border-rose-100 text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center">
                     {error}
@@ -87,10 +116,10 @@ const CourseForm = ({ deptId, programId, yearLevelId, onSuccess }) => {
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 gap-6">
                     
-                    {/* Course Name Input */}
+                    {/* Course Title */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-500 ml-2">
-                            Course Name
+                            Course Title
                         </label>
                         <input 
                             type="text"
@@ -101,27 +130,27 @@ const CourseForm = ({ deptId, programId, yearLevelId, onSuccess }) => {
                         />
                     </div>
 
-                    {/* Course Code Input */}
+                    {/* Catalog Code */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-500 ml-2">
                             Course Code
                         </label>
                         <input 
                             type="text"
-                            placeholder="e.g. CS-211"
+                            placeholder="e.g. CS-201"
                             className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl font-bold text-slate-900 placeholder:text-slate-300 transition-all outline-none uppercase"
                             value={formData.course_code}
                             onChange={(e) => setFormData({...formData, course_code: e.target.value})}
                         />
                     </div>
 
-                    {/* Course Description Input */}
+                    {/* Description */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-500 ml-2">
-                            Course Description
+                            Description
                         </label>
                         <textarea 
-                            placeholder="Provide a brief overview of the subject..."
+                            placeholder="Detail the course syllabus and learning objectives..."
                             className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl font-bold text-slate-900 placeholder:text-slate-300 transition-all outline-none h-32 resize-none"
                             value={formData.description}
                             onChange={(e) => setFormData({...formData, description: e.target.value})}
@@ -129,13 +158,13 @@ const CourseForm = ({ deptId, programId, yearLevelId, onSuccess }) => {
                     </div>
                 </div>
 
-                {/* Submit Button */}
+                {/* Submit Action */}
                 <button 
                     type="submit"
                     disabled={loading}
                     className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-lg shadow-indigo-100 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mt-4"
                 >
-                    {loading ? "Registering Course..." : "Assign Subject to Year Level →"}
+                    {loading ? "Syncing with Server..." : "Create Course Entry →"}
                 </button>
             </form>
         </div>

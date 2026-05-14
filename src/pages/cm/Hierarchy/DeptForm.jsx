@@ -4,7 +4,7 @@ import { authAPI } from '../../../services/APIservice';
 /**
  * DeptForm Component
  * The entry point of the Academic Structure.
- * Manages Departments and navigates to Programs.
+ * Manages Departments and handles cascading deletion via backend integration.
  */
 const DeptForm = ({ onNext }) => {
     // --- STATE MANAGEMENT ---
@@ -26,18 +26,16 @@ const DeptForm = ({ onNext }) => {
 
     // --- FETCH DATA ---
     /**
-     * Fetches all departments from the database.
-     * Note: courseId is removed as Department is now the root.
+     * Fetches all departments.
+     * Ensure backend endpoint: GET /api/curriculum-manager/departments
      */
     const fetchDepts = async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            // Ensure your APIservice.getDepartments no longer strictly requires a courseId
             const response = await authAPI.getDepartments(token); 
             if (response.ok) {
                 const data = await response.json();
-                // Handle different possible API response structures
                 const deptsArray = Array.isArray(data) ? data : (data.departments || []);
                 setDepartments(deptsArray);
             } else {    
@@ -56,8 +54,7 @@ const DeptForm = ({ onNext }) => {
     }, []);
 
     /**
-     * Helper to extract the unique ID from a department object
-     * regardless of backend naming conventions.
+     * Extracts ID from department object regardless of naming (dept_id or id).
      */
     const getDeptId = (dept) => {
         return dept.dept_id ?? dept.id ?? dept._id ?? dept.department_id ?? null;
@@ -86,10 +83,8 @@ const DeptForm = ({ onNext }) => {
             let response;
             
             if (editingId) {
-                // Update existing department
                 response = await authAPI.updateDepartment(editingId, payload, token);
             } else {
-                // Create new department
                 response = await authAPI.createDepartment(payload, token);
             }
 
@@ -109,11 +104,16 @@ const DeptForm = ({ onNext }) => {
 
     // --- DELETE HANDLERS ---
     const confirmDelete = (e, dept) => {
-        e.stopPropagation(); // Prevent triggering onNext navigation
+        e.stopPropagation(); // Prevents navigating to Programs when clicking delete
         setDeptToDelete(dept);
         setIsDeleteModalOpen(true);
     };
 
+    /**
+     * Executes deletion.
+     * Backend MUST be configured with ON DELETE CASCADE to remove 
+     * nested Programs, Year Levels, Sections, and Courses.
+     */
     const handleDelete = async () => {
         const id = getDeptId(deptToDelete);
         if (!id) return;
@@ -123,6 +123,7 @@ const DeptForm = ({ onNext }) => {
             const token = localStorage.getItem('token');
             const response = await authAPI.deleteDepartment(id, token);
             if (response.ok) {
+                // Refresh list after successful cascade deletion
                 await fetchDepts();
                 setIsDeleteModalOpen(false);
                 setDeptToDelete(null);
@@ -132,6 +133,7 @@ const DeptForm = ({ onNext }) => {
             }
         } catch (err) {
             console.error("Delete failed:", err);
+            alert("Network error occurred during deletion.");
         } finally {
             setLoading(false);
         }
@@ -139,7 +141,7 @@ const DeptForm = ({ onNext }) => {
 
     // --- MODAL CONTROLS ---
     const openEditModal = (e, dept) => {
-        e.stopPropagation(); // Prevent triggering onNext navigation
+        e.stopPropagation();
         const id = getDeptId(dept);
         setEditingId(id);
         setNewDept({
@@ -324,18 +326,19 @@ const DeptForm = ({ onNext }) => {
                 </div>
             )}
 
-            {/* DELETE MODAL */}
+            {/* CASCADE DELETE MODAL */}
             {isDeleteModalOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left">
                     <div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden animate-in zoom-in duration-200 shadow-2xl">
                         <div className="bg-red-500 p-6 text-white text-center">
                             <div className="text-3xl mb-2">⚠️</div>
-                            <h3 className="text-xl font-black uppercase tracking-tighter italic">Delete Dept?</h3>
+                            <h3 className="text-xl font-black uppercase tracking-tighter italic">Confirm Full Deletion</h3>
                         </div>
                         <div className="p-8 text-center">
                             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-6">
                                 Are you sure you want to delete <span className="font-black text-gray-800">"{deptToDelete?.department_code}"</span>? 
-                                All programs under this department may be affected.
+                                <br /><br />
+                                <span className="text-red-500 font-bold uppercase text-[10px]">Warning:</span> This will permanently remove all <strong>Programs, Year Levels, Sections, and Courses</strong> under this department.
                             </p>
                             <div className="flex gap-3">
                                 <button
@@ -343,14 +346,14 @@ const DeptForm = ({ onNext }) => {
                                     onClick={() => setIsDeleteModalOpen(false)}
                                     className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 font-black rounded-2xl text-[10px] uppercase tracking-widest transition-all"
                                 >
-                                    No
+                                    Cancel
                                 </button>
                                 <button
                                     onClick={handleDelete}
                                     disabled={loading}
                                     className="flex-1 py-4 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-red-100 transition-all active:scale-95"
                                 >
-                                    Yes, Delete
+                                    {loading ? 'Deleting...' : 'Yes, Delete All'}
                                 </button>
                             </div>
                         </div>

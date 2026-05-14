@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // Auth Pages
-import Login          from './pages/auth/login';
+import Login         from './pages/auth/login';
 import GoogleCallback from './pages/auth/googlecallback';
 
 // Dashboard Pages
@@ -21,13 +21,14 @@ import GameEngine  from './pages/student/GameEngine';
 /**
  * ProtectedRoute Component
  * Restricts access based on authentication token and user role.
+ * Ensures only authorized users can enter specific dashboard sections.
  */
 const ProtectedRoute = ({ children, allowedRole }) => {
   const token      = localStorage.getItem('token')    || sessionStorage.getItem('token');
   const userRole   = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
   const normalized = userRole ? userRole.toLowerCase().trim() : '';
 
-  // Redirect to login if no token is found
+  // Redirect to login if no authentication token is found
   if (!token || token === '') return <Navigate to="/login" replace />;
 
   // Redirect to appropriate dashboard if role is unauthorized for this route
@@ -37,7 +38,7 @@ const ProtectedRoute = ({ children, allowedRole }) => {
     if (normalized === 'instructor')         return <Navigate to="/instructor/dashboard" replace />;
     if (normalized === 'curriculum_manager' || normalized === 'cm') return <Navigate to="/cm/dashboard" replace />;
     
-    // Clear storage if role is invalid
+    // Clear storage and log out if role is invalid or unrecognized
     localStorage.removeItem('token');
     localStorage.removeItem('userRole');
     sessionStorage.clear();
@@ -50,6 +51,7 @@ const ProtectedRoute = ({ children, allowedRole }) => {
 /**
  * PublicRoute Component
  * Prevents authenticated users from accessing login/landing pages.
+ * Redirects them to their specific dashboard if a session already exists.
  */
 const PublicRoute = ({ children }) => {
   const token    = localStorage.getItem('token')    || sessionStorage.getItem('token');
@@ -57,7 +59,7 @@ const PublicRoute = ({ children }) => {
   const isPending = token && !userRole;
   const params    = new URLSearchParams(window.location.search);
 
-  // If already logged in, redirect to respective dashboard
+  // If already logged in, automatically redirect to respective dashboard
   if (token && token !== '' && !params.get('stop') && !isPending) {
     if (userRole === 'student')            return <Navigate to="/student/dashboard" replace />;
     if (userRole === 'admin')              return <Navigate to="/admin/dashboard" replace />;
@@ -67,7 +69,10 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
-// Helper component for Curriculum Manager access
+/**
+ * CM Helper Component
+ * Simplified wrapper for Curriculum Manager protected routes.
+ */
 const CM = ({ children }) => (
   <ProtectedRoute allowedRole="curriculum_manager">{children}</ProtectedRoute>
 );
@@ -79,7 +84,7 @@ function App() {
         {/* --- PUBLIC AUTH ROUTES --- */}
         <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
         
-        {/* SSO Callbacks - Handles both Login and Auto-Registration */}
+        {/* SSO Callbacks - Handles both Login and Auto-Registration flow */}
         <Route path="/callback"     element={<GoogleCallback />} />
         <Route path="/sso-callback" element={<GoogleCallback />} />
 
@@ -125,7 +130,10 @@ function App() {
           element={<CM><AddQuestion /></CM>} />
 
         {/* --- SYSTEM ROUTES --- */}
+        {/* Redirect root to login page */}
         <Route path="/"  element={<PublicRoute><Navigate to="/login" replace /></PublicRoute>} />
+        
+        {/* Fallback route for undefined paths */}
         <Route path="*"  element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

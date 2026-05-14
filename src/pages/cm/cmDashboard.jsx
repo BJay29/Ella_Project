@@ -97,7 +97,7 @@ const CMDashboard = () => {
                     <div className="flex border-b border-gray-100 bg-gray-50/50 px-8 pt-4 gap-8 overflow-x-auto [scrollbar-width:none]">
                         {[
                             { id: 'structure', label: 'Academic Structure' },
-                            { id: 'courses', label: 'Courses' },
+                            { id: 'courses', label: 'Course Manager' },
                             { id: 'quests', label: 'Quest Workshop' }, 
                             { id: 'settings', label: 'Quest Settings' }
                         ].map((tab) => (

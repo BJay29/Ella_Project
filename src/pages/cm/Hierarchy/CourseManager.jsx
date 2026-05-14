@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { authAPI } from '../../../services/APIservice';
+// Import Toast components for modern top-right notifications
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
+/**
+ * CourseManager Component
+ * Orchestrates the full academic hierarchy (Dept > Program > Year > Section)
+ * to manage and assign courses. Replaced window.alert with Toast notifications.
+ */
 const CourseManager = () => {
     // --- DATA STATE ---
     const [departments, setDepartments] = useState([]);
@@ -12,7 +20,7 @@ const CourseManager = () => {
     // --- SELECTION STATE ---
     const [selectedDept, setSelectedDept] = useState('');
     const [selectedProgram, setSelectedProgram] = useState('');
-    const [selectedYear, setSelectedYear] = useState('');
+    const [selectedYear, setSelectedYear] = useState(''); 
     const [selectedSection, setSelectedSection] = useState('');
 
     // --- FORM INPUT STATE ---
@@ -33,8 +41,7 @@ const CourseManager = () => {
             const res = await authAPI.getDepartments(token);
             if (res.ok) {
                 const data = await res.json();
-                // Matches your JSON: { "departments": [...] }
-                setDepartments(data.departments || []);
+                setDepartments(data.departments || data || []);
             }
         } catch (err) {
             setError("Could not load departments.");
@@ -42,80 +49,125 @@ const CourseManager = () => {
     };
 
     /**
-     * Fetches courses assigned to the selected hierarchy.
+     * Fetches courses based on the current hierarchy selection.
      */
     const fetchRegisteredCourses = async () => {
-        if (!selectedDept || !selectedProgram) {
+        if (!selectedDept || !selectedProgram || !selectedYear || !selectedSection) {
             setAssignedCourses([]);
             return;
         }
+
         try {
             const token = localStorage.getItem('token');
-            const res = await authAPI.getCourses(selectedDept, selectedProgram, token);
+            const res = await authAPI.getCoursesBySection(
+                parseInt(selectedDept), 
+                parseInt(selectedProgram), 
+                parseInt(selectedYear),
+                parseInt(selectedSection),
+                token
+            );
+            
             if (res.ok) {
                 const data = await res.json();
-                // Set the list of courses (Assumes array or data.courses)
-                setAssignedCourses(Array.isArray(data) ? data : data.courses || []);
+                const courses = Array.isArray(data) ? data : data.courses || [];
+                setAssignedCourses(courses);
             }
         } catch (err) {
             console.error("Failed to fetch course list", err);
         }
     };
 
-    // --- CASCADING FETCH LOGIC ---
+    // --- CASCADING HIERARCHY LOGIC ---
     
-    // Fetch Programs when Department changes
+    // 1. Department Change: Fetch Programs
     useEffect(() => {
         const fetchPrograms = async () => {
-            if (!selectedDept) { setPrograms([]); return; }
-            const res = await authAPI.getPrograms(selectedDept, localStorage.getItem('token'));
-            if (res.ok) {
-                const data = await res.json();
-                // Supports both nested {programs: []} or direct array
-                setPrograms(data.programs || data);
+            if (!selectedDept) { 
+                setPrograms([]); 
+                return; 
+            }
+            try {
+                const res = await authAPI.getPrograms(parseInt(selectedDept), localStorage.getItem('token'));
+                if (res.ok) {
+                    const data = await res.json();
+                    setPrograms(data.programs || data || []);
+                }
+            } catch (err) {
+                console.error("Error fetching programs");
             }
         };
         fetchPrograms();
-        // Reset dependent selections
-        setSelectedProgram(''); setSelectedYear(''); setSelectedSection('');
+        setSelectedProgram(''); 
+        setSelectedYear(''); 
+        setSelectedSection('');
     }, [selectedDept]);
 
-    // Fetch Year Levels when Program changes
+    // 2. Program Change: Fetch Year Levels
     useEffect(() => {
         const fetchYears = async () => {
-            if (!selectedProgram) { setYearLevels([]); return; }
-            const res = await authAPI.getYearLevels(selectedDept, selectedProgram, localStorage.getItem('token'));
-            if (res.ok) {
-                const data = await res.json();
-                setYearLevels(data.year_levels || data);
+            if (!selectedProgram || !selectedDept) { 
+                setYearLevels([]); 
+                return; 
+            }
+            try {
+                const res = await authAPI.getYearLevels(
+                    parseInt(selectedDept), 
+                    parseInt(selectedProgram), 
+                    localStorage.getItem('token')
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    setYearLevels(data.year_levels || data || []);
+                }
+            } catch (err) {
+                console.error("Error fetching year levels");
             }
         };
         fetchYears();
-        fetchRegisteredCourses(); 
-        setSelectedYear(''); setSelectedSection('');
-    }, [selectedProgram]);
+        setSelectedYear(''); 
+        setSelectedSection('');
+    }, [selectedProgram, selectedDept]);
 
-    // Fetch Sections when Year Level changes
+    // 3. Year Level Change: Fetch Sections
     useEffect(() => {
         const fetchSections = async () => {
-            if (!selectedYear) { setSections([]); return; }
-            const res = await authAPI.getSections(selectedDept, selectedProgram, selectedYear, localStorage.getItem('token'));
-            if (res.ok) {
-                const data = await res.json();
-                setSections(data.sections || data);
+            if (!selectedYear || !selectedProgram || !selectedDept) { 
+                setSections([]); 
+                return; 
+            }
+            try {
+                const token = localStorage.getItem('token');
+                const res = await authAPI.getSections(
+                    parseInt(selectedDept), 
+                    parseInt(selectedProgram), 
+                    parseInt(selectedYear), 
+                    token
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    setSections(data.sections || data || []);
+                }
+            } catch (err) {
+                console.error("Connection error fetching sections");
             }
         };
         fetchSections();
         setSelectedSection('');
-    }, [selectedYear]);
+    }, [selectedYear, selectedDept, selectedProgram]);
 
-    // --- FORM HANDLERS ---
+    // 4. Section Change: Load Courses
+    useEffect(() => {
+        fetchRegisteredCourses();
+    }, [selectedSection]);
+
+
+    // --- FORM SUBMISSION ---
     const handleAssignCourse = async (e) => {
         e.preventDefault();
         setError('');
 
         if (!selectedSection || !courseName || !courseCode) {
-            setError("Please complete the hierarchy and course details.");
+            setError("Selection incomplete: All hierarchy levels and Course details required.");
             return;
         }
 
@@ -126,59 +178,79 @@ const CourseManager = () => {
                 course_name: courseName.trim(),
                 course_code: courseCode.trim().toUpperCase(),
                 description: description.trim(),
-                section_id: selectedSection 
+                section_id: parseInt(selectedSection) 
             };
 
-            const res = await authAPI.createCourse(selectedDept, selectedProgram, selectedYear, payload, token);
+            const res = await authAPI.createCourse(
+                parseInt(selectedDept), 
+                parseInt(selectedProgram), 
+                parseInt(selectedYear), 
+                parseInt(selectedSection),
+                payload, 
+                token
+            );
 
             if (res.ok) {
-                fetchRegisteredCourses();
-                setCourseName(''); setCourseCode(''); setDescription('');
-                alert("Course assigned successfully!");
+                await fetchRegisteredCourses(); 
+                setCourseName(''); 
+                setCourseCode(''); 
+                setDescription(''); 
+                
+                // --- Top Right Toast Notification ---
+                toast.success("Course successfully deployed to section!", {
+                    position: "top-right",
+                    autoClose: 3000,
+                    theme: "colored",
+                });
             } else {
                 const errData = await res.json();
-                setError(errData.message || "Failed to create course.");
+                setError(errData.message || "Deployment failed.");
+                toast.error("Failed to deploy course.");
             }
         } catch (err) {
-            setError("Server connection failed.");
+            setError("Network error.");
+            toast.error("Connection failed.");
         } finally {
             setLoading(false);
         }
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Remove this course assignment?")) return;
+        if (!window.confirm("Confirm removal of this course?")) return;
         try {
             const token = localStorage.getItem('token');
             const res = await authAPI.deleteCourse(id, token);
-            if (res.ok) fetchRegisteredCourses();
+            if (res.ok) {
+                fetchRegisteredCourses();
+                toast.info("Course removed from curriculum.", { position: "top-right" });
+            }
         } catch (err) {
-            alert("Delete failed.");
+            toast.error("Delete operation failed.");
         }
     };
 
     return (
         <div className="max-w-7xl mx-auto p-6 space-y-8 animate-in fade-in duration-500">
-            
+            {/* 1. Added ToastContainer for notifications to appear */}
+            <ToastContainer />
+
             <div className="flex flex-col gap-2">
                 <h2 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter">
-                    Course Assignment
+                    Course Manager
                 </h2>
                 <p className="text-sm text-slate-500 font-bold uppercase tracking-[0.2em] opacity-80">
-                    Map subjects to specific university tiers
+                    Syllabus & Section Assignment
                 </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                
-                {/* --- SIDEBAR: HIERARCHY SELECTION --- */}
+                {/* --- SIDEBAR: HIERARCHY & FORM --- */}
                 <div className="lg:col-span-4 sticky top-6">
                     <form onSubmit={handleAssignCourse} className="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-2xl shadow-slate-200/50 space-y-6">
                         
                         <div className="space-y-4">
-                            <label className="text-[11px] font-black text-indigo-600 uppercase tracking-widest ml-2">University Hierarchy</label>
+                            <label className="text-[11px] font-black text-indigo-600 uppercase tracking-widest ml-2">Academic Path</label>
                             
-                            {/* Department Dropdown - Matches your JSON: dept_id / department_name */}
                             <select 
                                 value={selectedDept}
                                 onChange={(e) => setSelectedDept(e.target.value)}
@@ -186,52 +258,49 @@ const CourseManager = () => {
                             >
                                 <option value="">Select Department</option>
                                 {departments.map(d => (
-                                    <option key={`dept-${d.dept_id || d.id}`} value={d.dept_id || d.id}>
-                                        {d.department_name || d.dept_name || d.name}
+                                    <option key={`dept-${d.id || d.dept_id}`} value={d.id || d.dept_id}>
+                                        {d.department_name || d.name}
                                     </option>
                                 ))}
                             </select>
 
-                            {/* Program Dropdown */}
                             <select 
                                 disabled={!selectedDept}
                                 value={selectedProgram}
                                 onChange={(e) => setSelectedProgram(e.target.value)}
                                 className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-slate-900 focus:border-indigo-500 focus:bg-white disabled:opacity-40 transition-all outline-none"
                             >
-                                <option value="">{selectedDept ? "Select Program" : "Awaiting Department..."}</option>
+                                <option value="">{selectedDept ? "Select Program" : "Select Dept first"}</option>
                                 {programs.map(p => (
-                                    <option key={`prog-${p.program_id || p.id}`} value={p.program_id || p.id}>
+                                    <option key={`prog-${p.id || p.program_id}`} value={p.id || p.program_id}>
                                         {p.program_name || p.name}
                                     </option>
                                 ))}
                             </select>
 
-                            {/* Year Level Dropdown */}
                             <select 
                                 disabled={!selectedProgram}
                                 value={selectedYear}
                                 onChange={(e) => setSelectedYear(e.target.value)}
                                 className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-slate-900 focus:border-indigo-500 focus:bg-white disabled:opacity-40 transition-all outline-none"
                             >
-                                <option value="">{selectedProgram ? "Select Year Level" : "Awaiting Program..."}</option>
+                                <option value="">{selectedProgram ? "Select Year Level" : "Select Program first"}</option>
                                 {yearLevels.map(y => (
-                                    <option key={`year-${y.year_id || y.id}`} value={y.year_id || y.id}>
+                                    <option key={`year-${y.id || y.year_id || y.year_level_id}`} value={y.id || y.year_id || y.year_level_id}>
                                         {y.year_name || y.name}
                                     </option>
                                 ))}
                             </select>
 
-                            {/* Section Dropdown */}
                             <select 
                                 disabled={!selectedYear}
                                 value={selectedSection}
                                 onChange={(e) => setSelectedSection(e.target.value)}
                                 className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-slate-900 focus:border-indigo-500 focus:bg-white disabled:opacity-40 transition-all outline-none"
                             >
-                                <option value="">{selectedYear ? "Select Section" : "Awaiting Year Level..."}</option>
+                                <option value="">{selectedYear ? "Select Section" : "Select Year first"}</option>
                                 {sections.map(s => (
-                                    <option key={`sec-${s.section_id || s.id}`} value={s.section_id || s.id}>
+                                    <option key={`sec-${s.id || s.section_id}`} value={s.id || s.section_id}>
                                         {s.section_name || s.name}
                                     </option>
                                 ))}
@@ -239,21 +308,21 @@ const CourseManager = () => {
                         </div>
 
                         <div className="pt-2 space-y-4">
-                            <label className="text-[11px] font-black text-indigo-600 uppercase tracking-widest ml-2">Subject Information</label>
+                            <label className="text-[11px] font-black text-indigo-600 uppercase tracking-widest ml-2">Course Information</label>
                             <input 
-                                type="text" placeholder="Course Name" value={courseName}
+                                type="text" placeholder="Title (e.g. Machine Learning)" value={courseName}
                                 onChange={(e) => setCourseName(e.target.value)}
-                                className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-slate-900 placeholder:text-slate-300 focus:border-indigo-500 focus:bg-white transition-all outline-none"
+                                className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition-all outline-none"
                             />
                             <input 
-                                type="text" placeholder="Course Code" value={courseCode}
+                                type="text" placeholder="Code (e.g. CS-402)" value={courseCode}
                                 onChange={(e) => setCourseCode(e.target.value)}
-                                className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-slate-900 placeholder:text-slate-300 focus:border-indigo-500 focus:bg-white transition-all outline-none uppercase"
+                                className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition-all outline-none uppercase"
                             />
                             <textarea 
-                                placeholder="Description" value={description}
+                                placeholder="Syllabus/Course Description" value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-slate-900 placeholder:text-slate-300 focus:border-indigo-500 focus:bg-white transition-all outline-none h-24 resize-none"
+                                className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition-all outline-none h-24 resize-none"
                             />
                         </div>
 
@@ -261,26 +330,25 @@ const CourseManager = () => {
 
                         <button 
                             type="submit" disabled={loading}
-                            className="w-full py-5 bg-indigo-600 text-white font-black rounded-[2rem] shadow-xl shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all uppercase text-xs tracking-widest"
+                            className="w-full py-5 bg-indigo-600 text-white font-black rounded-[2rem] shadow-xl shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all uppercase text-xs tracking-widest disabled:bg-slate-300"
                         >
-                            {loading ? "Syncing..." : "Assign Subject →"}
+                            {loading ? "Loading..." : "Add Courses"}
                         </button>
                     </form>
                 </div>
 
-                {/* --- CONTENT: CARDS DISPLAY --- */}
+                {/* --- DISPLAY AREA --- */}
                 <div className="lg:col-span-8">
                     {assignedCourses.length === 0 ? (
                         <div className="bg-white border-4 border-dashed border-slate-100 rounded-[4rem] p-32 flex flex-col items-center justify-center text-center">
-                            <h3 className="text-2xl font-black text-slate-300 uppercase italic">Database Empty</h3>
-                            <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2">
-                                {!selectedProgram ? "Select a Program to view courses" : "No courses assigned yet"}
-                            </p>
+                            <h3 className="text-2xl font-black text-slate-300 uppercase italic leading-tight">
+                                {!selectedSection ? "Select a Section to View Courses" : "No Registered Courses Found"}
+                            </h3>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {assignedCourses.map((course) => (
-                                <div key={`course-${course.course_id || course.id}`} className="group bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100 hover:shadow-2xl hover:shadow-indigo-100 transition-all border-b-4 border-b-transparent hover:border-b-indigo-500">
+                                <div key={`course-${course.id || course.course_id}`} className="group bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100 hover:shadow-2xl hover:shadow-indigo-100 transition-all border-b-4 border-b-transparent hover:border-b-indigo-500">
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="px-3 py-1 bg-indigo-50 rounded-full">
                                             <span className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">
@@ -288,7 +356,7 @@ const CourseManager = () => {
                                             </span>
                                         </div>
                                         <button 
-                                            onClick={() => handleDelete(course.course_id || course.id)}
+                                            onClick={() => handleDelete(course.id || course.course_id)}
                                             className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -300,11 +368,11 @@ const CourseManager = () => {
                                         {course.course_name}
                                     </h4>
                                     <p className="text-xs text-slate-500 italic mb-6 line-clamp-2">
-                                        {course.description}
+                                        {course.description || "No description provided."}
                                     </p>
                                     <div className="pt-4 border-t border-slate-50 flex gap-2">
-                                        <div className="text-[9px] font-black bg-indigo-600 text-white px-2 py-1 rounded-lg uppercase">
-                                            {course.Section?.section_name || 'Assigned'}
+                                        <div className="text-[9px] font-black bg-slate-900 text-white px-2 py-1 rounded-lg uppercase">
+                                            SID: {course.section_id}
                                         </div>
                                     </div>
                                 </div>
