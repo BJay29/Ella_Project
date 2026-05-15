@@ -30,24 +30,40 @@ const Management = () => {
     }, []);
 
     /**
-     * Enhanced Helper to extract array data safely
-     * Logs the raw response to help identify key mismatches
+     * EXTRACT DATA HELPER (FIXED)
+     * Scans the API response for arrays even if hidden under keys like 'departments' or 'programs'
      */
     const extractData = async (res, label) => {
         if (!res.ok) {
             console.error(`Management API Error [${label}]: Status ${res.status}`);
             return [];
         }
-        const json = await res.json();
-        console.log(`Management Log [${label} Raw Response]:`, json);
+        try {
+            const json = await res.json();
+            console.log(`Management Log [${label} Raw Response]:`, json);
 
-        // Flexible check: extracts from .data, .results, or the body itself if it's an array
-        const extracted = Array.isArray(json) ? json : (json.data || json.results || []);
-        
-        if (extracted.length === 0) {
-            console.warn(`Management Log [${label}]: Data received is an empty array.`);
+            // 1. If it's already an array, return it
+            if (Array.isArray(json)) return json;
+
+            // 2. Check standard keys
+            if (json.data && Array.isArray(json.data)) return json.data;
+            if (json.results && Array.isArray(json.results)) return json.results;
+
+            // 3. DYNAMIC SEARCH: Find the first key in the object that is an array
+            // This handles cases like { departments: [...] } or { programs: [...] }
+            const dynamicKey = Object.keys(json).find(key => Array.isArray(json[key]));
+            
+            if (dynamicKey) {
+                console.log(`Management Log: Auto-detected data in key: "${dynamicKey}"`);
+                return json[dynamicKey];
+            }
+
+            console.warn(`Management Log [${label}]: No array found in response.`);
+            return [];
+        } catch (err) {
+            console.error(`Management Log [${label}]: Failed to parse JSON`, err);
+            return [];
         }
-        return extracted;
     };
 
     /**
@@ -73,7 +89,7 @@ const Management = () => {
     }, [fetchDepartments]);
 
     /**
-     * FETCH 2: Programs
+     * FETCH 2: Programs (Triggered by Dept selection)
      */
     const fetchPrograms = async (deptId) => {
         try {
@@ -85,7 +101,7 @@ const Management = () => {
     };
 
     /**
-     * FETCH 3: Year Levels
+     * FETCH 3: Year Levels (Triggered by Program selection)
      */
     const fetchYearLevels = async (deptId, programId) => {
         try {
@@ -97,7 +113,7 @@ const Management = () => {
     };
 
     /**
-     * FETCH 4: Sections
+     * FETCH 4: Sections (Triggered by Year Level selection)
      */
     const fetchSections = async (deptId, programId, yearId) => {
         try {
@@ -109,7 +125,7 @@ const Management = () => {
     };
 
     /**
-     * FETCH 5: Courses
+     * FETCH 5: Courses (Triggered by Section selection)
      */
     const fetchCourses = async (sectionId) => {
         try {
@@ -120,19 +136,18 @@ const Management = () => {
         } catch (err) { console.error("Error fetching courses:", err); }
     };
 
-    // --- State Reset Handlers (Cascading Reset) ---
+    // --- State Reset Handlers (Cascading selection logic) ---
 
     const handleDeptChange = (deptId) => {
-        console.log("Selection Changed: Department ->", deptId);
+        console.log("Dept Selected:", deptId);
         setSelectedDept(deptId);
-        // Clear all downstream states
         setSelectedProgram(''); setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
         setPrograms([]); setYearLevels([]); setSections([]); setCourses([]);
         if (deptId) fetchPrograms(deptId);
     };
 
     const handleProgramChange = (progId) => {
-        console.log("Selection Changed: Program ->", progId);
+        console.log("Program Selected:", progId);
         setSelectedProgram(progId);
         setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
         setYearLevels([]); setSections([]); setCourses([]);
@@ -140,7 +155,7 @@ const Management = () => {
     };
 
     const handleYearChange = (yearId) => {
-        console.log("Selection Changed: Year Level ->", yearId);
+        console.log("Year Selected:", yearId);
         setSelectedYear(yearId);
         setSelectedSection(''); setSelectedCourse('');
         setSections([]); setCourses([]);
@@ -148,7 +163,7 @@ const Management = () => {
     };
 
     const handleSectionChange = (sectionId) => {
-        console.log("Selection Changed: Section ->", sectionId);
+        console.log("Section Selected:", sectionId);
         setSelectedSection(sectionId);
         setSelectedCourse('');
         setCourses([]);
@@ -156,11 +171,10 @@ const Management = () => {
     };
 
     /**
-     * Logic to find the specific course object to display in the card
+     * Find specific course data for the preview card
      */
     const finalCardData = useMemo(() => {
         if (!selectedCourse) return null;
-        // Ensure comparison is string-based to avoid type mismatch
         return courses.find(c => String(c.course_id || c.id) === String(selectedCourse));
     }, [selectedCourse, courses]);
 
@@ -173,7 +187,7 @@ const Management = () => {
             year_level_id: selectedYear
         };
         
-        console.log("Management Log: Opening Dashboard with data:", preparedData);
+        console.log("Management Log: Transitioning to Dashboard with:", preparedData);
         setActiveSection(preparedData);
         setView('focus');
     };
@@ -187,11 +201,11 @@ const Management = () => {
                             Classroom Management
                         </h2>
                         <p className="text-[10px] text-gray-600 font-bold uppercase tracking-[0.2em] mt-1">
-                            Complete the sequence below to view your sections
+                            Follow the sequence to access your assigned classes
                         </p>
                     </div>
 
-                    {/* Filter Bar with Enhanced Keys */}
+                    {/* Filter Bar with Key Fallbacks */}
                     <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-200 flex flex-wrap gap-4 mb-12">
                         
                         {/* 1. Department */}
@@ -205,7 +219,7 @@ const Management = () => {
                                 <option value="">Select Dept</option>
                                 {departments.map(d => (
                                     <option key={d.dept_id || d.id} value={d.dept_id || d.id}>
-                                        {d.dept_abbr || d.name || d.dept_name}
+                                        {d.dept_abbr || d.dept_name || d.name || "Unnamed Dept"}
                                     </option>
                                 ))}
                             </select>
@@ -223,7 +237,7 @@ const Management = () => {
                                 <option value="">Select Program</option>
                                 {programs.map(p => (
                                     <option key={p.program_id || p.id} value={p.program_id || p.id}>
-                                        {p.program_abbr || p.program_name}
+                                        {p.program_abbr || p.program_name || p.name}
                                     </option>
                                 ))}
                             </select>
@@ -241,7 +255,7 @@ const Management = () => {
                                 <option value="">Select Year</option>
                                 {yearLevels.map(y => (
                                     <option key={y.year_level_id || y.id} value={y.year_level_id || y.id}>
-                                        {y.year_level}
+                                        {y.year_level || y.name}
                                     </option>
                                 ))}
                             </select>
@@ -259,7 +273,7 @@ const Management = () => {
                                 <option value="">Select Section</option>
                                 {sections.map(s => (
                                     <option key={s.section_id || s.id} value={s.section_id || s.id}>
-                                        {s.section_name}
+                                        {s.section_name || s.name}
                                     </option>
                                 ))}
                             </select>
@@ -277,20 +291,19 @@ const Management = () => {
                                 <option value="">Select Course</option>
                                 {courses.map(c => (
                                     <option key={c.course_id || c.id} value={c.course_id || c.id}>
-                                        {c.course_name}
+                                        {c.course_name || c.name}
                                     </option>
                                 ))}
                             </select>
                         </div>
                     </div>
 
-                    {/* Preview Area */}
                     <div className="flex flex-col items-center justify-center min-h-[300px]">
                         {finalCardData ? (
                             <div className="w-full max-w-sm bg-white rounded-[2.5rem] border border-gray-200 shadow-xl overflow-hidden group animate-in zoom-in-95 duration-300">
                                 <div className="bg-black h-32 p-8 flex flex-col justify-end relative overflow-hidden group-hover:bg-green-600 transition-colors duration-500">
                                     <h3 className="text-white text-2xl font-black uppercase italic tracking-tighter leading-none truncate">
-                                        {finalCardData.course_name}
+                                        {finalCardData.course_name || finalCardData.name}
                                     </h3>
                                     <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.2em] mt-2">
                                         Section {sections.find(s => String(s.section_id || s.id) === String(selectedSection))?.section_name}
