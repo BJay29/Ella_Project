@@ -30,8 +30,8 @@ const Management = () => {
     }, []);
 
     /**
-     * EXTRACT DATA HELPER (FIXED)
-     * Scans the API response for arrays even if hidden under keys like 'departments' or 'programs'
+     * EXTRACT DATA HELPER
+     * Automatically scans for arrays in the response object
      */
     const extractData = async (res, label) => {
         if (!res.ok) {
@@ -42,43 +42,32 @@ const Management = () => {
             const json = await res.json();
             console.log(`Management Log [${label} Raw Response]:`, json);
 
-            // 1. If it's already an array, return it
             if (Array.isArray(json)) return json;
-
-            // 2. Check standard keys
             if (json.data && Array.isArray(json.data)) return json.data;
-            if (json.results && Array.isArray(json.results)) return json.results;
-
-            // 3. DYNAMIC SEARCH: Find the first key in the object that is an array
-            // This handles cases like { departments: [...] } or { programs: [...] }
-            const dynamicKey = Object.keys(json).find(key => Array.isArray(json[key]));
             
-            if (dynamicKey) {
-                console.log(`Management Log: Auto-detected data in key: "${dynamicKey}"`);
-                return json[dynamicKey];
-            }
+            // Dynamic search for any key that contains an array (e.g., "departments", "year_levels")
+            const dynamicKey = Object.keys(json).find(key => Array.isArray(json[key]));
+            if (dynamicKey) return json[dynamicKey];
 
-            console.warn(`Management Log [${label}]: No array found in response.`);
             return [];
         } catch (err) {
-            console.error(`Management Log [${label}]: Failed to parse JSON`, err);
+            console.error(`Management Log [${label}]: JSON Parse Error`, err);
             return [];
         }
     };
 
     /**
-     * FETCH 1: Departments (Initial Load)
+     * FETCH 1: Departments
      */
     const fetchDepartments = useCallback(async () => {
         if (!token) return;
         setIsLoading(true);
         try {
-            console.log("Management Log: Fetching Departments...");
             const res = await authAPI.getInstructorDepartments(token);
             const data = await extractData(res, "Departments");
             setDepartments(data);
         } catch (err) {
-            console.error("Management Log: Critical error fetching departments:", err);
+            console.error("Critical error fetching departments:", err);
         } finally {
             setIsLoading(false);
         }
@@ -89,11 +78,10 @@ const Management = () => {
     }, [fetchDepartments]);
 
     /**
-     * FETCH 2: Programs (Triggered by Dept selection)
+     * FETCH 2: Programs
      */
     const fetchPrograms = async (deptId) => {
         try {
-            console.log(`Management Log: Fetching Programs for Dept ID: ${deptId}`);
             const res = await authAPI.getInstructorPrograms(deptId, token);
             const data = await extractData(res, "Programs");
             setPrograms(data);
@@ -101,11 +89,10 @@ const Management = () => {
     };
 
     /**
-     * FETCH 3: Year Levels (Triggered by Program selection)
+     * FETCH 3: Year Levels
      */
     const fetchYearLevels = async (deptId, programId) => {
         try {
-            console.log(`Management Log: Fetching Year Levels for Program ID: ${programId}`);
             const res = await authAPI.getInstructorYearLevels(deptId, programId, token);
             const data = await extractData(res, "YearLevels");
             setYearLevels(data);
@@ -113,11 +100,12 @@ const Management = () => {
     };
 
     /**
-     * FETCH 4: Sections (Triggered by Year Level selection)
+     * FETCH 4: Sections
+     * FIX: Ensure this calls the correct API method with all 3 IDs to avoid 404
      */
     const fetchSections = async (deptId, programId, yearId) => {
         try {
-            console.log(`Management Log: Fetching Sections for Year ID: ${yearId}`);
+            console.log(`Fetching Sections for Dept: ${deptId}, Prog: ${programId}, Year: ${yearId}`);
             const res = await authAPI.getInstructorSections(deptId, programId, yearId, token);
             const data = await extractData(res, "Sections");
             setSections(data);
@@ -125,21 +113,19 @@ const Management = () => {
     };
 
     /**
-     * FETCH 5: Courses (Triggered by Section selection)
+     * FETCH 5: Courses
      */
     const fetchCourses = async (sectionId) => {
         try {
-            console.log(`Management Log: Fetching Courses for Section ID: ${sectionId}`);
             const res = await authAPI.getInstructorCourses(sectionId, token);
             const data = await extractData(res, "Courses");
             setCourses(data);
         } catch (err) { console.error("Error fetching courses:", err); }
     };
 
-    // --- State Reset Handlers (Cascading selection logic) ---
+    // --- Cascading Change Handlers ---
 
     const handleDeptChange = (deptId) => {
-        console.log("Dept Selected:", deptId);
         setSelectedDept(deptId);
         setSelectedProgram(''); setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
         setPrograms([]); setYearLevels([]); setSections([]); setCourses([]);
@@ -147,7 +133,6 @@ const Management = () => {
     };
 
     const handleProgramChange = (progId) => {
-        console.log("Program Selected:", progId);
         setSelectedProgram(progId);
         setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
         setYearLevels([]); setSections([]); setCourses([]);
@@ -155,24 +140,20 @@ const Management = () => {
     };
 
     const handleYearChange = (yearId) => {
-        console.log("Year Selected:", yearId);
         setSelectedYear(yearId);
         setSelectedSection(''); setSelectedCourse('');
         setSections([]); setCourses([]);
+        // FIX: Passing all required IDs to fetchSections
         if (yearId) fetchSections(selectedDept, selectedProgram, yearId);
     };
 
     const handleSectionChange = (sectionId) => {
-        console.log("Section Selected:", sectionId);
         setSelectedSection(sectionId);
         setSelectedCourse('');
         setCourses([]);
         if (sectionId) fetchCourses(sectionId);
     };
 
-    /**
-     * Find specific course data for the preview card
-     */
     const finalCardData = useMemo(() => {
         if (!selectedCourse) return null;
         return courses.find(c => String(c.course_id || c.id) === String(selectedCourse));
@@ -180,14 +161,11 @@ const Management = () => {
 
     const handleOpenClassroom = (data) => {
         const yearObj = yearLevels.find(y => String(y.year_level_id || y.id) === String(selectedYear));
-        
         const preparedData = {
             ...data,
-            year_level: yearObj?.year_level || 'N/A',
+            year_level: yearObj?.year_level || yearObj?.name || 'N/A',
             year_level_id: selectedYear
         };
-        
-        console.log("Management Log: Transitioning to Dashboard with:", preparedData);
         setActiveSection(preparedData);
         setView('focus');
     };
@@ -205,7 +183,6 @@ const Management = () => {
                         </p>
                     </div>
 
-                    {/* Filter Bar with Key Fallbacks */}
                     <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-200 flex flex-wrap gap-4 mb-12">
                         
                         {/* 1. Department */}
@@ -219,7 +196,8 @@ const Management = () => {
                                 <option value="">Select Dept</option>
                                 {departments.map(d => (
                                     <option key={d.dept_id || d.id} value={d.dept_id || d.id}>
-                                        {d.dept_abbr || d.dept_name || d.name || "Unnamed Dept"}
+                                        {/* Fallback chain to prevent "Unnamed Dept" */}
+                                        {d.dept_name || d.name || d.dept_abbr || "Unnamed Dept"}
                                     </option>
                                 ))}
                             </select>
@@ -237,7 +215,7 @@ const Management = () => {
                                 <option value="">Select Program</option>
                                 {programs.map(p => (
                                     <option key={p.program_id || p.id} value={p.program_id || p.id}>
-                                        {p.program_abbr || p.program_name || p.name}
+                                        {p.program_name || p.name || p.program_abbr}
                                     </option>
                                 ))}
                             </select>
@@ -255,7 +233,8 @@ const Management = () => {
                                 <option value="">Select Year</option>
                                 {yearLevels.map(y => (
                                     <option key={y.year_level_id || y.id} value={y.year_level_id || y.id}>
-                                        {y.year_level || y.name}
+                                        {/* Fixed fallback to ensure visibility */}
+                                        {y.year_level || y.name || `Year ${y.year_level_id}`}
                                     </option>
                                 ))}
                             </select>
