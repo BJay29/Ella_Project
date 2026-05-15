@@ -314,8 +314,7 @@ getSpecificMaterial: async (sectionId, materialId, token) => {
 
 saveCourseCard: async (token, sectionId, courseId) => {
         try {
-            // Dinamic URL base sa documentation mo: /api/instructor/sections/:section_id/courses/:course_id/card
-            const url = `${BASE_URL}/instructor/sections/${sectionId}/courses/${courseId}/card`;
+            const url = `${BASE_URL}/api/instructor/sections/${sectionId}/courses/${courseId}/card`;
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -1287,7 +1286,7 @@ assignQuestToCourses: async (questId, courseIds, token) => {
     getStudentProgress: async (token, sectionId = null) => {
         try {
             // Gumawa ng URL, magdagdag ng query param kung may sectionId
-            let url = `${BASE_URL}/student/progress`;
+            let url = `${BASE_URL}/api/student/progress`;
             if (sectionId) {
                 url += `?section_id=${sectionId}`;
             }
@@ -1310,7 +1309,7 @@ assignQuestToCourses: async (questId, courseIds, token) => {
     getStudentLeaderboard: async (token, sectionId = null) => {
         try {
             // Gumawa ng URL, magdagdag ng filter para sa section kung meron
-            let url = `${BASE_URL}/student/leaderboard`;
+            let url = `${BASE_URL}/api/student/leaderboard`;
             if (sectionId) {
                 url += `?section_id=${sectionId}`;
             }
