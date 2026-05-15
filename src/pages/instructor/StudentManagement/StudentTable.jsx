@@ -96,6 +96,7 @@ const getMaterialConfig = (fileType = '') => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Google Classroom-style Full-Screen Material Viewer Modal
+// — Same design & logic as MyCourses.jsx MaterialViewerModal
 // ─────────────────────────────────────────────────────────────────────────────
 const MaterialViewerModal = ({ material, onClose }) => {
     if (!material) return null;
@@ -107,15 +108,18 @@ const MaterialViewerModal = ({ material, onClose }) => {
     const fileType = (material.file_type || material.type || '').toLowerCase();
     const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
 
+    // Derive file extension from URL as fallback
     const getExtFromUrl = (url = '') => url.split('.').pop()?.split('?')[0]?.toLowerCase() || '';
     const resolvedFileType = fileType || getExtFromUrl(fileUrl);
 
+    // Escape key closes the viewer
     useEffect(() => {
         const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
     }, [onClose]);
 
+    // Fetch PDF as blob to avoid CORS / mixed-content issues
     useEffect(() => {
         let objectUrl = null;
 
@@ -172,9 +176,14 @@ const MaterialViewerModal = ({ material, onClose }) => {
             );
         }
 
+        // PDF: blob iframe — no new tab, no toolbar
         if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
             return pdfBlobUrl ? (
-                <iframe src={pdfBlobUrl} className="w-full h-full border-0" title={title} />
+                <iframe
+                    src={pdfBlobUrl}
+                    className="w-full h-full border-0"
+                    title={title}
+                />
             ) : (
                 <div className="flex flex-col items-center justify-center h-full gap-4">
                     <svg className="w-8 h-8 animate-spin text-red-500" fill="none" viewBox="0 0 24 24">
@@ -186,16 +195,23 @@ const MaterialViewerModal = ({ material, onClose }) => {
             );
         }
 
+        // VIDEO: object-contain, native controls
         if (resolvedFileType.includes('video') || ['mp4','webm','mov','avi','mkv'].includes(resolvedFileType)) {
             return (
                 <div className="flex items-center justify-center h-full bg-black">
-                    <video src={fileUrl} controls autoPlay={false} className="w-full h-full object-contain">
+                    <video
+                        src={fileUrl}
+                        controls
+                        autoPlay={false}
+                        className="w-full h-full object-contain"
+                    >
                         Your browser does not support video playback.
                     </video>
                 </div>
             );
         }
 
+        // AUDIO: centered player with icon
         if (resolvedFileType.includes('audio') || ['mp3','wav','ogg','flac','aac'].includes(resolvedFileType)) {
             return (
                 <div className="flex flex-col items-center justify-center h-full gap-10 bg-gray-50 px-8">
@@ -215,7 +231,11 @@ const MaterialViewerModal = ({ material, onClose }) => {
             );
         }
 
-        if (resolvedFileType.includes('image') || ['jpg','jpeg','png','gif','webp','svg','bmp','tiff'].includes(resolvedFileType)) {
+        // IMAGE: inline display, object-contain, no new tab
+        if (
+            resolvedFileType.includes('image') ||
+            ['jpg','jpeg','png','gif','webp','svg','bmp','tiff'].includes(resolvedFileType)
+        ) {
             return (
                 <div className="flex items-center justify-center h-full w-full bg-gray-50 p-6 overflow-auto">
                     <img
@@ -228,6 +248,7 @@ const MaterialViewerModal = ({ material, onClose }) => {
                             if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
                         }}
                     />
+                    {/* Fallback if image fails to load */}
                     <div className="hidden flex-col items-center justify-center gap-4 text-gray-400">
                         <svg className="w-16 h-16 opacity-30" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
@@ -244,6 +265,7 @@ const MaterialViewerModal = ({ material, onClose }) => {
             );
         }
 
+        // GENERIC: no preview available, show download prompt
         return (
             <div className="flex flex-col items-center justify-center h-full gap-6 bg-gray-50 px-8">
                 <div className={`w-28 h-28 ${config.bg} rounded-3xl flex items-center justify-center text-white shadow-2xl`}>
@@ -270,9 +292,17 @@ const MaterialViewerModal = ({ material, onClose }) => {
 
     return (
         <>
-            <div className="fixed inset-0 z-[300] flex flex-col bg-white" style={{ animation: 'gclassViewerIn 0.2s ease-out' }}>
+            {/* Full-screen fixed overlay */}
+            <div
+                className="fixed inset-0 z-[300] flex flex-col bg-white"
+                style={{ animation: 'gclassViewerIn 0.2s ease-out' }}
+            >
+                {/* Top Navigation Bar */}
                 <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm">
+
+                    {/* Left: Close button + File Info */}
                     <div className="flex items-center gap-4 min-w-0">
+                        {/* Close button */}
                         <button
                             onClick={onClose}
                             className="flex items-center gap-2 px-4 py-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-all font-black text-[10px] uppercase tracking-widest flex-shrink-0"
@@ -282,24 +312,36 @@ const MaterialViewerModal = ({ material, onClose }) => {
                             </svg>
                             Close
                         </button>
+
+                        {/* Divider */}
                         <div className="h-6 w-px bg-gray-200 flex-shrink-0" />
+
+                        {/* File type badge + title */}
                         <div className="flex items-center gap-3 min-w-0">
                             <div className={`${config.bg} w-8 h-8 rounded-lg flex items-center justify-center text-white flex-shrink-0`}>
                                 <div className="scale-[0.65]">{config.icon}</div>
                             </div>
                             <div className="min-w-0">
-                                <h2 className="text-sm font-black text-gray-900 uppercase tracking-tight truncate leading-tight">{title}</h2>
-                                {description && <p className="text-[10px] text-gray-400 italic truncate mt-0.5">{description}</p>}
+                                <h2 className="text-sm font-black text-gray-900 uppercase tracking-tight truncate leading-tight">
+                                    {title}
+                                </h2>
+                                {description && (
+                                    <p className="text-[10px] text-gray-400 italic truncate mt-0.5">{description}</p>
+                                )}
                             </div>
                             <span className={`hidden sm:inline-flex flex-shrink-0 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${config.badgeBg}`}>
                                 {config.label}
                             </span>
                         </div>
                     </div>
+
+                    {/* Right: Action buttons */}
                     <div className="flex items-center gap-2 flex-shrink-0 ml-4">
                         {fileUrl && (
                             <a
-                                href={fileUrl} target="_blank" rel="noopener noreferrer"
+                                href={fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all"
                             >
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -321,14 +363,27 @@ const MaterialViewerModal = ({ material, onClose }) => {
                         )}
                     </div>
                 </div>
-                <div className="flex-1 overflow-hidden">{renderContent()}</div>
+
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-hidden">
+                    {renderContent()}
+                </div>
             </div>
+
+            <style>{`
+                @keyframes gclassViewerIn {
+                    from { opacity: 0; transform: scale(0.99) translateY(6px); }
+                    to   { opacity: 1; transform: scale(1) translateY(0); }
+                }
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+            `}</style>
         </>
     );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GClassroom-style Material Card
+// GClassroom-style Material Card (Instructor View) — clickable
 // ─────────────────────────────────────────────────────────────────────────────
 const MaterialCard = ({ material, onDelete, onView }) => {
     const config = getMaterialConfig(material.file_type || material.type || '');
@@ -343,17 +398,22 @@ const MaterialCard = ({ material, onDelete, onView }) => {
             className="group flex items-stretch bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer"
             onClick={() => onView(material)}
         >
+            {/* Left color banner */}
             <div className={`${config.bg} w-16 flex-shrink-0 flex flex-col items-center justify-center text-white gap-1 py-4`}>
                 {config.icon}
                 <span className="text-[8px] font-black uppercase tracking-wider opacity-90">{config.label}</span>
             </div>
+
+            {/* Content */}
             <div className="flex-1 px-5 py-4 min-w-0">
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                         <h4 className="text-[13px] font-black text-gray-900 uppercase tracking-tight truncate leading-tight group-hover:text-[#16a34a] transition-colors">
                             {title}
                         </h4>
-                        {description && <p className="text-[11px] text-gray-500 mt-1 line-clamp-1 italic">{description}</p>}
+                        {description && (
+                            <p className="text-[11px] text-gray-500 mt-1 line-clamp-1 italic">{description}</p>
+                        )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                         <span className="text-[9px] font-bold text-gray-400 whitespace-nowrap">{date}</span>
@@ -370,11 +430,14 @@ const MaterialCard = ({ material, onDelete, onView }) => {
                         </div>
                     </div>
                 </div>
+
                 <div className="flex items-center gap-3 mt-3">
                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border ${config.accent}`}>
                         {config.label}
                     </span>
-                    {material.file_size && <span className="text-[9px] font-bold text-gray-400">{material.file_size}</span>}
+                    {material.file_size && (
+                        <span className="text-[9px] font-bold text-gray-400">{material.file_size}</span>
+                    )}
                     <span className="ml-auto text-[9px] font-black text-[#16a34a] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                         View →
                     </span>
@@ -452,10 +515,19 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
 
+    // Material Viewer State
     const [viewerMaterial, setViewerMaterial] = useState(null);
     const [isFetchingMaterial, setIsFetchingMaterial] = useState(false);
 
-    const [uploadForm, setUploadForm] = useState({ title: '', fileType: 'pdf', description: '', file: null });
+    // Form State for Upload Modal
+    const [uploadForm, setUploadForm] = useState({
+        title: '',
+        fileType: 'pdf',
+        description: '',
+        file: null
+    });
+
+    const fileInputRef = useRef(null);
 
     const getCleanToken = useCallback(() => {
         const token = localStorage.getItem('token');
@@ -464,8 +536,9 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
     }, []);
 
     /**
-     * FETCH DATA LOGIC
-     * Retrieves both the main student list and the pending requests.
+     * UPDATED FETCHDATA
+     * Ngayon, kinukuha natin ang listahan gamit ang getPendingStudents 
+     * at sinasama natin sa existing student list para makita ni Instructor.
      */
     const fetchData = useCallback(async () => {
         const storedSection = localStorage.getItem('selectedSection');
@@ -478,7 +551,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
         try {
             const token = getCleanToken();
 
-            // 1. Fetch Approved Students
+            // 1. Fetch Students (Main List)
             const studentsRes = await authAPI.getSectionStudents(sId, token);
             let mainStudents = [];
             if (studentsRes.ok) {
@@ -486,15 +559,16 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 mainStudents = sData.students || sData || [];
             }
 
-            // 2. Fetch Pending Students using the specific pending endpoint
+            // 2. Fetch Pending Students (New API)
             const pendingRes = await authAPI.getPendingStudents(sId, token);
             let pendingStudents = [];
             if (pendingRes.ok) {
                 const pData = await pendingRes.json();
-                // Ensure they are marked as 'pending' for UI badge display
+                // Siguraduhin nating may "status: pending" para sa UI badge
                 pendingStudents = (pData.students || pData || []).map(s => ({ ...s, status: 'pending' }));
             }
 
+            // Pagsamahin ang dalawa (Pending sa taas kung gusto mo, o depende sa sort)
             setStudents([...pendingStudents, ...mainStudents]);
 
         } catch (err) {
@@ -504,7 +578,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
             setLoading(false);
         }
 
-        // Fetch course materials library
+        // Fetch materials separately (using the new getMaterials endpoint)
         try {
             const token = getCleanToken();
             const sId2 = sectionId || (() => {
@@ -519,12 +593,13 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 setMaterials(mData.materials || mData || []);
             }
         } catch (err) {
-            console.warn('Materials fetch failed:', err);
+            console.warn('Materials fetch failed (non-critical):', err);
         }
     }, [sectionId, getCleanToken]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
+    // Open material viewer — uses the new getSpecificMaterial API
     const handleViewMaterial = async (material) => {
         const storedSection = localStorage.getItem('selectedSection');
         const activeSection = storedSection ? JSON.parse(storedSection) : null;
@@ -601,6 +676,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
         try {
             const token = getCleanToken();
+            // Using updated uploadMaterial
             const res = await authAPI.uploadMaterial(sId, formData, token);
             clearInterval(progressInterval);
             setUploadProgress(100);
@@ -628,35 +704,33 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
     };
 
     /**
-     * STUDENT ACTION HANDLER
-     * Updated to use the specific approve/reject endpoints and ss_id logic.
+     * UPDATED HANDLEACTION
+     * Gumagamit na ng approveStudent at rejectStudent APIs
      */
-    const handleAction = async (ssId, action) => {
+    const handleAction = async (requestId, action) => {
         const storedSection = localStorage.getItem('selectedSection');
         const activeSection = storedSection ? JSON.parse(storedSection) : null;
         const sId = activeSection?.section_id || activeSection?.id || sectionId;
-        
-        if (!sId || !ssId) return;
+        if (!sId || !requestId) return;
 
         try {
             const token = getCleanToken();
             let res;
             
-            // Calling the API functions based on your backend structure
             if (action === 'approve') {
-                res = await authAPI.approveStudent(sId, ssId, token);
+                res = await authAPI.approveStudent(sId, requestId, token);
             } else {
-                res = await authAPI.rejectStudent(sId, ssId, token);
+                res = await authAPI.rejectStudent(sId, requestId, token);
             }
 
             if (res.ok) {
-                // Refresh both pending and active lists upon success
+                // Refresh list para mawala ang pending at lumipat sa active (o mawala pag reject)
                 await fetchData();
             } else {
                 alert("Action failed. Please try again.");
             }
         } catch (err) {
-            console.error("Action handler Error:", err);
+            console.error("HandleAction Error:", err);
         }
     };
 
@@ -686,6 +760,8 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
     return (
         <div className="flex flex-col h-full bg-white relative overflow-hidden text-gray-900">
+
+            {/* HEADER AREA */}
             <div className="px-10 pt-10 pb-4 bg-white border-b border-gray-50">
                 <div className="flex justify-between items-center mb-10">
                     <div className="flex items-center gap-6">
@@ -738,6 +814,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 </div>
             </div>
 
+            {/* SEARCH & ACTION BAR */}
             <div className="px-10 py-6 flex justify-between items-center bg-gray-50/30">
                 {activeTab === 'students' ? (
                     <div className="relative group max-w-2xl w-full">
@@ -773,6 +850,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 )}
             </div>
 
+            {/* MAIN CONTENT AREA */}
             <div className="flex-1 overflow-auto px-10 py-2 no-scrollbar">
                 {activeTab === 'students' ? (
                     <table className="w-full text-left">
@@ -792,10 +870,8 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                             ) : filteredStudents.length > 0 ? (
                                 filteredStudents.map((student) => {
                                     const isPending = (student.status || '').toLowerCase() === 'pending';
-                                    // Use ss_id as the primary identifier for approvals/rejections
-                                    const currentSsId = student.ss_id || student.id;
                                     return (
-                                        <tr key={currentSsId} className="group hover:bg-gray-50 transition-all">
+                                        <tr key={student.ss_id || student.id} className="group hover:bg-gray-50 transition-all">
                                             <td className="px-6 py-6">
                                                 <div className="flex items-center gap-4">
                                                     <div className="h-10 w-10 rounded-full bg-gray-900 flex items-center justify-center text-white text-[10px] font-black">
@@ -821,13 +897,13 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                                                 {isPending ? (
                                                     <div className="flex gap-2 justify-end">
                                                         <button 
-                                                            onClick={() => handleAction(currentSsId, 'approve')}
+                                                            onClick={() => handleAction(student.ss_id || student.id, 'approve')}
                                                             className="px-4 py-2 bg-[#16a34a] text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 transition-all"
                                                         >
                                                             Accept
                                                         </button>
                                                         <button 
-                                                            onClick={() => handleAction(currentSsId, 'deny')}
+                                                            onClick={() => handleAction(student.ss_id || student.id, 'deny')}
                                                             className="px-4 py-2 bg-white border border-red-500 text-red-500 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all"
                                                         >
                                                             Deny
@@ -851,6 +927,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                         </tbody>
                     </table>
                 ) : (
+                    /* GOOGLE CLASSROOM-STYLE MATERIALS LIST */
                     <div className="max-w-3xl mx-auto py-6 space-y-3">
                         {materials.length > 0 ? (
                             <>
@@ -864,7 +941,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                                         key={m.id || idx}
                                         material={m}
                                         onView={handleViewMaterial}
-                                        onDelete={() => {/* handle delete logic */}}
+                                        onDelete={() => {/* handle delete */}}
                                     />
                                 ))}
                             </>
@@ -889,6 +966,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 )}
             </div>
 
+            {/* LOADING OVERLAY */}
             {isFetchingMaterial && (
                 <div className="fixed inset-0 z-[290] flex items-center justify-center bg-black/30 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl px-8 py-6 flex items-center gap-4 shadow-2xl">
@@ -901,24 +979,46 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 </div>
             )}
 
-            {viewerMaterial && <MaterialViewerModal material={viewerMaterial} onClose={() => setViewerMaterial(null)} />}
+            {/* Material Viewer */}
+            {viewerMaterial && (
+                <MaterialViewerModal
+                    material={viewerMaterial}
+                    onClose={() => setViewerMaterial(null)}
+                />
+            )}
 
+            {/* MODAL: UPLOAD MATERIAL */}
             {isUploadModalOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeUploadModal} />
-                    <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100" style={{ animation: 'modalIn 0.2s ease-out' }}>
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+                        onClick={closeUploadModal}
+                    />
+                    <div
+                        className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100"
+                        style={{ animation: 'modalIn 0.2s ease-out' }}
+                    >
                         {isUploading && (
                             <div className="absolute top-0 left-0 right-0 h-0.5 bg-gray-100 z-10 overflow-hidden">
-                                <div className="h-full bg-[#16a34a] transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
+                                <div
+                                    className="h-full bg-[#16a34a] transition-all duration-300 ease-out"
+                                    style={{ width: `${uploadProgress}%` }}
+                                />
                             </div>
                         )}
+
                         <div className="px-7 pt-7 pb-5 flex items-start justify-between">
                             <div>
-                                <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 leading-none">Add Material</h3>
-                                <p className="text-[10px] font-semibold text-gray-400 mt-1.5 tracking-widest uppercase">{sectionName || 'Course'} · Materials Library</p>
+                                <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 leading-none">
+                                    Add Material
+                                </h3>
+                                <p className="text-[10px] font-semibold text-gray-400 mt-1.5 tracking-widest uppercase">
+                                    {sectionName || 'Course'} · Materials Library
+                                </p>
                             </div>
                             <button
-                                onClick={closeUploadModal} disabled={isUploading}
+                                onClick={closeUploadModal}
+                                disabled={isUploading}
                                 className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all disabled:opacity-40"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -926,27 +1026,44 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                                 </svg>
                             </button>
                         </div>
+
                         <div className="h-px bg-gray-100 mx-7" />
+
                         <form onSubmit={handleUploadSubmit} className="px-7 py-6 space-y-5">
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Title <span className="text-red-500">*</span></label>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
+                                    Title <span className="text-red-500">*</span>
+                                </label>
                                 <input
-                                    type="text" name="title" required value={uploadForm.title} onChange={handleInputChange}
-                                    placeholder="e.g. Module 1: Introduction"
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a] transition-all"
+                                    type="text"
+                                    name="title"
+                                    required
+                                    value={uploadForm.title}
+                                    onChange={handleInputChange}
+                                    placeholder="e.g. Module 1: Introduction to the Course"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 placeholder:text-gray-300 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a] transition-all"
                                 />
                             </div>
+
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Type</label>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
+                                    Type
+                                </label>
                                 <div className="relative">
                                     <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
-                                        <span className="text-base">{FILE_TYPES.find(ft => ft.value === uploadForm.fileType)?.icon}</span>
+                                        <span className="text-base">
+                                            {FILE_TYPES.find(ft => ft.value === uploadForm.fileType)?.icon}
+                                        </span>
                                     </div>
                                     <select
-                                        name="fileType" value={uploadForm.fileType} onChange={handleInputChange}
+                                        name="fileType"
+                                        value={uploadForm.fileType}
+                                        onChange={handleInputChange}
                                         className="w-full appearance-none pl-11 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a] transition-all cursor-pointer"
                                     >
-                                        {FILE_TYPES.map(ft => <option key={ft.value} value={ft.value}>{ft.label}</option>)}
+                                        {FILE_TYPES.map(ft => (
+                                            <option key={ft.value} value={ft.value}>{ft.label}</option>
+                                        ))}
                                     </select>
                                     <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center">
                                         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -955,34 +1072,52 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                                     </div>
                                 </div>
                             </div>
+
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">File <span className="text-red-500">*</span></label>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
+                                    File <span className="text-red-500">*</span>
+                                </label>
                                 <FileDropZone onFileSelect={handleFileSelect} selectedFile={uploadForm.file} />
                             </div>
+
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Description <span className="text-gray-300 font-bold normal-case tracking-normal">(optional)</span></label>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
+                                    Description{' '}
+                                    <span className="text-gray-300 font-bold normal-case tracking-normal">(optional)</span>
+                                </label>
                                 <textarea
-                                    name="description" rows={2} value={uploadForm.description} onChange={handleInputChange}
+                                    name="description"
+                                    rows={2}
+                                    value={uploadForm.description}
+                                    onChange={handleInputChange}
                                     placeholder="Brief note about this material..."
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a] transition-all resize-none"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 placeholder:text-gray-300 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a] transition-all resize-none"
                                 />
                             </div>
+
                             <div className="flex gap-3 pt-1">
                                 <button
-                                    type="button" onClick={closeUploadModal} disabled={isUploading}
+                                    type="button"
+                                    onClick={closeUploadModal}
+                                    disabled={isUploading}
                                     className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all disabled:opacity-40"
                                 >
                                     Cancel
                                 </button>
                                 <button
-                                    type="submit" disabled={isUploading}
+                                    type="submit"
+                                    disabled={isUploading}
                                     className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2
-                                        ${isUploading ? 'bg-[#16a34a]/70 text-white cursor-not-allowed' : 'bg-[#16a34a] text-white hover:bg-green-700 shadow-sm'}`}
+                                        ${isUploading
+                                            ? 'bg-[#16a34a]/70 text-white cursor-not-allowed'
+                                            : 'bg-[#16a34a] text-white hover:bg-green-700 shadow-sm hover:shadow-md'
+                                        }`}
                                 >
                                     {isUploading ? (
                                         <>
                                             <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                                             </svg>
                                             Uploading {Math.round(uploadProgress)}%
                                         </>
