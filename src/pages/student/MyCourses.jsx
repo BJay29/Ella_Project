@@ -1029,16 +1029,14 @@ const MyCourses = () => {
       </div>
 
       {showModal && (
-      <JoinModal
-  sectionCode={sectionCode}
-  setSectionCode={setSectionCode}
-  joinStatus={joinStatus}
-  setJoinStatus={setJoinStatus}
-  joinMessage={joinMessage}
-  setJoinMessage={setJoinMessage}
-  onJoin={handleJoin}
-  onClose={() => setShowModal(false)}
-/>
+        <JoinModal
+          sectionCode={sectionCode}
+          setSectionCode={setSectionCode}
+          joinStatus={joinStatus}
+          setJoinStatus={setJoinStatus}
+          onJoin={handleJoin}
+          onClose={() => setShowModal(false)}
+        />
       )}
 
       <style>{`
