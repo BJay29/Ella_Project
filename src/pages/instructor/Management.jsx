@@ -69,44 +69,57 @@ const Management = () => {
     };
 
     /**
-     * NEW EFFECT: LOAD SAVED CARDS FROM DATABASE (PERMANENT)
+     * NEW: FETCH SAVED CARDS FROM DATABASE
+     * Ensures cards persist after page refresh by calling the GET API
      */
-    const fetchSavedCardsFromDB = useCallback(async () => {
+    const fetchSavedCards = useCallback(async () => {
         if (!token) return;
-        setIsLoading(true);
+        
         try {
             const res = await authAPI.getSavedCourseCards(token);
-            const data = await extractData(res, "Permanent Cards");
+            const data = await extractData(res, "Saved Cards");
             
-            if (data && data.length > 0) {
-                // Map database records to match UI card structure
-                const formatted = data.map(item => ({
-                    ...item,
-                    // Ensure each card has a unique key for React rendering
-                    unique_key: item.unique_key || `db-${item.id || item.course_id}-${Math.random().toString(36).substr(2, 9)}`,
-                    // Ensure names are mapped correctly based on your backend response
-                    course_name: item.course_name || item.name,
-                    section_name: item.section_name || 'N/A'
+            if (data && Array.isArray(data) && data.length > 0) {
+                // Map database results to include a unique_key for UI rendering
+                const formattedCards = data.map(card => ({
+                    ...card,
+                    unique_key: card.unique_key || `db-${card.id || card.course_id}-${Math.random().toString(36).substring(7)}`
                 }));
-                setSelectedCards(formatted);
+                setSelectedCards(formattedCards);
             }
         } catch (err) {
-            console.error("Management Log: Error fetching saved cards from DB:", err);
+            console.error("Error loading permanent cards from database:", err);
         } finally {
-            setIsLoading(false);
             setIsLoaded(true);
         }
     }, [token]);
 
     /**
-     * EFFECT: INITIAL DATA LOAD
+     * EFFECT: INITIAL LOAD
+     * Loads from LocalStorage first (for speed), then syncs with Database
      */
     useEffect(() => {
-        fetchSavedCardsFromDB();
-    }, [fetchSavedCardsFromDB]);
+        const loadInitialData = async () => {
+            // 1. Try loading from Local Storage first
+            const key = getTargetStorageKey();
+            const saved = localStorage.getItem(key);
+            if (saved) {
+                try {
+                    setSelectedCards(JSON.parse(saved));
+                } catch (e) {
+                    console.error("Failed to parse saved cards", e);
+                }
+            }
+            
+            // 2. Sync with Backend Database
+            await fetchSavedCards();
+        };
+        
+        loadInitialData();
+    }, [getTargetStorageKey, fetchSavedCards]);
 
     /**
-     * EFFECT: SAVE CARDS TO LOCAL STORAGE (Secondary Backup Sync)
+     * EFFECT: SAVE CARDS TO LOCAL STORAGE (Secondary Backup)
      */
     useEffect(() => {
         if (!isLoaded) return;
@@ -118,7 +131,7 @@ const Management = () => {
         try {
             localStorage.setItem(key, JSON.stringify(selectedCards));
         } catch (error) {
-            console.error('Error saving cards to backup:', error);
+            console.error('Error saving cards:', error);
         }
     }, [selectedCards, getTargetStorageKey, isLoaded]);
 
@@ -310,7 +323,7 @@ const Management = () => {
                             Classroom Management
                         </h2>
                         <p className="text-[10px] text-gray-600 font-bold uppercase tracking-[0.2em] mt-1">
-                            Follow the sequence to access your assigned classes (Auto-saved to database)
+                            Follow the sequence to access your assigned classes (Auto-saved per account)
                         </p>
                     </div>
 
