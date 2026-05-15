@@ -1,50 +1,61 @@
 import React, { useEffect } from 'react';
 import StudentTable from './StudentTable';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SectionDashboard
-//
-// Props:
-//   sectionData – full section object from the instructor's section list
-//   onBack      – callback to return to the card list
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * SectionDashboard Component
+ * * Props:
+ * - sectionData: The full course/section object selected from the 5th dropdown.
+ * - onBack: Callback function to return to the classroom list view.
+ */
 const SectionDashboard = ({ sectionData, onBack }) => {
-    // ── Pre-render Check ──
+    
+    // --- Pre-render Validation ---
     if (!sectionData) {
         console.error("SectionDashboard Error: No sectionData provided.");
-        return null;
+        return (
+            <div className="p-10 text-center">
+                <p className="text-red-500 font-bold">Error: Failed to load section data.</p>
+                <button onClick={onBack} className="mt-4 text-blue-500 underline">Go Back</button>
+            </div>
+        );
     }
 
-    // ── Normalize field names — Consistent with Management.js logic ──────────
-    // Sinisiguro natin na makuha ang tamang keys mula sa sectionData object
-    const sectionId   = sectionData.id || sectionData.section_id || sectionData._id || sectionData.sectionId;
-    const sectionName = sectionData.section_name || sectionData.name || sectionData.section || '—';
-    const sectionCode = sectionData.section_code || sectionData.join_code || sectionData.code || '—';
-    const courseName  = sectionData.course_name || sectionData.subject || sectionData.course || '—';
-    const deptAbbr    = sectionData.dept_abbr || sectionData.dept || sectionData.department_abbr || '—';
-    const programAbbr = sectionData.program_abbr || sectionData.program || sectionData.program_name || '—';
+    /**
+     * Data Normalization
+     * Ensures we extract the correct keys regardless of API naming variations.
+     * Since this now receives data from the "Course" level, we prioritize course_id.
+     */
+    const sectionId   = sectionData.section_id || sectionData.id || sectionData._id;
+    const courseId    = sectionData.course_id; 
+    const sectionName = sectionData.section_name || '—';
+    const sectionCode = sectionData.section_code || sectionData.join_code || '—';
+    const courseName  = sectionData.course_name || sectionData.subject || '—';
+    const deptAbbr    = sectionData.dept_abbr || '—';
+    const programAbbr = sectionData.program_abbr || '—';
 
-    // ── Debugging Log ──
+    // --- Lifecycle Logging for Debugging ---
     useEffect(() => {
-        console.log("SectionDashboard Mounted with ID:", sectionId);
+        console.log("SectionDashboard Mounted for Section ID:", sectionId, "and Course ID:", courseId);
+        
         if (!sectionId) {
-            console.warn("Warning: sectionId is missing! Check your sectionData object keys.", sectionData);
+            console.warn("Warning: sectionId is missing. Check your API response keys.", sectionData);
         }
-    }, [sectionId, sectionData]);
+    }, [sectionId, courseId, sectionData]);
 
     return (
         <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-            {/* Container para sa Student List. 
-                Ang StudentTable ang main engine dito na nag-fefetch ng students
-                base sa sectionId na ipinasa natin.
+            {/* Main Container for the Student List.
+                The StudentTable acts as the engine that fetches students 
+                based on the sectionId passed down.
             */}
             <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden min-h-[70vh]">
-                {/* Mahalaga: Ang StudentTable ang mag-handle ng 'View Requests' button.
-                    Dahil doon nifefetch ang student list, doon din natin gagawin ang 
-                    filtering para sa mga students na may status === 'PENDING'.
+                
+                {/* Note: The StudentTable handles the 'View Requests' logic,
+                    student list fetching, and filtering for 'PENDING' statuses.
                 */}
                 <StudentTable
                     sectionId={sectionId}
+                    courseId={courseId}
                     sectionName={sectionName}
                     sectionCode={sectionCode}
                     joinCode={sectionCode}

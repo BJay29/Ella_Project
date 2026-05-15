@@ -12,12 +12,14 @@ const Management = () => {
     const [programs, setPrograms] = useState([]);
     const [yearLevels, setYearLevels] = useState([]);
     const [sections, setSections] = useState([]);
+    const [courses, setCourses] = useState([]);
 
     // --- Selection States ---
     const [selectedDept, setSelectedDept] = useState('');
     const [selectedProgram, setSelectedProgram] = useState('');
     const [selectedYear, setSelectedYear] = useState('');
     const [selectedSection, setSelectedSection] = useState('');
+    const [selectedCourse, setSelectedCourse] = useState('');
 
     // Clean token from local storage
     const token = useMemo(() => {
@@ -35,7 +37,6 @@ const Management = () => {
             const res = await authAPI.getInstructorDepartments(token);
             if (res.ok) {
                 const data = await res.json();
-                // Ensure data is an array
                 setDepartments(Array.isArray(data) ? data : (data.data || []));
             }
         } catch (err) {
@@ -89,13 +90,26 @@ const Management = () => {
     };
 
     /**
-     * Logic to find the specific section object to display in the card
+     * FETCH 5: Courses (Triggered by Section Change)
+     */
+    const fetchCourses = async (sectionId) => {
+        try {
+            const res = await authAPI.getInstructorCourses(sectionId, token);
+            if (res.ok) {
+                const data = await res.json();
+                setCourses(Array.isArray(data) ? data : (data.data || []));
+            }
+        } catch (err) { console.error("Error fetching courses:", err); }
+    };
+
+    /**
+     * Logic to find the specific course object to display in the card
      */
     const finalCardData = useMemo(() => {
-        if (!selectedSection) return null;
-        // Match by ID. We convert both to string to ensure comparison works
-        return sections.find(s => String(s.section_id) === String(selectedSection));
-    }, [selectedSection, sections]);
+        if (!selectedCourse) return null;
+        // Search in courses array for the selected ID
+        return courses.find(c => String(c.course_id) === String(selectedCourse));
+    }, [selectedCourse, courses]);
 
     const handleOpenClassroom = (data) => {
         setActiveSection(data);
@@ -106,24 +120,30 @@ const Management = () => {
 
     const handleDeptChange = (deptId) => {
         setSelectedDept(deptId);
-        // Reset all child states
-        setSelectedProgram(''); setSelectedYear(''); setSelectedSection('');
-        setPrograms([]); setYearLevels([]); setSections([]);
+        setSelectedProgram(''); setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
+        setPrograms([]); setYearLevels([]); setSections([]); setCourses([]);
         if (deptId) fetchPrograms(deptId);
     };
 
     const handleProgramChange = (progId) => {
         setSelectedProgram(progId);
-        setSelectedYear(''); setSelectedSection('');
-        setYearLevels([]); setSections([]);
+        setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
+        setYearLevels([]); setSections([]); setCourses([]);
         if (progId) fetchYearLevels(selectedDept, progId);
     };
 
     const handleYearChange = (yearId) => {
         setSelectedYear(yearId);
-        setSelectedSection('');
-        setSections([]);
+        setSelectedSection(''); setSelectedCourse('');
+        setSections([]); setCourses([]);
         if (yearId) fetchSections(selectedDept, selectedProgram, yearId);
+    };
+
+    const handleSectionChange = (sectionId) => {
+        setSelectedSection(sectionId);
+        setSelectedCourse('');
+        setCourses([]);
+        if (sectionId) fetchCourses(sectionId);
     };
 
     return (
@@ -140,97 +160,102 @@ const Management = () => {
                         </p>
                     </div>
 
-                    {/* Filter Bar */}
+                    {/* Filter Bar (5 Separate Dropdowns) */}
                     <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-200 flex flex-wrap gap-4 mb-12">
                         
-                        {/* Department Dropdown */}
+                        {/* 1. Department */}
                         <div className="flex flex-col flex-1 min-w-[140px] gap-1.5">
                             <label className="text-[9px] font-black text-black uppercase ml-2">Department</label>
                             <select 
                                 value={selectedDept}
                                 onChange={(e) => handleDeptChange(e.target.value)}
-                                className="bg-gray-50 border border-gray-300 rounded-2xl px-4 py-3 text-[11px] font-black text-black focus:ring-2 focus:ring-green-500 outline-none cursor-pointer"
+                                className="bg-gray-50 border border-gray-300 rounded-2xl px-4 py-3 text-[11px] font-black text-black outline-none cursor-pointer"
                             >
                                 <option value="">Select Dept</option>
                                 {departments.map(d => (
-                                    <option key={d.dept_id} value={d.dept_id}>
-                                        {d.dept_abbr || d.dept_name}
-                                    </option>
+                                    <option key={d.dept_id} value={d.dept_id}>{d.dept_abbr || d.dept_name}</option>
                                 ))}
                             </select>
                         </div>
 
-                        {/* Program Dropdown */}
+                        {/* 2. Program */}
                         <div className="flex flex-col flex-1 min-w-[140px] gap-1.5">
                             <label className="text-[9px] font-black text-black uppercase ml-2">Program</label>
                             <select 
                                 disabled={!selectedDept}
                                 value={selectedProgram}
                                 onChange={(e) => handleProgramChange(e.target.value)}
-                                className="bg-gray-50 disabled:opacity-40 border border-gray-300 rounded-2xl px-4 py-3 text-[11px] font-black text-black focus:ring-2 focus:ring-green-500 outline-none cursor-pointer"
+                                className="bg-gray-50 disabled:opacity-40 border border-gray-300 rounded-2xl px-4 py-3 text-[11px] font-black text-black outline-none cursor-pointer"
                             >
                                 <option value="">Select Program</option>
                                 {programs.map(p => (
-                                    <option key={p.program_id} value={p.program_id}>
-                                        {p.program_abbr || p.program_name}
-                                    </option>
+                                    <option key={p.program_id} value={p.program_id}>{p.program_abbr || p.program_name}</option>
                                 ))}
                             </select>
                         </div>
 
-                        {/* Year Level Dropdown */}
+                        {/* 3. Year Level */}
                         <div className="flex flex-col w-[120px] gap-1.5">
                             <label className="text-[9px] font-black text-black uppercase ml-2">Year Level</label>
                             <select 
                                 disabled={!selectedProgram}
                                 value={selectedYear}
                                 onChange={(e) => handleYearChange(e.target.value)}
-                                className="bg-gray-50 disabled:opacity-40 border border-gray-300 rounded-2xl px-4 py-3 text-[11px] font-black text-black focus:ring-2 focus:ring-green-500 outline-none cursor-pointer"
+                                className="bg-gray-50 disabled:opacity-40 border border-gray-300 rounded-2xl px-4 py-3 text-[11px] font-black text-black outline-none cursor-pointer"
                             >
                                 <option value="">Select Year</option>
                                 {yearLevels.map(y => (
-                                    <option key={y.year_level_id} value={y.year_level_id}>
-                                        {y.year_level}
-                                    </option>
+                                    <option key={y.year_level_id} value={y.year_level_id}>{y.year_level}</option>
                                 ))}
                             </select>
                         </div>
 
-                        {/* Section Dropdown */}
-                        <div className="flex flex-col flex-[1.5] min-w-[180px] gap-1.5">
-                            <label className="text-[9px] font-black text-black uppercase ml-2">Section / Course</label>
+                        {/* 4. Section */}
+                        <div className="flex flex-col flex-1 min-w-[140px] gap-1.5">
+                            <label className="text-[9px] font-black text-black uppercase ml-2">Section</label>
                             <select 
                                 disabled={!selectedYear}
                                 value={selectedSection}
-                                onChange={(e) => setSelectedSection(e.target.value)}
-                                className="bg-gray-50 disabled:opacity-40 border border-gray-300 rounded-2xl px-4 py-3 text-[11px] font-black text-black focus:ring-2 focus:ring-green-500 outline-none cursor-pointer"
+                                onChange={(e) => handleSectionChange(e.target.value)}
+                                className="bg-gray-50 disabled:opacity-40 border border-gray-300 rounded-2xl px-4 py-3 text-[11px] font-black text-black outline-none cursor-pointer"
                             >
                                 <option value="">Select Section</option>
                                 {sections.map(s => (
-                                    <option key={s.section_id} value={s.section_id}>
-                                        {s.section_name} - {s.course_name || s.subject || 'No Course Name'}
-                                    </option>
+                                    <option key={s.section_id} value={s.section_id}>{s.section_name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* 5. Course */}
+                        <div className="flex flex-col flex-[1.2] min-w-[160px] gap-1.5">
+                            <label className="text-[9px] font-black text-black uppercase ml-2">Course</label>
+                            <select 
+                                disabled={!selectedSection}
+                                value={selectedCourse}
+                                onChange={(e) => setSelectedCourse(e.target.value)}
+                                className="bg-gray-50 disabled:opacity-40 border border-gray-300 rounded-2xl px-4 py-3 text-[11px] font-black text-black outline-none cursor-pointer"
+                            >
+                                <option value="">Select Course</option>
+                                {courses.map(c => (
+                                    <option key={c.course_id} value={c.course_id}>{c.course_name}</option>
                                 ))}
                             </select>
                         </div>
                     </div>
 
-                    {/* Display Area */}
+                    {/* Card Display Area */}
                     <div className="flex flex-col items-center justify-center min-h-[300px]">
                         {finalCardData ? (
                             <div className="w-full max-w-sm bg-white rounded-[2.5rem] border border-gray-200 shadow-xl overflow-hidden group animate-in zoom-in-95 duration-300">
-                                {/* Card Header */}
                                 <div className="bg-black h-32 p-8 flex flex-col justify-end relative overflow-hidden group-hover:bg-green-600 transition-colors duration-500">
-                                    <div className="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/5 rounded-full" />
                                     <h3 className="text-white text-2xl font-black uppercase italic tracking-tighter leading-none truncate">
-                                        {finalCardData.course_name || finalCardData.subject || "Classroom"}
+                                        {finalCardData.course_name}
                                     </h3>
                                     <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.2em] mt-2">
-                                        Section {finalCardData.section_name}
+                                        Section {finalCardData.section_name || sections.find(s => String(s.section_id) === String(selectedSection))?.section_name}
                                     </p>
                                 </div>
 
-                                {/* Card Content */}
                                 <div className="p-8">
                                     <div className="flex justify-between items-center mb-8">
                                         <div>
@@ -253,13 +278,8 @@ const Management = () => {
                             </div>
                         ) : (
                             <div className="text-center select-none opacity-40">
-                                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-200">
-                                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                    </svg>
-                                </div>
                                 <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black">
-                                    Select details to preview classroom
+                                    Complete all selections to preview classroom
                                 </p>
                             </div>
                         )}

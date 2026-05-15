@@ -176,6 +176,15 @@ getInstructorSections: async (deptId, programId, yearLevelId, token) => {
         },
     });
 },
+getInstructorCourses: async (sectionId, token) => {
+    return await fetchWithTimeout(`${BASE_URL}/api/instructor/sections/${sectionId}/courses`, {
+        method: 'GET',
+        headers: { 
+            'Authorization': `Bearer ${token}`, 
+            'Content-Type': 'application/json' 
+        },
+    });
+},
 
     // ─────────────────────────────────────────────────────────────────────────
     // INSTRUCTOR DASHBOARD & SECTION MANAGEMENT
