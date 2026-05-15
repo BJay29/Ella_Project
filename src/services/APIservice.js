@@ -190,30 +190,6 @@ getInstructorCourses: async (sectionId, token) => {
     // INSTRUCTOR DASHBOARD & SECTION MANAGEMENT
     // ─────────────────────────────────────────────────────────────────────────
 
-    assignSectionToInstructor: async (sectionId, token) => {
-        validateParams({ sectionId });
-        return await fetchWithTimeout(`${BASE_URL}/api/instructor/sections/assign`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sectionId }),
-        });
-    },
-
-    unassignSection: async (sectionId, token) => {
-        validateParams({ sectionId });
-        return await fetchWithTimeout(`${BASE_URL}/api/instructor/sections/${sectionId}/unassign`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
-    },
-
-    getInstructorSections: async (token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/instructor/instructor/my-sections`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
-    },
-
     getSectionDetails: async (sectionId, token) => {
         return await fetchWithTimeout(
             `${BASE_URL}/api/instructor/sections/${sectionId}`,
