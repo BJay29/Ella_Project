@@ -336,8 +336,136 @@ saveCourseCard: async (token, sectionId, courseId) => {
             throw error;
         }
     },
-    // ... (existing codes)
 
+    // Essay Fetching to Instructor
+getPendingActivityEssays: async (activityId, token) => {
+    return await fetch(`${BASE_URL}/instructor/activities/${activityId}/pending-essays`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+},
+
+/**
+ * Kumuha ng mga pending essays para sa isang specific na Quiz
+ * @param {string|number} quizId - ID ng quiz
+ * @param {string} token - Auth token ng instructor
+ */
+getPendingQuizEssays: async (quizId, token) => {
+    return await fetch(`${BASE_URL}/instructor/quizzes/${quizId}/pending-essays`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+},
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ESSAY GRADING / SCORING ENDPOINTS (PATCH)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Mag-submit ng grade at feedback para sa essay sa isang Activity
+ * @param {string|number} answerId - ID ng sagot ng estudyante (answer_id)
+ * @param {Object} gradeData - May laman na points_awarded at instructor_feedback
+ * @param {string} token - Auth token ng instructor
+ */
+gradeActivityEssay: async (answerId, gradeData, token) => {
+    return await fetch(`${BASE_URL}/instructor/essays/activity/${answerId}/grade`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            points_awarded: Number(gradeData.points_awarded),
+            instructor_feedback: gradeData.instructor_feedback
+        })
+    });
+},
+
+/**
+ * Mag-submit ng grade at feedback para sa essay sa isang Quiz
+ * @param {string|number} answerId - ID ng sagot ng estudyante (answer_id)
+ * @param {Object} gradeData - May laman na points_awarded at instructor_feedback
+ * @param {string} token - Auth token ng instructor
+ */
+gradeQuizEssay: async (answerId, gradeData, token) => {
+    return await fetch(`${BASE_URL}/instructor/essays/quiz/${answerId}/grade`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            points_awarded: Number(gradeData.points_awarded),
+            instructor_feedback: gradeData.instructor_feedback
+        })
+    });
+},
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INTERVENTION INSTRUCTOR ENDPOINTS (GET & PATCH)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Kumuha ng lahat ng interventions ng instructor (pwedeng may filter na status)
+ * Halimbawa ng gamit: authAPI.getInterventions(token, 'pending') o authAPI.getInterventions(token)
+ * @param {string} token - Auth token ng instructor
+ * @param {string} [status] - Opsyonal: 'pending', 'resolved', atbp.
+ */
+getInterventions: async (token, status = '') => {
+    let url = `${BASE_URL}/instructor/interventions`;
+    if (status) {
+        url += `?status=${status}`;
+    }
+    return await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+},
+
+/**
+ * Payagan ang estudyante na mag-retake ng exam o quiz bilang intervention
+ * @param {string|number} interventionId - ID ng intervention
+ * @param {string} token - Auth token ng instructor
+ */
+allowInterventionRetake: async (interventionId, token) => {
+    return await fetch(`${BASE_URL}/instructor/interventions/${interventionId}/allow-retake`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+},
+
+/**
+ * Mag-assign ng custom task/activity para sa intervention ng estudyante
+ * @param {string|number} interventionId - ID ng intervention
+ * @param {Object} taskData - May laman na task_title, task_instructions, at task_due_at
+ * @param {string} token - Auth token ng instructor
+ */
+assignInterventionTask: async (interventionId, taskData, token) => {
+    return await fetch(`${BASE_URL}/instructor/interventions/${interventionId}/task`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            task_title: taskData.task_title,
+            task_instructions: taskData.task_instructions,
+            task_due_at: taskData.task_due_at
+        })
+    });
+},
   
 
     /**

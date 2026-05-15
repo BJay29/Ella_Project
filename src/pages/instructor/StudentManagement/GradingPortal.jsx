@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 // ─────────────────────────────────────────────────────────────────────────────
 // Score Ring — circular visual indicator for the grade
 // ─────────────────────────────────────────────────────────────────────────────
-const ScoreRing = ({ score }) => {
+const ScoreRing = ({ score, maxPoints }) => {
+    const max = maxPoints || 100;
     const num = parseFloat(score) || 0;
-    const clamped = Math.min(100, Math.max(0, num));
+    const percentage = max > 0 ? (num / max) * 100 : 0;
+    const clamped = Math.min(100, Math.max(0, percentage));
     const radius = 36;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (clamped / 100) * circumference;
@@ -33,8 +35,8 @@ const ScoreRing = ({ score }) => {
                 />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xl font-black text-gray-900 leading-none">{clamped > 0 ? Math.round(clamped) : '—'}</span>
-                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">/ 100</span>
+                <span className="text-xl font-black text-gray-900 leading-none">{num > 0 ? Math.round(num) : '—'}</span>
+                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">/ {max}</span>
             </div>
         </div>
     );
@@ -45,35 +47,62 @@ const ScoreRing = ({ score }) => {
 // Props:
 //   studentSubmission — the submission object from the submissions list
 //   onBack            — callback to return to submissions list
-//   onSaveGrade       — async (submissionId, { score, feedback }) => void
+//   onSaveGrade       — async (answerId, { points_awarded, instructor_feedback }) => void
 // ─────────────────────────────────────────────────────────────────────────────
 const GradingPortal = ({ studentSubmission, onBack, onSaveGrade }) => {
-    const [score, setScore] = useState(studentSubmission?.score ?? '');
-    const [feedback, setFeedback] = useState(studentSubmission?.feedback || '');
+    // Use points_awarded for the score field (from API body)
+    const [pointsAwarded, setPointsAwarded] = useState(studentSubmission?.points_awarded ?? '');
+    const [instructorFeedback, setInstructorFeedback] = useState(studentSubmission?.instructor_feedback || '');
     const [isSaving, setIsSaving] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
 
-    const submissionId = studentSubmission?.id || studentSubmission?.submission_id;
+    // Support both answer_id and id (grading uses answer_id)
+    const answerId = studentSubmission?.answer_id || studentSubmission?.id || studentSubmission?.submission_id;
+
     const studentName = studentSubmission?.studentName || studentSubmission?.full_name || studentSubmission?.student_name || 'Unknown Student';
     const essayTitle = studentSubmission?.essayTitle || studentSubmission?.essay_title || studentSubmission?.title || 'Untitled Essay';
-    const essayContent = studentSubmission?.content || studentSubmission?.essay_content || studentSubmission?.body || '';
+    const essayContent = studentSubmission?.content || studentSubmission?.essay_content || studentSubmission?.body || studentSubmission?.answer || '';
     const wordCount = studentSubmission?.wordCount || studentSubmission?.word_count || essayContent.split(/\s+/).filter(Boolean).length || 0;
+
+    // Max points — from activity/quiz config, fallback to 100
+    const maxPoints = studentSubmission?.max_points || studentSubmission?.total_points || 100;
+
     const submittedDate = studentSubmission?.date || studentSubmission?.submitted_at || studentSubmission?.created_at
         ? new Date(studentSubmission.date || studentSubmission.submitted_at || studentSubmission.created_at).toLocaleDateString('en-US', {
             month: 'long', day: 'numeric', year: 'numeric'
           })
         : 'Recently submitted';
-    const isAlreadyGraded = (studentSubmission?.status || '').toLowerCase() === 'graded';
+
+    // Derive graded/pending status from API body fields
+    const reviewStatus = studentSubmission?.review_status || studentSubmission?.status || '';
+    const isPendingReview = studentSubmission?.pending_review === true
+        || reviewStatus === 'pending_review'
+        || reviewStatus === 'pending'
+        || studentSubmission?.feedback_state === 'pending_review';
+    const isAlreadyGraded = reviewStatus === 'graded' || (studentSubmission?.points_awarded != null && !isPendingReview);
+
     const initials = studentName.substring(0, 2).toUpperCase();
 
+    // Source type: 'activity' or 'quiz' — used by parent to call the right grading API
+    const sourceType = studentSubmission?.source_type || studentSubmission?.type || 'activity';
+
     const handleSave = async () => {
-        if (!score && score !== 0) {
-            alert('Please enter a score before submitting.');
+        if (pointsAwarded === '' && pointsAwarded !== 0) {
+            alert('Please enter points before submitting.');
+            return;
+        }
+        const numPoints = Number(pointsAwarded);
+        if (numPoints < 0 || numPoints > maxPoints) {
+            alert(`Points must be between 0 and ${maxPoints}.`);
             return;
         }
         setIsSaving(true);
         try {
-            await onSaveGrade(submissionId, { score: Number(score), feedback });
+            await onSaveGrade(answerId, {
+                points_awarded: numPoints,
+                instructor_feedback: instructorFeedback,
+                source_type: sourceType,
+            });
             setIsSaved(true);
         } catch (err) {
             console.error('Grade save error:', err);
@@ -82,13 +111,15 @@ const GradingPortal = ({ studentSubmission, onBack, onSaveGrade }) => {
         }
     };
 
-    const scoreNum = parseFloat(score) || 0;
+    const scoreNum = parseFloat(pointsAwarded) || 0;
+    const scorePercentage = maxPoints > 0 ? (scoreNum / maxPoints) * 100 : 0;
+
     const getScoreLabel = () => {
-        if (!score && score !== 0) return { label: 'Not graded', color: 'text-gray-400' };
-        if (scoreNum >= 90) return { label: 'Excellent', color: 'text-green-600' };
-        if (scoreNum >= 80) return { label: 'Very Good', color: 'text-green-500' };
-        if (scoreNum >= 70) return { label: 'Good', color: 'text-blue-600' };
-        if (scoreNum >= 60) return { label: 'Satisfactory', color: 'text-amber-600' };
+        if (pointsAwarded === '' && pointsAwarded !== 0) return { label: 'Not graded', color: 'text-gray-400' };
+        if (scorePercentage >= 90) return { label: 'Excellent', color: 'text-green-600' };
+        if (scorePercentage >= 80) return { label: 'Very Good', color: 'text-green-500' };
+        if (scorePercentage >= 70) return { label: 'Good', color: 'text-blue-600' };
+        if (scorePercentage >= 60) return { label: 'Satisfactory', color: 'text-amber-600' };
         return { label: 'Needs Improvement', color: 'text-red-500' };
     };
     const scoreLabel = getScoreLabel();
@@ -119,6 +150,15 @@ const GradingPortal = ({ studentSubmission, onBack, onSaveGrade }) => {
 
                 {/* Right: Status + Save */}
                 <div className="flex items-center gap-3 flex-shrink-0">
+                    {/* Pending review badge from API body */}
+                    {isPendingReview && !isSaved && (
+                        <span className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                            </svg>
+                            Awaiting Review
+                        </span>
+                    )}
                     {isAlreadyGraded && !isSaved && (
                         <span className="px-3 py-1.5 rounded-xl bg-green-50 border border-green-200 text-green-700 text-[9px] font-black uppercase tracking-widest">
                             Previously Graded
@@ -188,6 +228,14 @@ const GradingPortal = ({ studentSubmission, onBack, onSaveGrade }) => {
                                     <p className="text-[9px] font-bold text-gray-400">Submitted {submittedDate}</p>
                                 </div>
                                 <div className="ml-auto flex items-center gap-3">
+                                    {/* Source type badge (activity or quiz) */}
+                                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
+                                        sourceType === 'quiz'
+                                            ? 'bg-purple-50 text-purple-700 border-purple-100'
+                                            : 'bg-blue-50 text-blue-700 border-blue-100'
+                                    }`}>
+                                        {sourceType === 'quiz' ? 'Quiz Essay' : 'Activity Essay'}
+                                    </span>
                                     <span className="text-[9px] font-bold text-gray-400 flex items-center gap-1">
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -203,6 +251,21 @@ const GradingPortal = ({ studentSubmission, onBack, onSaveGrade }) => {
                                     {essayTitle}
                                 </h1>
                             </div>
+
+                            {/* Pending review notice from API message */}
+                            {isPendingReview && (
+                                <div className="mt-5 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                    <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                                    </svg>
+                                    <div>
+                                        <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Pending Instructor Review</p>
+                                        <p className="text-[9px] text-amber-600 mt-0.5">
+                                            {studentSubmission?.message || 'Essay submitted. Waiting for instructor review.'}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -230,25 +293,25 @@ const GradingPortal = ({ studentSubmission, onBack, onSaveGrade }) => {
                 <div className="w-[340px] flex-shrink-0 bg-[#fafafa] border-l border-gray-100 flex flex-col overflow-y-auto">
                     <div className="p-7 space-y-6">
 
-                        {/* Score Input Section */}
+                        {/* Points Input Section */}
                         <div>
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Final Score</p>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Points Awarded</p>
                             <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
                                 <div className="flex items-center gap-5">
-                                    {/* Ring */}
-                                    <ScoreRing score={score} />
+                                    {/* Ring — shows percentage of max_points */}
+                                    <ScoreRing score={pointsAwarded} maxPoints={maxPoints} />
                                     {/* Input */}
                                     <div className="flex-1">
                                         <div className="flex items-end gap-1.5">
                                             <input
                                                 type="number"
                                                 min="0"
-                                                max="100"
-                                                value={score}
+                                                max={maxPoints}
+                                                value={pointsAwarded}
                                                 onChange={(e) => {
                                                     const val = e.target.value;
-                                                    if (val === '' || (Number(val) >= 0 && Number(val) <= 100)) {
-                                                        setScore(val);
+                                                    if (val === '' || (Number(val) >= 0 && Number(val) <= maxPoints)) {
+                                                        setPointsAwarded(val);
                                                         setIsSaved(false);
                                                     }
                                                 }}
@@ -256,7 +319,7 @@ const GradingPortal = ({ studentSubmission, onBack, onSaveGrade }) => {
                                                 placeholder="0"
                                                 className="w-full text-4xl font-black text-gray-900 bg-transparent outline-none border-b-2 border-gray-200 focus:border-gray-900 transition-colors pb-1 leading-none disabled:opacity-60"
                                             />
-                                            <span className="text-lg font-black text-gray-300 pb-1 flex-shrink-0">/ 100</span>
+                                            <span className="text-lg font-black text-gray-300 pb-1 flex-shrink-0">/ {maxPoints}</span>
                                         </div>
                                         <p className={`text-[9px] font-black uppercase tracking-widest mt-2 ${scoreLabel.color}`}>
                                             {scoreLabel.label}
@@ -307,12 +370,12 @@ const GradingPortal = ({ studentSubmission, onBack, onSaveGrade }) => {
                             </div>
                         </div>
 
-                        {/* Feedback Textarea */}
+                        {/* Instructor Feedback Textarea */}
                         <div className="flex-1 flex flex-col">
                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Instructor Feedback</p>
                             <textarea
-                                value={feedback}
-                                onChange={(e) => { setFeedback(e.target.value); setIsSaved(false); }}
+                                value={instructorFeedback}
+                                onChange={(e) => { setInstructorFeedback(e.target.value); setIsSaved(false); }}
                                 disabled={isSaved}
                                 rows={7}
                                 placeholder="Write your comments to the student here. Be specific and constructive..."
@@ -327,12 +390,12 @@ const GradingPortal = ({ studentSubmission, onBack, onSaveGrade }) => {
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                                 </svg>
                                 <p className="text-[9px] font-bold text-amber-700 leading-relaxed">
-                                    Grade and feedback will be visible to the student once you submit.
+                                    Points and feedback will be visible to the student once you submit.
                                 </p>
                             </div>
                         )}
 
-                        {/* Submit Button (mobile / panel redundancy) */}
+                        {/* Submit Button (panel) */}
                         <button
                             onClick={handleSave}
                             disabled={isSaving || isSaved}

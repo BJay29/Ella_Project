@@ -507,19 +507,22 @@ const FileDropZone = ({ onFileSelect, selectedFile }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Essay Submission Card — for Grading Portal tab
 // ─────────────────────────────────────────────────────────────────────────────
-const SubmissionStatusBadge = ({ status }) => {
-    const s = (status || '').toLowerCase();
-    const isGraded = s === 'graded';
-    const isPending = s === 'pending' || s === 'submitted';
+const SubmissionStatusBadge = ({ status, pendingReview, feedbackState }) => {
+    // Use pending_review and feedback_state from API body for accurate status display
+    const isPendingReview = pendingReview === true
+        || feedbackState === 'pending_review'
+        || (status || '').toLowerCase() === 'pending_review'
+        || (status || '').toLowerCase() === 'pending';
+    const isGraded = (status || '').toLowerCase() === 'graded';
     return (
         <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border flex-shrink-0 ${
             isGraded
                 ? 'bg-green-50 text-green-700 border-green-200'
-                : isPending
+                : isPendingReview
                 ? 'bg-amber-50 text-amber-700 border-amber-200'
                 : 'bg-gray-100 text-gray-500 border-gray-200'
         }`}>
-            {isGraded ? 'Graded' : isPending ? 'For Review' : status || 'Submitted'}
+            {isGraded ? 'Graded' : isPendingReview ? 'For Review' : status || 'Submitted'}
         </span>
     );
 };
@@ -534,7 +537,14 @@ const EssaySubmissionCard = ({ submission, onReview }) => {
           })
         : 'Recently submitted';
     const wordCount = submission.wordCount || submission.word_count || 0;
-    const score = submission.score;
+
+    // Use points_awarded from API body instead of score
+    const pointsAwarded = submission.points_awarded;
+    const maxPoints = submission.max_points || submission.total_points || 100;
+
+    // Source type badge
+    const sourceType = submission.source_type || submission.type || 'activity';
+
     const initials = studentName.substring(0, 2).toUpperCase();
 
     return (
@@ -562,7 +572,19 @@ const EssaySubmissionCard = ({ submission, onReview }) => {
                             </h4>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                            <SubmissionStatusBadge status={submission.status} />
+                            {/* Source type badge */}
+                            <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border ${
+                                sourceType === 'quiz'
+                                    ? 'bg-purple-50 text-purple-600 border-purple-100'
+                                    : 'bg-blue-50 text-blue-600 border-blue-100'
+                            }`}>
+                                {sourceType === 'quiz' ? 'Quiz' : 'Activity'}
+                            </span>
+                            <SubmissionStatusBadge
+                                status={submission.status}
+                                pendingReview={submission.pending_review}
+                                feedbackState={submission.feedback_state}
+                            />
                         </div>
                     </div>
 
@@ -581,12 +603,13 @@ const EssaySubmissionCard = ({ submission, onReview }) => {
                                 {wordCount.toLocaleString()} words
                             </span>
                         )}
-                        {isGraded && score !== undefined && score !== null && (
+                        {/* Show points_awarded / max_points for graded essays */}
+                        {isGraded && pointsAwarded != null && (
                             <span className="text-[9px] font-black text-green-600 flex items-center gap-1 ml-auto">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
                                 </svg>
-                                Score: {score}/100
+                                {pointsAwarded}/{maxPoints} pts
                             </span>
                         )}
                         {!isGraded && (
@@ -745,6 +768,10 @@ if (pendingRes.ok) {
     useEffect(() => { fetchData(); }, [fetchData]);
 
     // ── Fetch Essay Submissions when Grading Portal tab is active ─────────────
+    // UPDATED: Uses getPendingActivityEssays and getPendingQuizEssays APIs.
+    // Both endpoints are called and their results are merged into one submissions list.
+    // Each submission is tagged with source_type ('activity' or 'quiz') so the grading
+    // handler knows which PATCH endpoint to call.
     const fetchSubmissions = useCallback(async () => {
         const storedSection = localStorage.getItem('selectedSection');
         const activeSection = storedSection ? JSON.parse(storedSection) : null;
@@ -754,12 +781,43 @@ if (pendingRes.ok) {
         setSubmissionsLoading(true);
         try {
             const token = getCleanToken();
-            // Call your API — adjust method name to match your authAPI service
-            const res = await authAPI.getEssaySubmissions(sId, token);
-            if (res && res.ok) {
-                const data = await res.json();
-                setSubmissions(data.submissions || data || []);
+
+            // Fetch activity essays and quiz essays in parallel
+            const [activityRes, quizRes] = await Promise.allSettled([
+                authAPI.getPendingActivityEssays(sId, token),
+                authAPI.getPendingQuizEssays(sId, token),
+            ]);
+
+            let activityEssays = [];
+            let quizEssays = [];
+
+            // Parse activity essays response
+            if (activityRes.status === 'fulfilled' && activityRes.value?.ok) {
+                const data = await activityRes.value.json();
+                const raw = data.essays || data.submissions || data || [];
+                activityEssays = (Array.isArray(raw) ? raw : []).map(item => ({
+                    ...item,
+                    source_type: 'activity',
+                    // Normalize pending_review and feedback_state from API body
+                    pending_review: item.pending_review ?? (item.review_status === 'pending' || item.status === 'pending'),
+                    feedback_state: item.feedback_state || item.review_status || 'pending_review',
+                }));
             }
+
+            // Parse quiz essays response
+            if (quizRes.status === 'fulfilled' && quizRes.value?.ok) {
+                const data = await quizRes.value.json();
+                const raw = data.essays || data.submissions || data || [];
+                quizEssays = (Array.isArray(raw) ? raw : []).map(item => ({
+                    ...item,
+                    source_type: 'quiz',
+                    pending_review: item.pending_review ?? (item.review_status === 'pending' || item.status === 'pending'),
+                    feedback_state: item.feedback_state || item.review_status || 'pending_review',
+                }));
+            }
+
+            // Merge both lists — pending essays first, then graded
+            setSubmissions([...activityEssays, ...quizEssays]);
         } catch (err) {
             console.warn('Essay submissions fetch failed:', err);
         } finally {
@@ -774,32 +832,57 @@ if (pendingRes.ok) {
     }, [activeTab, fetchSubmissions]);
 
     // ── Save Grade Handler ────────────────────────────────────────────────────
-    const handleSaveGrade = useCallback(async (submissionId, { score, feedback }) => {
-        const storedSection = localStorage.getItem('selectedSection');
-        const activeSection = storedSection ? JSON.parse(storedSection) : null;
-        const sId = sectionId || activeSection?.section_id || activeSection?.id;
-        if (!sId || !submissionId) return;
+    // UPDATED: Uses gradeActivityEssay or gradeQuizEssay based on source_type.
+    // Sends { points_awarded, instructor_feedback } as per the PATCH API body.
+    const handleSaveGrade = useCallback(async (answerId, { points_awarded, instructor_feedback, source_type }) => {
+        if (!answerId) return;
+
+        const gradeData = {
+            points_awarded: Number(points_awarded),
+            instructor_feedback: instructor_feedback || '',
+        };
 
         try {
             const token = getCleanToken();
-            // Call your API — adjust method name to match your authAPI service
-            const res = await authAPI.submitEssayGrade(sId, submissionId, { score, feedback }, token);
+            let res;
+
+            // Route to the correct grading endpoint based on source type
+            if (source_type === 'quiz') {
+                res = await authAPI.gradeQuizEssay(answerId, gradeData, token);
+            } else {
+                // Default to activity grading endpoint
+                res = await authAPI.gradeActivityEssay(answerId, gradeData, token);
+            }
+
             if (res && res.ok) {
-                // Update local submissions list to reflect graded status
+                // Update local submissions list to reflect graded status with new API fields
                 setSubmissions(prev =>
                     prev.map(sub =>
-                        (sub.id === submissionId || sub.submission_id === submissionId)
-                            ? { ...sub, score, feedback, status: 'graded' }
+                        (sub.answer_id === answerId || sub.id === answerId || sub.submission_id === answerId)
+                            ? {
+                                ...sub,
+                                points_awarded: gradeData.points_awarded,
+                                instructor_feedback: gradeData.instructor_feedback,
+                                status: 'graded',
+                                review_status: 'graded',
+                                pending_review: false,
+                                feedback_state: 'reviewed',
+                              }
                             : sub
                     )
                 );
                 // Go back to submissions list
                 setActiveSubmission(null);
+            } else {
+                const errData = await res?.json().catch(() => ({}));
+                console.error('Grade save failed:', errData);
+                alert(`Grade submission failed: ${errData?.message || 'Please try again.'}`);
             }
         } catch (err) {
             console.error('Save grade error:', err);
+            alert('An error occurred while submitting the grade.');
         }
-    }, [sectionId, getCleanToken]);
+    }, [getCleanToken]);
 
     // Open material viewer — uses the new getSpecificMaterial API
     const handleViewMaterial = async (material) => {
@@ -1262,7 +1345,7 @@ if (pendingRes.ok) {
                                     })
                                     .map((sub, idx) => (
                                         <EssaySubmissionCard
-                                            key={sub.id || sub.submission_id || idx}
+                                            key={sub.answer_id || sub.id || sub.submission_id || idx}
                                             submission={sub}
                                             onReview={(s) => setActiveSubmission(s)}
                                         />
