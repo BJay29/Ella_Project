@@ -31,7 +31,7 @@ const Management = () => {
 
     /**
      * EXTRACT DATA HELPER
-     * Automatically scans for arrays in the response object
+     * Scans API response for arrays to handle various backend structures
      */
     const extractData = async (res, label) => {
         if (!res.ok) {
@@ -42,12 +42,18 @@ const Management = () => {
             const json = await res.json();
             console.log(`Management Log [${label} Raw Response]:`, json);
 
+            // 1. If response is directly an array
             if (Array.isArray(json)) return json;
+
+            // 2. Check standard data keys
             if (json.data && Array.isArray(json.data)) return json.data;
             
-            // Dynamic search for any key that contains an array (e.g., "departments", "year_levels")
+            // 3. Dynamic search: Find the first key that is an array (e.g., { departments: [...] })
             const dynamicKey = Object.keys(json).find(key => Array.isArray(json[key]));
-            if (dynamicKey) return json[dynamicKey];
+            if (dynamicKey) {
+                console.log(`Management Log: Auto-detected array in key: "${dynamicKey}"`);
+                return json[dynamicKey];
+            }
 
             return [];
         } catch (err) {
@@ -67,7 +73,7 @@ const Management = () => {
             const data = await extractData(res, "Departments");
             setDepartments(data);
         } catch (err) {
-            console.error("Critical error fetching departments:", err);
+            console.error("Management Log: Error fetching departments:", err);
         } finally {
             setIsLoading(false);
         }
@@ -78,7 +84,7 @@ const Management = () => {
     }, [fetchDepartments]);
 
     /**
-     * FETCH 2: Programs
+     * FETCH 2: Programs (Triggered by Dept selection)
      */
     const fetchPrograms = async (deptId) => {
         try {
@@ -89,7 +95,7 @@ const Management = () => {
     };
 
     /**
-     * FETCH 3: Year Levels
+     * FETCH 3: Year Levels (Triggered by Program selection)
      */
     const fetchYearLevels = async (deptId, programId) => {
         try {
@@ -101,11 +107,12 @@ const Management = () => {
 
     /**
      * FETCH 4: Sections
-     * FIX: Ensure this calls the correct API method with all 3 IDs to avoid 404
+     * FIX: Using the nested API route to avoid 404 errors
      */
     const fetchSections = async (deptId, programId, yearId) => {
         try {
-            console.log(`Fetching Sections for Dept: ${deptId}, Prog: ${programId}, Year: ${yearId}`);
+            console.log(`Management Log: Fetching Sections for Year ID: ${yearId}`);
+            // Use the correct API method provided in your prompt
             const res = await authAPI.getInstructorSections(deptId, programId, yearId, token);
             const data = await extractData(res, "Sections");
             setSections(data);
@@ -113,7 +120,7 @@ const Management = () => {
     };
 
     /**
-     * FETCH 5: Courses
+     * FETCH 5: Courses (Triggered by Section selection)
      */
     const fetchCourses = async (sectionId) => {
         try {
@@ -123,7 +130,7 @@ const Management = () => {
         } catch (err) { console.error("Error fetching courses:", err); }
     };
 
-    // --- Cascading Change Handlers ---
+    // --- State Reset Handlers (Cascading selection logic) ---
 
     const handleDeptChange = (deptId) => {
         setSelectedDept(deptId);
@@ -143,7 +150,7 @@ const Management = () => {
         setSelectedYear(yearId);
         setSelectedSection(''); setSelectedCourse('');
         setSections([]); setCourses([]);
-        // FIX: Passing all required IDs to fetchSections
+        // Pass all three IDs required by the new getInstructorSections API
         if (yearId) fetchSections(selectedDept, selectedProgram, yearId);
     };
 
@@ -196,7 +203,7 @@ const Management = () => {
                                 <option value="">Select Dept</option>
                                 {departments.map(d => (
                                     <option key={d.dept_id || d.id} value={d.dept_id || d.id}>
-                                        {/* Fallback chain to prevent "Unnamed Dept" */}
+                                        {/* FIX: Check all possible name fields to avoid "Unnamed Dept" */}
                                         {d.dept_name || d.name || d.dept_abbr || "Unnamed Dept"}
                                     </option>
                                 ))}
@@ -233,8 +240,8 @@ const Management = () => {
                                 <option value="">Select Year</option>
                                 {yearLevels.map(y => (
                                     <option key={y.year_level_id || y.id} value={y.year_level_id || y.id}>
-                                        {/* Fixed fallback to ensure visibility */}
-                                        {y.year_level || y.name || `Year ${y.year_level_id}`}
+                                        {/* FIX: Ensure year level text is visible */}
+                                        {y.year_level || y.name || `Year ${y.year_level_id || y.id}`}
                                     </option>
                                 ))}
                             </select>
@@ -285,7 +292,7 @@ const Management = () => {
                                         {finalCardData.course_name || finalCardData.name}
                                     </h3>
                                     <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.2em] mt-2">
-                                        Section {sections.find(s => String(s.section_id || s.id) === String(selectedSection))?.section_name}
+                                        Section {sections.find(s => String(s.section_id || s.id) === String(selectedSection))?.section_name || "N/A"}
                                     </p>
                                 </div>
 
