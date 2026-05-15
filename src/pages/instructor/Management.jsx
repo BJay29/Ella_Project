@@ -72,6 +72,7 @@ const Management = () => {
     
     // List of created cards
 const [selectedCards, setSelectedCards] = useState(() => []);
+const firstLoadRef = useRef(true);
     /**
      * EFFECT: LOAD SAVED CARDS
      * Runs once on mount to retrieve persisted data for the specific user
