@@ -75,35 +75,36 @@ export const authAPI = {
 
     // ─────────────────────────────────────────────────────────────────────────
     // STUDENT ACTIONS
-    // ─────────────────────────────────────────────────────────────────────────
- joinSection: async (sectionCode, token) => {
-    // 1. Safety Check: Ensure token exists before making the call
-    if (!token) {
-        console.error("Join Section Error: No authentication token provided.");
-        throw new Error("You must be logged in to join a section.");
+ /**
+ * Updated joinSection
+ * Focus: Ensures the token is passed exactly how the backend expects it.
+ */
+joinSection: async (sectionCode, token) => {
+    // 1. Clean the token to be absolutely sure
+    const cleanToken = token ? token.replace(/['"]+/g, '').trim() : null;
+
+    if (!cleanToken) {
+        console.error("DEBUG: Token is missing before calling joinSection");
+        return;
     }
+
+    // 2. Log the Authorization header for debugging (Delete this after fixing)
+    console.log("DEBUG: Sending Header ->", `Bearer ${cleanToken.substring(0, 20)}...`);
 
     try {
         const response = await fetch(`${BASE_URL}/api/student/join-section`, {
             method: 'POST',
             headers: {
+                'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'Accept': 'application/json', // Force JSON response from backend
-                'Authorization': `Bearer ${token}` // Ensure Bearer is correctly formatted
+                'Authorization': `Bearer ${cleanToken}`
             },
-            // Double check if your backend expects 'section_code' or just 'code'
             body: JSON.stringify({ section_code: sectionCode })
         });
 
-        // 2. Specialized handling for 401 Unauthorized
-        if (response.status === 401) {
-            console.error("Auth Error: Token is invalid or expired.");
-            // Optional: Redirect to login or refresh token here
-        }
-
         return response;
     } catch (error) {
-        console.error("Network Error in joinSection:", error);
+        console.error("Network Error:", error);
         throw error;
     }
 },
