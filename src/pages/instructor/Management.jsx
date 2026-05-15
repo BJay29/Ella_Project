@@ -19,41 +19,29 @@ const Management = () => {
     const [yearLevels, setYearLevels] = useState([]);
     const [sections, setSections] = useState([]);
     const [courses, setCourses] = useState([]);
+    
 
     /**
      * DYNAMIC STORAGE KEY HELPER
      * This ensures cards are tied to a specific user ID so they don't vanish or mix 
      * up when different users log in/out.
      */
-   const getTargetStorageKey = useCallback(() => {
+const getTargetStorageKey = useCallback(() => {
+    // Use stable user identity instead of token
+    const userEmail = localStorage.getItem('userEmail');
+    const userName = localStorage.getItem('userName');
 
-    try {
-
-        const rawUser =
-            localStorage.getItem('user') ||
-            sessionStorage.getItem('user');
-
-        if (!rawUser) {
-            return 'mgt_selectedCards';
-        }
-
-        const user = JSON.parse(rawUser);
-
-        const userId =
-            user.user_id ||
-            user.id ||
-            user.email ||
-            user.username;
-
-        return `mgt_selectedCards_${userId}`;
-
-    } catch (err) {
-
-        console.error(err);
-
-        return 'mgt_selectedCards';
+    // PRIORITY: email
+    if (userEmail) {
+        return `mgt_selectedCards_${userEmail}`;
     }
 
+    // FALLBACK: username
+    if (userName) {
+        return `mgt_selectedCards_${userName}`;
+    }
+
+    return 'mgt_selectedCards_guest';
 }, []);
     const [selectedDept, setSelectedDept] = useState('');
     const [selectedProgram, setSelectedProgram] = useState('');
@@ -108,11 +96,10 @@ const firstLoadRef = useRef(true);
      * EFFECT: SAVE CARDS TO LOCAL STORAGE
      * Triggers every time selectedCards state changes, but ONLY after initial load
      */
-   useEffect(() => {
-
+  useEffect(() => {
     if (!isLoaded) return;
 
-    // prevent overwriting storage on first mount
+    // Prevent overwriting on initial mount
     if (firstLoadRef.current) {
         firstLoadRef.current = false;
         return;
@@ -121,16 +108,11 @@ const firstLoadRef = useRef(true);
     const key = getTargetStorageKey();
 
     try {
-        localStorage.setItem(
-            key,
-            JSON.stringify(selectedCards)
-        );
+        localStorage.setItem(key, JSON.stringify(selectedCards));
     } catch (error) {
         console.error('Error saving cards:', error);
     }
-
 }, [selectedCards, getTargetStorageKey, isLoaded]);
-
     /**
      * EXTRACT DATA HELPER
      */

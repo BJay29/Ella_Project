@@ -132,22 +132,16 @@ const InstructorDashboard = () => {
      * Specifically removes only auth-related items to prevent deleting
      * the persisted Course Cards stored in localStorage.
      */
-    const handleLogoutConfirm = () => {
-        // Remove authentication token
-        localStorage.removeItem('token');
-        
-        // Remove specific user info
-        localStorage.removeItem('userName');
-        localStorage.removeItem('userEmail');
-        
-        /** * IMPORTANT: Do NOT use localStorage.clear() or sessionStorage.clear() 
-         * as it will wipe the 'mgt_selectedCards_...' data needed for persistence.
-         */
-        
-        // Redirect to login page
-        window.location.href = '/login';
-    };
+  const handleLogoutConfirm = () => {
+    // Remove auth only
+    localStorage.removeItem('token');
 
+    // DO NOT REMOVE THESE
+    // localStorage.removeItem('userName');
+    // localStorage.removeItem('userEmail');
+
+    window.location.href = '/login';
+};
     return (
         <div className="min-h-screen bg-[#F3F4F6] font-sans pb-10">
             {/* Modal Components */}
