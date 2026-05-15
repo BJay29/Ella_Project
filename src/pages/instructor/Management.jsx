@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import SectionDashboard from './StudentManagement/SectionDashboard';
 import { authAPI } from '../../services/APIservice';
 import { Plus, User, Trash2, ExternalLink, X } from 'lucide-react';
@@ -9,7 +9,9 @@ const Management = () => {
     const [activeSection, setActiveSection] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState({ title: '', sub: '' });
-    const STORAGE_KEY = 'mgt_selectedCards';
+    
+    // Protection flag to prevent overwriting storage with empty state on mount
+    const [isLoaded, setIsLoaded] = useState(false);
 
     // --- Data States for Dropdowns ---
     const [departments, setDepartments] = useState([]);
@@ -19,38 +21,53 @@ const Management = () => {
     const [courses, setCourses] = useState([]);
 
     /**
-     * PERSISTENCE STATE INITIALIZATION
+     * DYNAMIC STORAGE KEY HELPER
+     * This ensures cards are tied to a specific user ID so they don't vanish or mix 
+     * up when different users log in/out.
      */
+    const getTargetStorageKey = useCallback(() => {
+        const token = localStorage.getItem('token');
+        if (!token) return 'mgt_selectedCards_guest';
+        try {
+            // Decode JWT to get unique user ID (sub or id field)
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return `mgt_selectedCards_${payload.id || payload.sub || 'user'}`;
+        } catch (e) {
+            return 'mgt_selectedCards_default';
+        }
+    }, []);
+
     const [selectedDept, setSelectedDept] = useState('');
     const [selectedProgram, setSelectedProgram] = useState('');
     const [selectedYear, setSelectedYear] = useState('');
     const [selectedSection, setSelectedSection] = useState('');
     const [selectedCourse, setSelectedCourse] = useState('');
     
-    // List of created cards (Stored as array to keep multiple cards)
-  const [selectedCards, setSelectedCards] = useState([]);
+    // List of created cards
+    const [selectedCards, setSelectedCards] = useState([]);
 
-/**
- * LOAD SAVED CARDS FROM LOCAL STORAGE
- */
-useEffect(() => {
-    try {
-        const savedCards = localStorage.getItem(STORAGE_KEY);
-
-        if (savedCards) {
-            const parsedCards = JSON.parse(savedCards);
-
-            if (Array.isArray(parsedCards)) {
-                setSelectedCards(parsedCards);
-            } else {
-                setSelectedCards([]);
+    /**
+     * EFFECT: LOAD SAVED CARDS
+     * Runs once on mount to retrieve persisted data for the specific user
+     */
+    useEffect(() => {
+        const key = getTargetStorageKey();
+        try {
+            const savedCards = localStorage.getItem(key);
+            if (savedCards) {
+                const parsedCards = JSON.parse(savedCards);
+                if (Array.isArray(parsedCards)) {
+                    setSelectedCards(parsedCards);
+                }
             }
+        } catch (error) {
+            console.error('Error loading saved cards:', error);
+        } finally {
+            // Mark as loaded so the save effect can safely start tracking changes
+            setIsLoaded(true);
         }
-    } catch (error) {
-        console.error('Error loading saved cards:', error);
-        setSelectedCards([]);
-    }
-}, []);
+    }, [getTargetStorageKey]);
+
     // Token retrieval logic
     const token = useMemo(() => {
         const rawToken = localStorage.getItem('token');
@@ -59,22 +76,19 @@ useEffect(() => {
     }, []);
 
     /**
-     * EFFECT: Save Cards to LocalStorage
-     * This ensures that every time selectedCards state changes, it is mirrored in storage
+     * EFFECT: SAVE CARDS TO LOCAL STORAGE
+     * Triggers every time selectedCards state changes, but ONLY after initial load
      */
-   /**
- * SAVE CARDS TO LOCAL STORAGE
- */
-useEffect(() => {
-    try {
-        localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify(selectedCards)
-        );
-    } catch (error) {
-        console.error('Error saving cards:', error);
-    }
-}, [selectedCards]);
+    useEffect(() => {
+        if (isLoaded) {
+            const key = getTargetStorageKey();
+            try {
+                localStorage.setItem(key, JSON.stringify(selectedCards));
+            } catch (error) {
+                console.error('Error saving cards:', error);
+            }
+        }
+    }, [selectedCards, getTargetStorageKey, isLoaded]);
 
     /**
      * EXTRACT DATA HELPER
@@ -192,62 +206,48 @@ useEffect(() => {
             if (courseObj) {
                 const newCard = {
                     ...courseObj,
-                    unique_key: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,// timestamp to prevent duplicate key issues
+                    unique_key: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                     section_name: sectionObj?.section_name || 'N/A',
                     section_code: sectionObj?.section_code || 'N/A',
                     year_level: yearObj?.year_name || 'N/A',
                     year_level_id: selectedYear
                 };
 
-                // Update state and persistence
-               // PREVENT DUPLICATE COURSE CARDS
-setSelectedCards(prev => {
+                // PREVENT DUPLICATE COURSE CARDS
+                setSelectedCards(prev => {
+                    const exists = prev.some(
+                        item =>
+                            String(item.course_id || item.id) === String(newCard.course_id || newCard.id) &&
+                            String(item.section_code) === String(newCard.section_code)
+                    );
 
-    const exists = prev.some(
-        item =>
-            String(item.course_id || item.id) === String(newCard.course_id || newCard.id) &&
-            String(item.section_code) === String(newCard.section_code)
-    );
+                    if (exists) {
+                        setSuccessMessage({
+                            title: 'Duplicate Course',
+                            sub: 'This course card already exists'
+                        });
+                        setShowSuccessModal(true);
+                        setTimeout(() => setShowSuccessModal(false), 3000);
+                        return prev;
+                    }
+                    return [newCard, ...prev];
+                });
 
-    if (exists) {
-
-        setSuccessMessage({
-            title: 'Duplicate Course',
-            sub: 'This course card already exists'
-        });
-
-        setShowSuccessModal(true);
-
-        setTimeout(() => {
-            setShowSuccessModal(false);
-        }, 3000);
-
-        return prev;
-    }
-
-    return [newCard, ...prev];
-});
                 // Show Success Notification
                 setSuccessMessage({ title: 'Course Added', sub: 'Ready for management' });
                 setShowSuccessModal(true);
                 setTimeout(() => setShowSuccessModal(false), 3000);
 
                 // RESET DROPDOWNS AFTER CREATING CARD
-                setSelectedDept('');
-                setSelectedProgram('');
-                setSelectedYear('');
-                setSelectedSection('');
-                setSelectedCourse('');
-                setPrograms([]);
-                setYearLevels([]);
-                setSections([]);
-                setCourses([]);
+                setSelectedDept(''); setSelectedProgram(''); setSelectedYear('');
+                setSelectedSection(''); setSelectedCourse('');
+                setPrograms([]); setYearLevels([]); setSections([]); setCourses([]);
             }
         }
     };
 
     const handleDeleteCard = (e, uniqueKey) => {
-        e.stopPropagation(); // Prevent opening classroom view
+        e.stopPropagation();
         const filteredCards = selectedCards.filter(card => card.unique_key !== uniqueKey);
         setSelectedCards(filteredCards);
         
@@ -257,7 +257,7 @@ setSelectedCards(prev => {
     };
 
     return (
-        <div className="w-full min-h-screen p-6 relative">
+        <div className="w-full min-h-screen p-6 relative bg-gray-50/30">
             
             {/* SUCCESS MODAL / TOAST NOTIFICATION */}
             {showSuccessModal && (
@@ -281,13 +281,12 @@ setSelectedCards(prev => {
                             Classroom Management
                         </h2>
                         <p className="text-[10px] text-gray-600 font-bold uppercase tracking-[0.2em] mt-1">
-                            Follow the sequence to access your assigned classes
+                            Follow the sequence to access your assigned classes (Auto-saved per account)
                         </p>
                     </div>
 
                     {/* Selection Bar / Configuration */}
                     <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-200 flex flex-wrap items-end gap-4 mb-12">
-                        
                         <div className="flex flex-col flex-1 min-w-[140px] gap-1.5">
                             <label className="text-[9px] font-black text-black uppercase ml-2">Department</label>
                             <select 
@@ -298,7 +297,7 @@ setSelectedCards(prev => {
                                 <option value="">Select Dept</option>
                                 {departments.map(d => (
                                     <option key={d.dept_id || d.id} value={d.dept_id || d.id}>
-                                        {d.department_name || d.dept_name || d.name || d.dept_abbr || "Unnamed Dept"}
+                                        {d.department_name || d.dept_name || d.name || d.dept_abbr}
                                     </option>
                                 ))}
                             </select>
@@ -332,7 +331,7 @@ setSelectedCards(prev => {
                                 <option value="">Select Year</option>
                                 {yearLevels.map(y => (
                                     <option key={y.year_level_id || y.id} value={y.year_level_id || y.id}>
-                                        {y.year_name || y.year_level || y.name || `Year ${y.year_level_id || y.id}`}
+                                        {y.year_name || `Year ${y.year_level_id || y.id}`}
                                     </option>
                                 ))}
                             </select>
@@ -381,7 +380,7 @@ setSelectedCards(prev => {
                         </button>
                     </div>
 
-                    {/* CARD DISPLAY AREA - Persisted from LocalStorage */}
+                    {/* CARD DISPLAY AREA */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 py-12">
                         {selectedCards.length > 0 ? (
                             selectedCards.map((card) => (
@@ -406,9 +405,6 @@ setSelectedCards(prev => {
                                             >
                                                 <Trash2 size={18} />
                                             </button>
-                                        </div>
-                                        <div className="absolute top-0 right-0 opacity-10 pointer-events-none">
-                                            <div className="w-24 h-24 bg-white rounded-full -mr-10 -mt-10" />
                                         </div>
                                     </div>
 
@@ -440,12 +436,12 @@ setSelectedCards(prev => {
                                 </div>
                             ))
                         ) : (
-                            <div className="col-span-full text-left select-none opacity-40 py-20 flex flex-col items-center justify-center">
+                            <div className="col-span-full py-20 flex flex-col items-center justify-center opacity-40">
                                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                     <Plus size={24} className="text-gray-400" />
                                 </div>
                                 <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black text-center">
-                                    No courses selected. Complete selections above to create a card.
+                                    No courses selected.
                                 </p>
                             </div>
                         )}
