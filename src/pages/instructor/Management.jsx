@@ -25,17 +25,44 @@ const Management = () => {
      * This ensures cards are tied to a specific user ID so they don't vanish or mix 
      * up when different users log in/out.
      */
-    const getTargetStorageKey = useCallback(() => {
-        const token = localStorage.getItem('token');
-        if (!token) return 'mgt_selectedCards_guest';
-        try {
-            // Decode JWT to get unique user ID (sub or id field)
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return `mgt_selectedCards_${payload.id || payload.sub || 'user'}`;
-        } catch (e) {
-            return 'mgt_selectedCards_default';
+   const getTargetStorageKey = useCallback(() => {
+    try {
+        const rawToken =
+            localStorage.getItem('token') ||
+            sessionStorage.getItem('token');
+
+        if (!rawToken) {
+            return 'mgt_selectedCards_guest';
         }
-    }, []);
+
+        const token = rawToken.replace(/"/g, '');
+
+        const payloadBase64 = token.split('.')[1];
+
+        if (!payloadBase64) {
+            return 'mgt_selectedCards_guest';
+        }
+
+        const payload = JSON.parse(atob(payloadBase64));
+
+        // IMPORTANT:
+        // use ONE stable identifier only
+        const userId =
+            payload.user_id ||
+            payload.id ||
+            payload.sub;
+
+        if (!userId) {
+            return 'mgt_selectedCards_guest';
+        }
+
+        return `mgt_selectedCards_${userId}`;
+
+    } catch (err) {
+        console.error('Storage Key Error:', err);
+        return 'mgt_selectedCards_guest';
+    }
+}, []);
 
     const [selectedDept, setSelectedDept] = useState('');
     const [selectedProgram, setSelectedProgram] = useState('');
@@ -44,8 +71,7 @@ const Management = () => {
     const [selectedCourse, setSelectedCourse] = useState('');
     
     // List of created cards
-    const [selectedCards, setSelectedCards] = useState([]);
-
+const [selectedCards, setSelectedCards] = useState(() => []);
     /**
      * EFFECT: LOAD SAVED CARDS
      * Runs once on mount to retrieve persisted data for the specific user
@@ -79,16 +105,28 @@ const Management = () => {
      * EFFECT: SAVE CARDS TO LOCAL STORAGE
      * Triggers every time selectedCards state changes, but ONLY after initial load
      */
-    useEffect(() => {
-        if (isLoaded) {
-            const key = getTargetStorageKey();
-            try {
-                localStorage.setItem(key, JSON.stringify(selectedCards));
-            } catch (error) {
-                console.error('Error saving cards:', error);
-            }
-        }
-    }, [selectedCards, getTargetStorageKey, isLoaded]);
+   useEffect(() => {
+
+    if (!isLoaded) return;
+
+    // prevent overwriting storage on first mount
+    if (firstLoadRef.current) {
+        firstLoadRef.current = false;
+        return;
+    }
+
+    const key = getTargetStorageKey();
+
+    try {
+        localStorage.setItem(
+            key,
+            JSON.stringify(selectedCards)
+        );
+    } catch (error) {
+        console.error('Error saving cards:', error);
+    }
+
+}, [selectedCards, getTargetStorageKey, isLoaded]);
 
     /**
      * EXTRACT DATA HELPER
