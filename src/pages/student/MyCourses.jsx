@@ -15,29 +15,102 @@ const getUserFromToken = () => {
     return null;
   }
 };
-
 const normalise = (raw) => ({
-  ss_id: raw.ss_id || raw.id || raw.enrollment_id || crypto.randomUUID(),
-  section_id: raw.section_id || raw.id,
-  course_id: raw.course_id,
+  ss_id:
+    raw.ss_id ||
+    raw.id ||
+    raw.enrollment_id ||
+    crypto.randomUUID(),
 
+  section_id:
+    raw.section_id ||
+    raw.section?.id ||
+    raw.id,
+
+  course_id:
+    raw.course_id ||
+    raw.course?.id ||
+    raw.section?.course_id,
+
+  // ✅ FIXED COURSE NAME
   course_name:
     raw.course_name ||
     raw.course?.course_name ||
+    raw.course?.name ||
     raw.course?.title ||
+    raw.section?.course_name ||
+    raw.section?.course?.course_name ||
+    raw.section?.course?.name ||
+    raw.section?.course?.title ||
+    raw.subject_name ||
+    raw.subject ||
     raw.courseName ||
     raw.title ||
     raw.course_title ||
-    'Untitled Course',  section_name:  raw.section_name  || raw.name               || raw.section_title || 'Unassigned Section',
-  section_code:  raw.section_code,
-  program:       raw.program_name  || raw.program           || 'N/A',
-  instructor:    raw.instructor_name || raw.instructor      || raw.teacher_name  || raw.prof || 'Instructor TBA',
-  school_year:   raw.school_year,
-  semester:      raw.semester,
-  schedule:      raw.schedule      || raw.time             || '',
-  status:        raw.status        || 'pending',
-  total_quests:  raw.total_quests  || 0,
-  classmate_count: raw.classmate_count || 0
+    'Untitled Course',
+
+  // ✅ FIXED SECTION NAME
+  section_name:
+    raw.section_name ||
+    raw.section?.section_name ||
+    raw.section?.name ||
+    raw.name ||
+    raw.section_title ||
+    'Unassigned Section',
+
+  section_code:
+    raw.section_code ||
+    raw.section?.section_code ||
+    raw.code,
+
+  // ✅ FIXED PROGRAM
+  program:
+    raw.program_name ||
+    raw.program ||
+    raw.section?.program_name ||
+    raw.section?.program ||
+    raw.course?.program_name ||
+    'N/A',
+
+  // ✅ FIXED INSTRUCTOR
+  instructor:
+    raw.instructor_name ||
+    raw.instructor ||
+    raw.teacher_name ||
+    raw.prof ||
+    raw.section?.instructor_name ||
+    raw.section?.teacher_name ||
+    raw.course?.instructor_name ||
+    'Instructor TBA',
+
+  school_year:
+    raw.school_year ||
+    raw.section?.school_year,
+
+  semester:
+    raw.semester ||
+    raw.section?.semester,
+
+  schedule:
+    raw.schedule ||
+    raw.time ||
+    raw.section?.schedule ||
+    '',
+
+  status:
+    raw.status ||
+    raw.enrollment_status ||
+    'pending',
+
+  total_quests:
+    raw.total_quests ||
+    raw.quest_count ||
+    0,
+
+  classmate_count:
+    raw.classmate_count ||
+    raw.student_count ||
+    0
 });
 
 const StatusBadge = ({ status }) => {
@@ -158,7 +231,9 @@ const MaterialViewerModal = ({ material, onClose }) => {
   }
 
  return () => {
-  if (url) URL.revokeObjectURL(url);
+  if (pdfBlobUrl) {
+    URL.revokeObjectURL(pdfBlobUrl);
+  }
 };
 }, [fileUrl]);
 
