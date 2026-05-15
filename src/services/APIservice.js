@@ -212,90 +212,7 @@ getInstructorCourses: async (sectionId, token) => {
         );
     },
 
-    approveRejectStudent: async (sectionId, ssId, status, token) => {
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/instructor/sections/${sectionId}/students/${ssId}`,
-            {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ status }),
-            }
-        );
-    },
-    getSectionStudents: async (sectionId, token) => {
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/instructor/sections/${sectionId}/students`,
-            {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-            }
-        );
-    },
-    getPendingStudents: async (sectionId, token) => {
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/instructor/sections/${sectionId}/students?status=pending`,
-            {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-            }
-        );
-    },
-    getApprovedStudents: async (sectionId, token) => {
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/instructor/sections/${sectionId}/students?status=approved`,
-            {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-            }
-        );
-    },
-    getWaitingStudents: async (sectionId, token) => {
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/instructor/sections/${sectionId}/students?status=waiting`,
-            {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-            }
-        );
-    },
-    getRejectedStudents: async (sectionId, token) => {
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/instructor/sections/${sectionId}/students?status=rejected`,
-            {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-            }
-        );
-    },
-
-    getPendingStudents: async (sectionId, token) => {
-    return await fetch(`${BASE_URL}/api/instructor/sections/${sectionId}/students/pending`, {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    });
-},
-
-// PATCH /api/instructor/sections/:section_id/students/:ss_id/approve
+  // PATCH /api/instructor/sections/:section_id/students/:ss_id/approve
 // Approves a student's request to join the section
 approveStudent: async (sectionId, ssId, token) => {
     return await fetch(`${BASE_URL}/api/instructor/sections/${sectionId}/students/${ssId}/approve`, {
@@ -317,6 +234,21 @@ rejectStudent: async (sectionId, ssId, token) => {
     });
 },
 
+
+    getSectionStudents: async (sectionId, token) => {
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/instructor/sections/${sectionId}/students`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+            }
+        );
+    },
+
+// upload materials 
 
     uploadMaterial: async (sectionId, formData, token) => {
         try {
