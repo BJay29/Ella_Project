@@ -158,16 +158,25 @@ const Management = () => {
         if (sectionId) fetchCourses(sectionId);
     };
 
+    /**
+     * Logic to identify the selected course and prepare data for the display card
+     */
     const finalCardData = useMemo(() => {
         if (!selectedCourse) return null;
+        // Find the full course object based on selected ID
         return courses.find(c => String(c.course_id || c.id) === String(selectedCourse));
     }, [selectedCourse, courses]);
 
+    /**
+     * Handles navigation to the detailed view/SectionDashboard
+     */
     const handleOpenClassroom = (data) => {
         const yearObj = yearLevels.find(y => String(y.year_level_id || y.id) === String(selectedYear));
+        const sectionObj = sections.find(s => String(s.section_id || s.id) === String(selectedSection));
+        
         const preparedData = {
             ...data,
-            // Use year_name for descriptive display in dashboard
+            section_name: sectionObj?.section_name || sectionObj?.name || 'N/A',
             year_level: yearObj?.year_name || yearObj?.year_level || yearObj?.name || 'N/A',
             year_level_id: selectedYear
         };
@@ -201,7 +210,6 @@ const Management = () => {
                                 <option value="">Select Dept</option>
                                 {departments.map(d => (
                                     <option key={d.dept_id || d.id} value={d.dept_id || d.id}>
-                                        {/* FIXED: Using department_name from backend response */}
                                         {d.department_name || d.dept_name || d.name || d.dept_abbr || "Unnamed Dept"}
                                     </option>
                                 ))}
@@ -238,7 +246,6 @@ const Management = () => {
                                 <option value="">Select Year</option>
                                 {yearLevels.map(y => (
                                     <option key={y.year_level_id || y.id} value={y.year_level_id || y.id}>
-                                        {/* FIXED: Using year_name (e.g., "First Year") instead of number */}
                                         {y.year_name || y.year_level || y.name || `Year ${y.year_level_id || y.id}`}
                                     </option>
                                 ))}
@@ -283,6 +290,7 @@ const Management = () => {
                     </div>
 
                     <div className="flex flex-col items-center justify-center min-h-[300px]">
+                        {/* Display the Course Card only when a course is selected */}
                         {finalCardData ? (
                             <div className="w-full max-w-sm bg-white rounded-[2.5rem] border border-gray-200 shadow-xl overflow-hidden group animate-in zoom-in-95 duration-300">
                                 <div className="bg-black h-32 p-8 flex flex-col justify-end relative overflow-hidden group-hover:bg-green-600 transition-colors duration-500">
@@ -290,6 +298,7 @@ const Management = () => {
                                         {finalCardData.course_name || finalCardData.name}
                                     </h3>
                                     <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.2em] mt-2">
+                                        {/* Display the selected section name */}
                                         Section {sections.find(s => String(s.section_id || s.id) === String(selectedSection))?.section_name || "N/A"}
                                     </p>
                                 </div>
@@ -306,6 +315,7 @@ const Management = () => {
                                         </div>
                                     </div>
 
+                                    {/* Action button to navigate to student list/dashboard */}
                                     <button 
                                         onClick={() => handleOpenClassroom(finalCardData)}
                                         className="w-full py-4 bg-black group-hover:bg-green-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95"
