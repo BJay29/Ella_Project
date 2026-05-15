@@ -553,20 +553,59 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
             // 1. Fetch Students (Main List)
             const studentsRes = await authAPI.getSectionStudents(sId, token);
-            let mainStudents = [];
-            if (studentsRes.ok) {
-                const sData = await studentsRes.json();
-                mainStudents = sData.students || sData || [];
-            }
+           let mainStudents = [];
+
+if (studentsRes.ok) {
+    const sData = await studentsRes.json();
+
+    console.log("MAIN STUDENTS RESPONSE:", sData);
+
+    if (Array.isArray(sData)) {
+        mainStudents = sData;
+    } 
+    else if (Array.isArray(sData.students)) {
+        mainStudents = sData.students;
+    } 
+    else if (sData.student) {
+        mainStudents = [sData.student];
+    } 
+    else if (sData.students && typeof sData.students === 'object') {
+        mainStudents = [sData.students];
+    }
+}
 
             // 2. Fetch Pending Students (New API)
-            const pendingRes = await authAPI.getPendingStudents(sId, token);
-            let pendingStudents = [];
-            if (pendingRes.ok) {
-                const pData = await pendingRes.json();
-                // Siguraduhin nating may "status: pending" para sa UI badge
-                pendingStudents = (pData.students || pData || []).map(s => ({ ...s, status: 'pending' }));
-            }
+          // 2. Fetch Pending Students (New API)
+const pendingRes = await authAPI.getPendingStudents(sId, token);
+
+let pendingStudents = [];
+
+if (pendingRes.ok) {
+    const pData = await pendingRes.json();
+
+    console.log("PENDING RESPONSE:", pData);
+
+    // Handle different API response structures safely
+    let pendingArray = [];
+
+    if (Array.isArray(pData)) {
+        pendingArray = pData;
+    } 
+    else if (Array.isArray(pData.students)) {
+        pendingArray = pData.students;
+    } 
+    else if (pData.student) {
+        pendingArray = [pData.student];
+    } 
+    else if (pData.students && typeof pData.students === 'object') {
+        pendingArray = [pData.students];
+    }
+
+    pendingStudents = pendingArray.map(s => ({
+        ...s,
+        status: 'pending'
+    }));
+}
 
             // Pagsamahin ang dalawa (Pending sa taas kung gusto mo, o depende sa sort)
             setStudents([...pendingStudents, ...mainStudents]);
