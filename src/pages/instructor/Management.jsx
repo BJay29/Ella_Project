@@ -6,6 +6,7 @@ const Management = () => {
     const [view, setView] = useState('list');
     const [isLoading, setIsLoading] = useState(false);
     const [activeSection, setActiveSection] = useState(null);
+    const [showCard, setShowCard] = useState(false); // New state to control card visibility
 
     // --- Data States for Dropdowns ---
     const [departments, setDepartments] = useState([]);
@@ -42,13 +43,9 @@ const Management = () => {
             const json = await res.json();
             console.log(`Management Log [${label} Raw Response]:`, json);
 
-            // 1. If response is directly an array
             if (Array.isArray(json)) return json;
-
-            // 2. Check standard data keys
             if (json.data && Array.isArray(json.data)) return json.data;
             
-            // 3. Dynamic search: Find the first key that is an array (e.g., { departments: [...] })
             const dynamicKey = Object.keys(json).find(key => Array.isArray(json[key]));
             if (dynamicKey) {
                 console.log(`Management Log: Auto-detected array in key: "${dynamicKey}"`);
@@ -110,7 +107,6 @@ const Management = () => {
      */
     const fetchSections = async (deptId, programId, yearId) => {
         try {
-            console.log(`Management Log: Fetching Sections for Year ID: ${yearId}`);
             const res = await authAPI.getInstructorSections(deptId, programId, yearId, token);
             const data = await extractData(res, "Sections");
             setSections(data);
@@ -128,12 +124,13 @@ const Management = () => {
         } catch (err) { console.error("Error fetching courses:", err); }
     };
 
-    // --- State Reset Handlers (Cascading selection logic) ---
+    // --- State Reset Handlers ---
 
     const handleDeptChange = (deptId) => {
         setSelectedDept(deptId);
         setSelectedProgram(''); setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
         setPrograms([]); setYearLevels([]); setSections([]); setCourses([]);
+        setShowCard(false); // Hide card on change
         if (deptId) fetchPrograms(deptId);
     };
 
@@ -141,6 +138,7 @@ const Management = () => {
         setSelectedProgram(progId);
         setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
         setYearLevels([]); setSections([]); setCourses([]);
+        setShowCard(false); // Hide card on change
         if (progId) fetchYearLevels(selectedDept, progId);
     };
 
@@ -148,6 +146,7 @@ const Management = () => {
         setSelectedYear(yearId);
         setSelectedSection(''); setSelectedCourse('');
         setSections([]); setCourses([]);
+        setShowCard(false); // Hide card on change
         if (yearId) fetchSections(selectedDept, selectedProgram, yearId);
     };
 
@@ -155,6 +154,7 @@ const Management = () => {
         setSelectedSection(sectionId);
         setSelectedCourse('');
         setCourses([]);
+        setShowCard(false); // Hide card on change
         if (sectionId) fetchCourses(sectionId);
     };
 
@@ -163,7 +163,6 @@ const Management = () => {
      */
     const finalCardData = useMemo(() => {
         if (!selectedCourse) return null;
-        // Find the full course object based on selected ID
         return courses.find(c => String(c.course_id || c.id) === String(selectedCourse));
     }, [selectedCourse, courses]);
 
@@ -197,7 +196,8 @@ const Management = () => {
                         </p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-200 flex flex-wrap gap-4 mb-12">
+                    {/* Selection Bar */}
+                    <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-200 flex flex-wrap items-end gap-4 mb-12">
                         
                         {/* 1. Department */}
                         <div className="flex flex-col flex-1 min-w-[140px] gap-1.5">
@@ -276,7 +276,10 @@ const Management = () => {
                             <select 
                                 disabled={!selectedSection}
                                 value={selectedCourse}
-                                onChange={(e) => setSelectedCourse(e.target.value)}
+                                onChange={(e) => {
+                                    setSelectedCourse(e.target.value);
+                                    setShowCard(false); // Hide card until button click
+                                }}
                                 className="bg-gray-50 disabled:opacity-40 border border-gray-300 rounded-2xl px-4 py-3 text-[11px] font-black text-black outline-none cursor-pointer"
                             >
                                 <option value="">Select Course</option>
@@ -287,18 +290,29 @@ const Management = () => {
                                 ))}
                             </select>
                         </div>
+
+                        {/* TRIGGER BUTTON: Only enabled when a course is selected */}
+                        <button
+                            disabled={!selectedCourse}
+                            onClick={() => setShowCard(true)}
+                            className="bg-black text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+                        >
+                            Select Course
+                        </button>
                     </div>
 
                     <div className="flex flex-col items-center justify-center min-h-[300px]">
-                        {/* Display the Course Card only when a course is selected */}
-                        {finalCardData ? (
-                            <div className="w-full max-w-sm bg-white rounded-[2.5rem] border border-gray-200 shadow-xl overflow-hidden group animate-in zoom-in-95 duration-300">
+                        {/* Display the Course Card only when showCard state is true */}
+                        {showCard && finalCardData ? (
+                            <div 
+                                onClick={() => handleOpenClassroom(finalCardData)}
+                                className="w-full max-w-sm bg-white rounded-[2.5rem] border border-gray-200 shadow-xl overflow-hidden group animate-in zoom-in-95 duration-300 cursor-pointer hover:border-black transition-all"
+                            >
                                 <div className="bg-black h-32 p-8 flex flex-col justify-end relative overflow-hidden group-hover:bg-green-600 transition-colors duration-500">
                                     <h3 className="text-white text-2xl font-black uppercase italic tracking-tighter leading-none truncate">
                                         {finalCardData.course_name || finalCardData.name}
                                     </h3>
                                     <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.2em] mt-2">
-                                        {/* Display the selected section name */}
                                         Section {sections.find(s => String(s.section_id || s.id) === String(selectedSection))?.section_name || "N/A"}
                                     </p>
                                 </div>
@@ -315,19 +329,15 @@ const Management = () => {
                                         </div>
                                     </div>
 
-                                    {/* Action button to navigate to student list/dashboard */}
-                                    <button 
-                                        onClick={() => handleOpenClassroom(finalCardData)}
-                                        className="w-full py-4 bg-black group-hover:bg-green-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95"
-                                    >
+                                    <div className="w-full py-4 bg-black group-hover:bg-green-600 text-white rounded-2xl text-[10px] text-center font-black uppercase tracking-widest transition-all shadow-lg active:scale-95">
                                         Manage Students
-                                    </button>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
                             <div className="text-center select-none opacity-40">
                                 <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black">
-                                    Complete all selections to preview classroom
+                                    {selectedCourse ? "Click the button to preview" : "Complete all selections to preview classroom"}
                                 </p>
                             </div>
                         )}
