@@ -314,7 +314,7 @@ getSpecificMaterial: async (sectionId, materialId, token) => {
 
 saveCourseCard: async (token, sectionId, courseId) => {
         try {
-            const url = `${BASE_URL}/api/instructor/sections/${sectionId}/courses/${courseId}/card`;
+            const url = `${BASE_URL}/api/instructor/sections/${sectionId}/courses/${courseId}/cards`;
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -346,7 +346,7 @@ saveCourseCard: async (token, sectionId, courseId) => {
      */
     getSavedCourseCards: async (token) => {
         try {
-            const url = `${BASE_URL}/api/instructor/course-card`;
+            const url = `${BASE_URL}/api/instructor/course-cards`;
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
