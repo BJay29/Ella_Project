@@ -33,16 +33,21 @@ const normalise = (raw) => ({
     raw.section?.course_id,
 
   // ✅ FIXED COURSE NAME
-course_name:
-  raw.course_name ||
-  raw.course?.course_name ||
-  raw.course?.title ||
-  raw.courseName ||
-  raw.title ||
-  raw.course_title ||
-  raw.program_name ||          // ✅ ADD THIS
-  raw.department_name ||       // ✅ optional fallback
-  'Untitled Course',
+  course_name:
+    raw.course_name ||
+    raw.course?.course_name ||
+    raw.course?.name ||
+    raw.course?.name ||
+    raw.section?.course_name ||
+    raw.section?.course?.course_name ||
+    raw.section?.course?.name ||
+    raw.section?.course?.name ||
+    raw.subject_name ||
+    raw.subject ||
+    raw.courseName ||
+    raw.name ||
+    raw.course_name||
+    'Untitled Course',
 
   // ✅ FIXED SECTION NAME
   section_name:
