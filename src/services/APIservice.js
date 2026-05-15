@@ -1257,5 +1257,53 @@ assignQuestToCourses: async (questId, courseIds, token) => {
             throw error;
         }
     },
+  
+    getStudentProgress: async (token, sectionId = null) => {
+        try {
+            // Gumawa ng URL, magdagdag ng query param kung may sectionId
+            let url = `${BASE_URL}/student/progress`;
+            if (sectionId) {
+                url += `?section_id=${sectionId}`;
+            }
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token.replace(/"/g, '')}`, // Nililinis ang token
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
+
+            return response;
+        } catch (error) {
+            console.error("API Error [getStudentProgress]:", error);
+            throw error;
+        }
+    },
+    getStudentLeaderboard: async (token, sectionId = null) => {
+        try {
+            // Gumawa ng URL, magdagdag ng filter para sa section kung meron
+            let url = `${BASE_URL}/student/leaderboard`;
+            if (sectionId) {
+                url += `?section_id=${sectionId}`;
+            }
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token.replace(/"/g, '')}`, // Nililinis ang extra quotes
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
+
+            return response;
+        } catch (error) {
+            console.error("API Error [getStudentLeaderboard]:", error);
+            throw error;
+        }
+    },
+
  
 };
