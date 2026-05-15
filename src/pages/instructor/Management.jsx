@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import SectionDashboard from './StudentManagement/SectionDashboard';
 import { authAPI } from '../../services/APIservice';
-import { Plus, User, Trash2, ExternalLink, X } from 'lucide-react';
+import { Plus, User, Trash2, ExternalLink } from 'lucide-react';
 
 const Management = () => {
     const [view, setView] = useState('list');
@@ -10,10 +10,10 @@ const Management = () => {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState({ title: '', sub: '' });
     
-    // Protection flag to prevent overwriting storage with empty state on mount
+    // Protection flag: ensures we don't save an empty state before loading from storage
     const [isLoaded, setIsLoaded] = useState(false);
 
-    // --- Data States for Dropdowns ---
+    // --- API Data States ---
     const [departments, setDepartments] = useState([]);
     const [programs, setPrograms] = useState([]);
     const [yearLevels, setYearLevels] = useState([]);
@@ -21,21 +21,36 @@ const Management = () => {
     const [courses, setCourses] = useState([]);
 
     /**
-     * DYNAMIC STORAGE KEY HELPER
-     * This ensures cards are tied to a specific user ID so they don't vanish or mix 
-     * up when different users log in/out.
+     * CLEAN TOKEN HELPER
+     * Removes potential double quotes if the token was stored using JSON.stringify
+     */
+    const getCleanToken = useCallback(() => {
+        const rawToken = localStorage.getItem('token');
+        if (!rawToken) return null;
+        return rawToken.replace(/"/g, '');
+    }, []);
+
+    /**
+     * DYNAMIC STORAGE KEY GENERATOR
+     * Ties data to the specific logged-in user to prevent data loss or cross-user leaks.
      */
     const getTargetStorageKey = useCallback(() => {
-        const token = localStorage.getItem('token');
+        const token = getCleanToken();
         if (!token) return 'mgt_selectedCards_guest';
         try {
-            // Decode JWT to get unique user ID (sub or id field)
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return `mgt_selectedCards_${payload.id || payload.sub || 'user'}`;
+            // Decode the middle part of the JWT (Payload)
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(window.atob(base64));
+            
+            // Check common ID fields in JWT payloads
+            const userId = payload.id || payload.sub || payload.user_id || 'user';
+            return `mgt_selectedCards_${userId}`;
         } catch (e) {
+            console.error("Failed to parse token for storage key:", e);
             return 'mgt_selectedCards_default';
         }
-    }, []);
+    }, [getCleanToken]);
 
     const [selectedDept, setSelectedDept] = useState('');
     const [selectedProgram, setSelectedProgram] = useState('');
@@ -43,12 +58,12 @@ const Management = () => {
     const [selectedSection, setSelectedSection] = useState('');
     const [selectedCourse, setSelectedCourse] = useState('');
     
-    // List of created cards
+    // The main state for the persisted course cards
     const [selectedCards, setSelectedCards] = useState([]);
 
     /**
-     * EFFECT: LOAD SAVED CARDS
-     * Runs once on mount to retrieve persisted data for the specific user
+     * EFFECT: INITIAL DATA LOAD
+     * Retrieves the specific user's cards from localStorage on component mount.
      */
     useEffect(() => {
         const key = getTargetStorageKey();
@@ -61,41 +76,38 @@ const Management = () => {
                 }
             }
         } catch (error) {
-            console.error('Error loading saved cards:', error);
+            console.error('Persistence Error: Load failed', error);
         } finally {
-            // Mark as loaded so the save effect can safely start tracking changes
+            // Very important: Mark as loaded AFTER we attempt to read from storage
             setIsLoaded(true);
         }
     }, [getTargetStorageKey]);
 
-    // Token retrieval logic
-    const token = useMemo(() => {
-        const rawToken = localStorage.getItem('token');
-        const cleanToken = rawToken ? rawToken.replace(/"/g, '') : null;
-        return cleanToken;
-    }, []);
-
     /**
-     * EFFECT: SAVE CARDS TO LOCAL STORAGE
-     * Triggers every time selectedCards state changes, but ONLY after initial load
+     * EFFECT: PERSISTENCE SYNC
+     * Automatically saves state to localStorage whenever cards are added or removed.
      */
     useEffect(() => {
+        // Only run this if we have successfully finished the initial load
         if (isLoaded) {
             const key = getTargetStorageKey();
             try {
                 localStorage.setItem(key, JSON.stringify(selectedCards));
             } catch (error) {
-                console.error('Error saving cards:', error);
+                console.error('Persistence Error: Save failed', error);
             }
         }
     }, [selectedCards, getTargetStorageKey, isLoaded]);
 
+    const token = useMemo(() => getCleanToken(), [getCleanToken]);
+
     /**
-     * EXTRACT DATA HELPER
+     * API RESPONSE HANDLER
+     * Standardizes array extraction from various API response formats.
      */
     const extractData = async (res, label) => {
         if (!res.ok) {
-            console.error(`Management API Error [${label}]: Status ${res.status}`);
+            console.error(`API Error [${label}]: ${res.status}`);
             return [];
         }
         try {
@@ -105,14 +117,12 @@ const Management = () => {
             const dynamicKey = Object.keys(json).find(key => Array.isArray(json[key]));
             return dynamicKey ? json[dynamicKey] : [];
         } catch (err) {
-            console.error(`Management Log [${label}]: JSON Parse Error`, err);
             return [];
         }
     };
 
-    /**
-     * FETCH FUNCTIONS
-     */
+    // --- API Fetch Logic ---
+
     const fetchDepartments = useCallback(async () => {
         if (!token) return;
         setIsLoading(true);
@@ -121,7 +131,7 @@ const Management = () => {
             const data = await extractData(res, "Departments");
             setDepartments(data);
         } catch (err) {
-            console.error("Management Log: Error fetching departments:", err);
+            console.error("Fetch Error:", err);
         } finally {
             setIsLoading(false);
         }
@@ -130,40 +140,37 @@ const Management = () => {
     const fetchPrograms = async (deptId) => {
         try {
             const res = await authAPI.getInstructorPrograms(deptId, token);
-            const data = await extractData(res, "Programs");
-            setPrograms(data);
-        } catch (err) { console.error("Error fetching programs:", err); }
+            setPrograms(await extractData(res, "Programs"));
+        } catch (err) { console.error(err); }
     };
 
     const fetchYearLevels = async (deptId, programId) => {
         try {
             const res = await authAPI.getInstructorYearLevels(deptId, programId, token);
-            const data = await extractData(res, "YearLevels");
-            setYearLevels(data);
-        } catch (err) { console.error("Error fetching year levels:", err); }
+            setYearLevels(await extractData(res, "YearLevels"));
+        } catch (err) { console.error(err); }
     };
 
     const fetchSections = async (deptId, programId, yearId) => {
         try {
             const res = await authAPI.getInstructorSections(deptId, programId, yearId, token);
-            const data = await extractData(res, "Sections");
-            setSections(data);
-        } catch (err) { console.error("Error fetching sections:", err); }
+            setSections(await extractData(res, "Sections"));
+        } catch (err) { console.error(err); }
     };
 
     const fetchCourses = async (sectionId) => {
         try {
             const res = await authAPI.getInstructorCourses(sectionId, token);
-            const data = await extractData(res, "Courses");
-            setCourses(data);
-        } catch (err) { console.error("Error fetching courses:", err); }
+            setCourses(await extractData(res, "Courses"));
+        } catch (err) { console.error(err); }
     };
 
     useEffect(() => {
         fetchDepartments();
     }, [fetchDepartments]);
 
-    // --- State Reset Handlers ---
+    // --- UI Event Handlers ---
+
     const handleDeptChange = (deptId) => {
         setSelectedDept(deptId);
         setSelectedProgram(''); setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
@@ -197,6 +204,10 @@ const Management = () => {
         setView('focus');
     };
 
+    /**
+     * CREATE NEW COURSE CARD
+     * Combines selected dropdown data into a persistent card object.
+     */
     const handleSelectCourse = () => {
         if (selectedCourse) {
             const courseObj = courses.find(c => String(c.course_id || c.id) === String(selectedCourse));
@@ -206,26 +217,22 @@ const Management = () => {
             if (courseObj) {
                 const newCard = {
                     ...courseObj,
-                    unique_key: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                    unique_key: `card-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                     section_name: sectionObj?.section_name || 'N/A',
                     section_code: sectionObj?.section_code || 'N/A',
                     year_level: yearObj?.year_name || 'N/A',
                     year_level_id: selectedYear
                 };
 
-                // PREVENT DUPLICATE COURSE CARDS
+                // Check for duplicates (same course in same section)
                 setSelectedCards(prev => {
-                    const exists = prev.some(
-                        item =>
-                            String(item.course_id || item.id) === String(newCard.course_id || newCard.id) &&
-                            String(item.section_code) === String(newCard.section_code)
+                    const exists = prev.some(item => 
+                        String(item.course_id || item.id) === String(newCard.course_id || newCard.id) &&
+                        String(item.section_code) === String(newCard.section_code)
                     );
 
                     if (exists) {
-                        setSuccessMessage({
-                            title: 'Duplicate Course',
-                            sub: 'This course card already exists'
-                        });
+                        setSuccessMessage({ title: 'Duplicate Course', sub: 'This card already exists' });
                         setShowSuccessModal(true);
                         setTimeout(() => setShowSuccessModal(false), 3000);
                         return prev;
@@ -233,12 +240,11 @@ const Management = () => {
                     return [newCard, ...prev];
                 });
 
-                // Show Success Notification
-                setSuccessMessage({ title: 'Course Added', sub: 'Ready for management' });
+                setSuccessMessage({ title: 'Course Added', sub: 'Card created successfully' });
                 setShowSuccessModal(true);
                 setTimeout(() => setShowSuccessModal(false), 3000);
 
-                // RESET DROPDOWNS AFTER CREATING CARD
+                // Reset Selection UI
                 setSelectedDept(''); setSelectedProgram(''); setSelectedYear('');
                 setSelectedSection(''); setSelectedCourse('');
                 setPrograms([]); setYearLevels([]); setSections([]); setCourses([]);
@@ -248,10 +254,8 @@ const Management = () => {
 
     const handleDeleteCard = (e, uniqueKey) => {
         e.stopPropagation();
-        const filteredCards = selectedCards.filter(card => card.unique_key !== uniqueKey);
-        setSelectedCards(filteredCards);
-        
-        setSuccessMessage({ title: 'Card Deleted', sub: 'Removed from your list' });
+        setSelectedCards(prev => prev.filter(card => card.unique_key !== uniqueKey));
+        setSuccessMessage({ title: 'Card Deleted', sub: 'Removed from dashboard' });
         setShowSuccessModal(true);
         setTimeout(() => setShowSuccessModal(false), 3000);
     };
@@ -259,7 +263,7 @@ const Management = () => {
     return (
         <div className="w-full min-h-screen p-6 relative bg-gray-50/30">
             
-            {/* SUCCESS MODAL / TOAST NOTIFICATION */}
+            {/* SUCCESS NOTIFICATION TOAST */}
             {showSuccessModal && (
                 <div className="fixed top-6 right-6 z-[100] animate-in slide-in-from-right-10 duration-300">
                     <div className="bg-white border-l-4 border-black shadow-2xl rounded-xl p-4 flex items-center gap-4 min-w-[300px]">
@@ -281,12 +285,13 @@ const Management = () => {
                             Classroom Management
                         </h2>
                         <p className="text-[10px] text-gray-600 font-bold uppercase tracking-[0.2em] mt-1">
-                            Follow the sequence to access your assigned classes (Auto-saved per account)
+                            Set up and access your assigned courses (Saved per account)
                         </p>
                     </div>
 
-                    {/* Selection Bar / Configuration */}
+                    {/* CONFIGURATION BAR */}
                     <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-200 flex flex-wrap items-end gap-4 mb-12">
+                        {/* Department Select */}
                         <div className="flex flex-col flex-1 min-w-[140px] gap-1.5">
                             <label className="text-[9px] font-black text-black uppercase ml-2">Department</label>
                             <select 
@@ -303,6 +308,7 @@ const Management = () => {
                             </select>
                         </div>
 
+                        {/* Program Select */}
                         <div className="flex flex-col flex-1 min-w-[140px] gap-1.5">
                             <label className="text-[9px] font-black text-black uppercase ml-2">Program</label>
                             <select 
@@ -320,6 +326,7 @@ const Management = () => {
                             </select>
                         </div>
 
+                        {/* Year Level Select */}
                         <div className="flex flex-col w-[120px] gap-1.5">
                             <label className="text-[9px] font-black text-black uppercase ml-2">Year Level</label>
                             <select 
@@ -337,6 +344,7 @@ const Management = () => {
                             </select>
                         </div>
 
+                        {/* Section Select */}
                         <div className="flex flex-col flex-1 min-w-[140px] gap-1.5">
                             <label className="text-[9px] font-black text-black uppercase ml-2">Section</label>
                             <select 
@@ -354,6 +362,7 @@ const Management = () => {
                             </select>
                         </div>
 
+                        {/* Course Select */}
                         <div className="flex flex-col flex-[1.2] min-w-[160px] gap-1.5">
                             <label className="text-[9px] font-black text-black uppercase ml-2">Course</label>
                             <select 
@@ -374,13 +383,13 @@ const Management = () => {
                         <button
                             disabled={!selectedCourse}
                             onClick={handleSelectCourse}
-                            className="bg-black text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+                            className="bg-black text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 disabled:opacity-20 transition-all"
                         >
-                            Create Course Card
+                            Create Card
                         </button>
                     </div>
 
-                    {/* CARD DISPLAY AREA */}
+                    {/* RENDER PERSISTED CARDS */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 py-12">
                         {selectedCards.length > 0 ? (
                             selectedCards.map((card) => (
@@ -389,6 +398,7 @@ const Management = () => {
                                     onClick={() => handleOpenClassroom(card)}
                                     className="w-full bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-300 cursor-pointer animate-in zoom-in-95"
                                 >
+                                    {/* Card Header */}
                                     <div className="bg-[#1a73e8] h-[100px] p-5 relative group-hover:bg-[#185abc] transition-colors">
                                         <div className="flex justify-between items-start relative z-10">
                                             <div className="flex flex-col max-w-[80%]">
@@ -408,17 +418,16 @@ const Management = () => {
                                         </div>
                                     </div>
 
+                                    {/* Card Content */}
                                     <div className="p-5 h-[140px] flex flex-col justify-between">
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Code:</span>
+                                                <span className="text-[9px] font-black text-gray-400 uppercase">Code:</span>
                                                 <span className="text-[11px] font-bold text-gray-700">{card.course_code || "N/A"}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Section Code:</span>
-                                                <span className="text-[11px] font-bold text-blue-600">
-                                                    {card.section_code}
-                                                </span>
+                                                <span className="text-[9px] font-black text-gray-400 uppercase">Section Code:</span>
+                                                <span className="text-[11px] font-bold text-blue-600">{card.section_code}</span>
                                             </div>
                                         </div>
 
@@ -426,10 +435,8 @@ const Management = () => {
                                             <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
                                                 <User size={16} />
                                             </div>
-                                            <div className="flex gap-2">
-                                                <div className="p-2 text-gray-400 hover:text-[#1a73e8] transition-colors">
-                                                    <ExternalLink size={18} />
-                                                </div>
+                                            <div className="p-2 text-gray-400 hover:text-[#1a73e8]">
+                                                <ExternalLink size={18} />
                                             </div>
                                         </div>
                                     </div>
@@ -440,8 +447,8 @@ const Management = () => {
                                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                     <Plus size={24} className="text-gray-400" />
                                 </div>
-                                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black text-center">
-                                    No courses selected.
+                                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black">
+                                    No courses currently active
                                 </p>
                             </div>
                         )}
