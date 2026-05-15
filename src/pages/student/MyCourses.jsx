@@ -733,35 +733,87 @@ const MyCourses = () => {
   };
 
   useEffect(() => { fetchEnrollments(); }, [fetchEnrollments]);
+const handleJoin = async () => {
 
-  const handleJoin = async () => {
-    const code = sectionCode.trim().toUpperCase();
-    const token = getToken();
-    setJoinStatus('loading');
+  const code = sectionCode?.trim()?.toUpperCase();
+
+  if (!code) {
+    setJoinStatus('error');
+    setJoinMessage('Section code is required.');
+    return;
+  }
+
+  const token = getToken();
+
+  if (!token) {
+    setJoinStatus('error');
+    setJoinMessage('Session expired.');
+    return;
+  }
+
+  setJoinStatus('loading');
+  setJoinMessage('');
+
+  try {
+
+    console.log('Joining section:', code);
+
+    // ✅ FIXED API CALL
+    const res = await authAPI.joinSection(code, token);
+
+    let data = {};
+
     try {
-      const res = await authAPI.joinSection(token, { section_code: code });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setJoinStatus('success');
-        await fetchEnrollments();
-        setTimeout(() => {
-          setShowModal(false);
-          setJoinStatus('idle');
-          setSectionCode('');
-        }, 1500);
-        if (notificationsEnabled) {
-          addJoinNotification(code, data.section_name || code, data.course_name || '');
-        }
-      } else {
-        setJoinStatus('error');
-        setJoinMessage(data.message || data.error || 'Invalid section code.');
-      }
-    } catch {
-      setJoinStatus('error');
-      setJoinMessage('Connection error.');
+      data = await res.json();
+    } catch (err) {
+      console.error('JSON Parse Error:', err);
     }
-  };
 
+    console.log('JOIN RESPONSE:', data);
+
+    if (res.ok) {
+
+      setJoinStatus('success');
+
+      await fetchEnrollments();
+
+      if (notificationsEnabled) {
+        addJoinNotification(
+          code,
+          data?.section_name || code,
+          data?.course_name || ''
+        );
+      }
+
+      setTimeout(() => {
+        setShowModal(false);
+        setJoinStatus('idle');
+        setJoinMessage('');
+        setSectionCode('');
+      }, 1200);
+
+    } else {
+
+      setJoinStatus('error');
+
+      setJoinMessage(
+        data?.message ||
+        data?.error ||
+        `Join failed (${res.status})`
+      );
+    }
+
+  } catch (err) {
+
+    console.error('JOIN ERROR:', err);
+
+    setJoinStatus('error');
+
+    setJoinMessage(
+      err?.message || 'Network connection error.'
+    );
+  }
+};
   // ── SECTION DETAIL VIEW ──
   if (selectedSectionId && !loading) {
     const classmatesList = sectionDetails?.classmates || sectionDetails?.students || [];
