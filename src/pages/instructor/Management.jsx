@@ -26,44 +26,35 @@ const Management = () => {
      * up when different users log in/out.
      */
    const getTargetStorageKey = useCallback(() => {
+
     try {
-        const rawToken =
-            localStorage.getItem('token') ||
-            sessionStorage.getItem('token');
 
-        if (!rawToken) {
-            return 'mgt_selectedCards_guest';
+        const rawUser =
+            localStorage.getItem('user') ||
+            sessionStorage.getItem('user');
+
+        if (!rawUser) {
+            return 'mgt_selectedCards';
         }
 
-        const token = rawToken.replace(/"/g, '');
+        const user = JSON.parse(rawUser);
 
-        const payloadBase64 = token.split('.')[1];
-
-        if (!payloadBase64) {
-            return 'mgt_selectedCards_guest';
-        }
-
-        const payload = JSON.parse(atob(payloadBase64));
-
-        // IMPORTANT:
-        // use ONE stable identifier only
         const userId =
-            payload.user_id ||
-            payload.id ||
-            payload.sub;
-
-        if (!userId) {
-            return 'mgt_selectedCards_guest';
-        }
+            user.user_id ||
+            user.id ||
+            user.email ||
+            user.username;
 
         return `mgt_selectedCards_${userId}`;
 
     } catch (err) {
-        console.error('Storage Key Error:', err);
-        return 'mgt_selectedCards_guest';
-    }
-}, []);
 
+        console.error(err);
+
+        return 'mgt_selectedCards';
+    }
+
+}, []);
     const [selectedDept, setSelectedDept] = useState('');
     const [selectedProgram, setSelectedProgram] = useState('');
     const [selectedYear, setSelectedYear] = useState('');
@@ -77,23 +68,34 @@ const firstLoadRef = useRef(true);
      * EFFECT: LOAD SAVED CARDS
      * Runs once on mount to retrieve persisted data for the specific user
      */
-    useEffect(() => {
-        const key = getTargetStorageKey();
-        try {
-            const savedCards = localStorage.getItem(key);
-            if (savedCards) {
-                const parsedCards = JSON.parse(savedCards);
-                if (Array.isArray(parsedCards)) {
-                    setSelectedCards(parsedCards);
-                }
-            }
-        } catch (error) {
-            console.error('Error loading saved cards:', error);
-        } finally {
-            // Mark as loaded so the save effect can safely start tracking changes
-            setIsLoaded(true);
-        }
-    }, [getTargetStorageKey]);
+   useEffect(() => {
+
+    if (!isLoaded) return;
+
+    if (firstLoadRef.current) {
+        firstLoadRef.current = false;
+        return;
+    }
+
+    const key = getTargetStorageKey();
+
+    console.log('SAVE KEY:', key);
+    console.log('SAVING:', selectedCards);
+
+    try {
+
+        localStorage.setItem(
+            key,
+            JSON.stringify(selectedCards)
+        );
+
+    } catch (error) {
+
+        console.error('Error saving cards:', error);
+
+    }
+
+}, [selectedCards, getTargetStorageKey, isLoaded]);
 
     // Token retrieval logic
     const token = useMemo(() => {
