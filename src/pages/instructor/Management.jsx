@@ -9,6 +9,7 @@ const Management = () => {
     const [activeSection, setActiveSection] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState({ title: '', sub: '' });
+    const STORAGE_KEY = 'mgt_selectedCards';
 
     // --- Data States for Dropdowns ---
     const [departments, setDepartments] = useState([]);
@@ -27,20 +28,29 @@ const Management = () => {
     const [selectedCourse, setSelectedCourse] = useState('');
     
     // List of created cards (Stored as array to keep multiple cards)
-    const [selectedCards, setSelectedCards] = useState(() => {
-        // Retrieve saved cards from localStorage on initial load
-        const saved = localStorage.getItem('mgt_selectedCards');
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {
-                console.error("Error parsing saved cards:", e);
-                return [];
+  const [selectedCards, setSelectedCards] = useState([]);
+
+/**
+ * LOAD SAVED CARDS FROM LOCAL STORAGE
+ */
+useEffect(() => {
+    try {
+        const savedCards = localStorage.getItem(STORAGE_KEY);
+
+        if (savedCards) {
+            const parsedCards = JSON.parse(savedCards);
+
+            if (Array.isArray(parsedCards)) {
+                setSelectedCards(parsedCards);
+            } else {
+                setSelectedCards([]);
             }
         }
-        return [];
-    });
-
+    } catch (error) {
+        console.error('Error loading saved cards:', error);
+        setSelectedCards([]);
+    }
+}, []);
     // Token retrieval logic
     const token = useMemo(() => {
         const rawToken = localStorage.getItem('token');
@@ -52,11 +62,19 @@ const Management = () => {
      * EFFECT: Save Cards to LocalStorage
      * This ensures that every time selectedCards state changes, it is mirrored in storage
      */
-    useEffect(() => {
-        if (selectedCards) {
-            localStorage.setItem('mgt_selectedCards', JSON.stringify(selectedCards));
-        }
-    }, [selectedCards]);
+   /**
+ * SAVE CARDS TO LOCAL STORAGE
+ */
+useEffect(() => {
+    try {
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(selectedCards)
+        );
+    } catch (error) {
+        console.error('Error saving cards:', error);
+    }
+}, [selectedCards]);
 
     /**
      * EXTRACT DATA HELPER
@@ -174,7 +192,7 @@ const Management = () => {
             if (courseObj) {
                 const newCard = {
                     ...courseObj,
-                    unique_key: Date.now(), // timestamp to prevent duplicate key issues
+                    unique_key: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,// timestamp to prevent duplicate key issues
                     section_name: sectionObj?.section_name || 'N/A',
                     section_code: sectionObj?.section_code || 'N/A',
                     year_level: yearObj?.year_name || 'N/A',
@@ -182,9 +200,33 @@ const Management = () => {
                 };
 
                 // Update state and persistence
-                const updatedCards = [newCard, ...selectedCards];
-                setSelectedCards(updatedCards);
-                
+               // PREVENT DUPLICATE COURSE CARDS
+setSelectedCards(prev => {
+
+    const exists = prev.some(
+        item =>
+            String(item.course_id || item.id) === String(newCard.course_id || newCard.id) &&
+            String(item.section_code) === String(newCard.section_code)
+    );
+
+    if (exists) {
+
+        setSuccessMessage({
+            title: 'Duplicate Course',
+            sub: 'This course card already exists'
+        });
+
+        setShowSuccessModal(true);
+
+        setTimeout(() => {
+            setShowSuccessModal(false);
+        }, 3000);
+
+        return prev;
+    }
+
+    return [newCard, ...prev];
+});
                 // Show Success Notification
                 setSuccessMessage({ title: 'Course Added', sub: 'Ready for management' });
                 setShowSuccessModal(true);
