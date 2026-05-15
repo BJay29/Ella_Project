@@ -28,11 +28,20 @@ const Management = () => {
     
     // List of created cards (Stored as array to keep multiple cards)
     const [selectedCards, setSelectedCards] = useState(() => {
+        // Retrieve saved cards from localStorage on initial load
         const saved = localStorage.getItem('mgt_selectedCards');
-        return saved ? JSON.parse(saved) : [];
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                console.error("Error parsing saved cards:", e);
+                return [];
+            }
+        }
+        return [];
     });
 
-    // Token retrieval
+    // Token retrieval logic
     const token = useMemo(() => {
         const rawToken = localStorage.getItem('token');
         const cleanToken = rawToken ? rawToken.replace(/"/g, '') : null;
@@ -41,9 +50,12 @@ const Management = () => {
 
     /**
      * EFFECT: Save Cards to LocalStorage
+     * This ensures that every time selectedCards state changes, it is mirrored in storage
      */
     useEffect(() => {
-        localStorage.setItem('mgt_selectedCards', JSON.stringify(selectedCards));
+        if (selectedCards) {
+            localStorage.setItem('mgt_selectedCards', JSON.stringify(selectedCards));
+        }
     }, [selectedCards]);
 
     /**
@@ -162,22 +174,23 @@ const Management = () => {
             if (courseObj) {
                 const newCard = {
                     ...courseObj,
-                    unique_key: Date.now(), // to prevent duplicate key issues
+                    unique_key: Date.now(), // timestamp to prevent duplicate key issues
                     section_name: sectionObj?.section_name || 'N/A',
                     section_code: sectionObj?.section_code || 'N/A',
                     year_level: yearObj?.year_name || 'N/A',
                     year_level_id: selectedYear
                 };
 
-                // Add to list
-                setSelectedCards(prev => [newCard, ...prev]);
+                // Update state and persistence
+                const updatedCards = [newCard, ...selectedCards];
+                setSelectedCards(updatedCards);
                 
-                // Show Success
+                // Show Success Notification
                 setSuccessMessage({ title: 'Course Added', sub: 'Ready for management' });
                 setShowSuccessModal(true);
                 setTimeout(() => setShowSuccessModal(false), 3000);
 
-                // RESET DROPDOWNS AFTER CREATING
+                // RESET DROPDOWNS AFTER CREATING CARD
                 setSelectedDept('');
                 setSelectedProgram('');
                 setSelectedYear('');
@@ -192,8 +205,10 @@ const Management = () => {
     };
 
     const handleDeleteCard = (e, uniqueKey) => {
-        e.stopPropagation(); // Prevent opening classroom
-        setSelectedCards(prev => prev.filter(card => card.unique_key !== uniqueKey));
+        e.stopPropagation(); // Prevent opening classroom view
+        const filteredCards = selectedCards.filter(card => card.unique_key !== uniqueKey);
+        setSelectedCards(filteredCards);
+        
         setSuccessMessage({ title: 'Card Deleted', sub: 'Removed from your list' });
         setShowSuccessModal(true);
         setTimeout(() => setShowSuccessModal(false), 3000);
@@ -202,7 +217,7 @@ const Management = () => {
     return (
         <div className="w-full min-h-screen p-6 relative">
             
-            {/* SUCCESS MODAL / TOAST */}
+            {/* SUCCESS MODAL / TOAST NOTIFICATION */}
             {showSuccessModal && (
                 <div className="fixed top-6 right-6 z-[100] animate-in slide-in-from-right-10 duration-300">
                     <div className="bg-white border-l-4 border-black shadow-2xl rounded-xl p-4 flex items-center gap-4 min-w-[300px]">
@@ -228,7 +243,7 @@ const Management = () => {
                         </p>
                     </div>
 
-                    {/* Selection Bar */}
+                    {/* Selection Bar / Configuration */}
                     <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-200 flex flex-wrap items-end gap-4 mb-12">
                         
                         <div className="flex flex-col flex-1 min-w-[140px] gap-1.5">
@@ -324,7 +339,7 @@ const Management = () => {
                         </button>
                     </div>
 
-                    {/* CARD DISPLAY AREA */}
+                    {/* CARD DISPLAY AREA - Persisted from LocalStorage */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 py-12">
                         {selectedCards.length > 0 ? (
                             selectedCards.map((card) => (
