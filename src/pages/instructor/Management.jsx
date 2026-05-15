@@ -41,48 +41,12 @@ const Management = () => {
     const [selectedCards, setSelectedCards] = useState([]);
     const firstLoadRef = useRef(true);
 
-    /**
-     * EFFECT: LOAD SAVED CARDS FROM LOCAL STORAGE
-     */
-    useEffect(() => {
-        const loadInitialData = () => {
-            const key = getTargetStorageKey();
-            const saved = localStorage.getItem(key);
-            if (saved) {
-                try {
-                    setSelectedCards(JSON.parse(saved));
-                } catch (e) {
-                    console.error("Failed to parse saved cards", e);
-                }
-            }
-            setIsLoaded(true);
-        };
-        loadInitialData();
-    }, [getTargetStorageKey]);
-
     // Token retrieval logic
     const token = useMemo(() => {
         const rawToken = localStorage.getItem('token');
         const cleanToken = rawToken ? rawToken.replace(/"/g, '') : null;
         return cleanToken;
     }, []);
-
-    /**
-     * EFFECT: SAVE CARDS TO LOCAL STORAGE (Secondary Backup)
-     */
-    useEffect(() => {
-        if (!isLoaded) return;
-        if (firstLoadRef.current) {
-            firstLoadRef.current = false;
-            return;
-        }
-        const key = getTargetStorageKey();
-        try {
-            localStorage.setItem(key, JSON.stringify(selectedCards));
-        } catch (error) {
-            console.error('Error saving cards:', error);
-        }
-    }, [selectedCards, getTargetStorageKey, isLoaded]);
 
     /**
      * EXTRACT DATA HELPER
@@ -103,6 +67,60 @@ const Management = () => {
             return [];
         }
     };
+
+    /**
+     * NEW EFFECT: LOAD SAVED CARDS FROM DATABASE (PERMANENT)
+     */
+    const fetchSavedCardsFromDB = useCallback(async () => {
+        if (!token) return;
+        setIsLoading(true);
+        try {
+            const res = await authAPI.getSavedCourseCards(token);
+            const data = await extractData(res, "Permanent Cards");
+            
+            if (data && data.length > 0) {
+                // Map database records to match UI card structure
+                const formatted = data.map(item => ({
+                    ...item,
+                    // Ensure each card has a unique key for React rendering
+                    unique_key: item.unique_key || `db-${item.id || item.course_id}-${Math.random().toString(36).substr(2, 9)}`,
+                    // Ensure names are mapped correctly based on your backend response
+                    course_name: item.course_name || item.name,
+                    section_name: item.section_name || 'N/A'
+                }));
+                setSelectedCards(formatted);
+            }
+        } catch (err) {
+            console.error("Management Log: Error fetching saved cards from DB:", err);
+        } finally {
+            setIsLoading(false);
+            setIsLoaded(true);
+        }
+    }, [token]);
+
+    /**
+     * EFFECT: INITIAL DATA LOAD
+     */
+    useEffect(() => {
+        fetchSavedCardsFromDB();
+    }, [fetchSavedCardsFromDB]);
+
+    /**
+     * EFFECT: SAVE CARDS TO LOCAL STORAGE (Secondary Backup Sync)
+     */
+    useEffect(() => {
+        if (!isLoaded) return;
+        if (firstLoadRef.current) {
+            firstLoadRef.current = false;
+            return;
+        }
+        const key = getTargetStorageKey();
+        try {
+            localStorage.setItem(key, JSON.stringify(selectedCards));
+        } catch (error) {
+            console.error('Error saving cards to backup:', error);
+        }
+    }, [selectedCards, getTargetStorageKey, isLoaded]);
 
     /**
      * FETCH FUNCTIONS
@@ -292,7 +310,7 @@ const Management = () => {
                             Classroom Management
                         </h2>
                         <p className="text-[10px] text-gray-600 font-bold uppercase tracking-[0.2em] mt-1">
-                            Follow the sequence to access your assigned classes (Auto-saved per account)
+                            Follow the sequence to access your assigned classes (Auto-saved to database)
                         </p>
                     </div>
 

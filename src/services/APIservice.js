@@ -336,6 +336,56 @@ saveCourseCard: async (token, sectionId, courseId) => {
             throw error;
         }
     },
+    // ... (existing codes)
+
+    /**
+     * POST: SAVE COURSE CARD
+     * Sinesave ang card sa database para hindi mawala sa refresh.
+     */
+    saveCourseCard: async (token, sectionId, courseId) => {
+        try {
+            const url = `${BASE_URL}/api/instructor/course-card`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token.replace(/"/g, '')}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    section_id: sectionId,
+                    course_id: courseId
+                })
+            });
+            return response;
+        } catch (error) {
+            console.error("API Error [saveCourseCard]:", error);
+            throw error;
+        }
+    },
+
+    /**
+     * GET: FETCH SAVED COURSE CARDS
+     * Kinukuha ang lahat ng permanenteng cards mula sa database.
+     */
+    getSavedCourseCards: async (token) => {
+        try {
+            const url = `${BASE_URL}/api/instructor/course-card`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token.replace(/"/g, '')}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
+            return response;
+        } catch (error) {
+            console.error("API Error [getSavedCourseCards]:", error);
+            throw error;
+        }
+    },
+    
     // ─────────────────────────────────────────────────────────────────────────
     // CM ASSIGN QUEST MODAL
     // ─────────────────────────────────────────────────────────────────────────
