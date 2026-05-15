@@ -535,38 +535,85 @@ const EnrollmentCard = ({ enroll, onClick, onUnenroll }) => {
   );
 };
 
-const JoinModal = ({ sectionCode, setSectionCode, joinStatus, setJoinStatus, joinMessage, setJoinMessage, onJoin, onClose }) => (
-  <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-    <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-gray-50 dark:border-gray-700">
-        <h2 className="text-lg font-black text-gray-800 dark:text-white">Join Section</h2>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-      </div>
-      <div className="px-6 py-6 text-center">
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Enter the section code provided by your instructor.</p>
-        <input
-          type="text"
-          value={sectionCode}
-          onChange={(e) => { setSectionCode(e.target.value); setJoinStatus('idle'); setJoinMessage(''); }}
-          className="w-full py-4 px-4 rounded-2xl outline-none border-2 border-gray-100 dark:border-gray-700 focus:border-[#4CAF50] text-gray-800 dark:text-white font-black tracking-widest text-center text-xl uppercase bg-gray-50 dark:bg-gray-900/50"
-          placeholder="CODE"
-          maxLength={10}
-        />
-        {joinStatus === 'error' && <p className="text-xs text-red-500 font-bold mt-4">⚠️ {joinMessage}</p>}
-      </div>
-      <div className="px-6 pb-6">
-        <button
-          onClick={onJoin}
-          disabled={joinStatus === 'loading' || !sectionCode.trim()}
-          className="w-full py-4 rounded-2xl bg-[#4CAF50] text-white font-bold hover:bg-[#43A047] active:scale-95 transition-all shadow-lg"
-        >
-          {joinStatus === 'loading' ? 'Processing...' : 'Send Join Request'}
-        </button>
+const JoinModal = ({
+  sectionCode,
+  setSectionCode,
+  joinStatus,
+  setJoinStatus,
+  joinMessage,
+  setJoinMessage,
+  onJoin,
+  onClose
+}) => {
+
+  const handleInputChange = (e) => {
+    if (typeof setSectionCode === 'function') {
+      setSectionCode(e.target.value);
+    }
+
+    if (typeof setJoinStatus === 'function') {
+      setJoinStatus('idle');
+    }
+
+    if (typeof setJoinMessage === 'function') {
+      setJoinMessage('');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden">
+        
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-50 dark:border-gray-700">
+          <h2 className="text-lg font-black text-gray-800 dark:text-white">
+            Join Section
+          </h2>
+
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div className="px-6 py-6 text-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            Enter the section code provided by your instructor.
+          </p>
+
+          <input
+            type="text"
+            value={sectionCode || ''}
+            onChange={handleInputChange}
+            className="w-full py-4 px-4 rounded-2xl outline-none border-2 border-gray-100 dark:border-gray-700 focus:border-[#4CAF50] text-gray-800 dark:text-white font-black tracking-widest text-center text-xl uppercase bg-gray-50 dark:bg-gray-900/50"
+            placeholder="CODE"
+            maxLength={10}
+          />
+
+          {joinStatus === 'error' && (
+            <p className="text-xs text-red-500 font-bold mt-4">
+              ⚠️ {joinMessage}
+            </p>
+          )}
+        </div>
+
+        <div className="px-6 pb-6">
+          <button
+            onClick={onJoin}
+            disabled={joinStatus === 'loading' || !sectionCode?.trim()}
+            className="w-full py-4 rounded-2xl bg-[#4CAF50] text-white font-bold hover:bg-[#43A047] active:scale-95 transition-all shadow-lg disabled:opacity-50"
+          >
+            {joinStatus === 'loading'
+              ? 'Processing...'
+              : 'Send Join Request'}
+          </button>
+        </div>
+
       </div>
     </div>
-  </div>
-);
-
+  );
+};
 const MyCourses = () => {
   const { addJoinNotification, notificationsEnabled } = useNotification();
   const [enrollments, setEnrollments] = useState([]);
@@ -982,14 +1029,16 @@ const MyCourses = () => {
       </div>
 
       {showModal && (
-        <JoinModal
-          sectionCode={sectionCode}
-          setSectionCode={setSectionCode}
-          joinStatus={joinStatus}
-          setJoinStatus={setJoinStatus}
-          onJoin={handleJoin}
-          onClose={() => setShowModal(false)}
-        />
+      <JoinModal
+  sectionCode={sectionCode}
+  setSectionCode={setSectionCode}
+  joinStatus={joinStatus}
+  setJoinStatus={setJoinStatus}
+  joinMessage={joinMessage}
+  setJoinMessage={setJoinMessage}
+  onJoin={handleJoin}
+  onClose={() => setShowModal(false)}
+/>
       )}
 
       <style>{`
