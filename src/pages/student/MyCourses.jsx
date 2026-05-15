@@ -17,11 +17,18 @@ const getUserFromToken = () => {
 };
 
 const normalise = (raw) => ({
-  ss_id:         raw.ss_id         || raw.id               || raw.enrollment_id || Math.random(),
-  section_id:    raw.section_id    || raw.id,
-  course_id:     raw.course_id,
-  course_name:   raw.course_name   || raw.title             || raw.course_title  || 'Untitled Course',
-  section_name:  raw.section_name  || raw.name               || raw.section_title || 'Unassigned Section',
+  ss_id: raw.ss_id || raw.id || raw.enrollment_id || crypto.randomUUID(),
+  section_id: raw.section_id || raw.id,
+  course_id: raw.course_id,
+
+  course_name:
+    raw.course_name ||
+    raw.course?.course_name ||
+    raw.course?.title ||
+    raw.courseName ||
+    raw.title ||
+    raw.course_title ||
+    'Untitled Course',  section_name:  raw.section_name  || raw.name               || raw.section_title || 'Unassigned Section',
   section_code:  raw.section_code,
   program:       raw.program_name  || raw.program           || 'N/A',
   instructor:    raw.instructor_name || raw.instructor      || raw.teacher_name  || raw.prof || 'Instructor TBA',
@@ -150,9 +157,9 @@ const MaterialViewerModal = ({ material, onClose }) => {
     loadPdf();
   }
 
-  return () => {
-    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
-  };
+ return () => {
+  if (url) URL.revokeObjectURL(url);
+};
 }, [fileUrl]);
 
   const handleDownload = async () => {
@@ -648,8 +655,12 @@ const MyCourses = () => {
       if (!res.ok) throw new Error('Could not fetch courses.');
       const data = await res.json();
       const raw = Array.isArray(data) ? data : (data.data || data.sections || data.enrollments || []);
-      setEnrollments(raw.map(normalise));
-    } catch (err) {
+setEnrollments(
+  raw.map(item => {
+    console.log("RAW ENROLLMENT:", item);
+    return normalise(item);
+  })
+);    } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -1080,16 +1091,18 @@ const handleJoin = async () => {
         )}
       </div>
 
-      {showModal && (
-        <JoinModal
-          sectionCode={sectionCode}
-          setSectionCode={setSectionCode}
-          joinStatus={joinStatus}
-          setJoinStatus={setJoinStatus}
-          onJoin={handleJoin}
-          onClose={() => setShowModal(false)}
-        />
-      )}
+     {showModal && (
+  <JoinModal
+    sectionCode={sectionCode}
+    setSectionCode={setSectionCode}
+    joinStatus={joinStatus}
+    setJoinStatus={setJoinStatus}
+    joinMessage={joinMessage}
+    setJoinMessage={setJoinMessage}
+    onJoin={handleJoin}
+    onClose={() => setShowModal(false)}
+  />
+)}
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
