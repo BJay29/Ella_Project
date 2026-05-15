@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import SectionDashboard from './StudentManagement/SectionDashboard';
 import { authAPI } from '../../services/APIservice';
-import { Plus, User, MoreVertical, ExternalLink } from 'lucide-react'; // Added for UI icons
+import { Plus, User, MoreVertical, ExternalLink } from 'lucide-react';
 
 const Management = () => {
     const [view, setView] = useState('list');
@@ -18,7 +18,7 @@ const Management = () => {
 
     /**
      * PERSISTENCE STATE INITIALIZATION
-     * Loads saved selections from localStorage to prevent data loss on refresh/re-login
+     * Loads saved selections from localStorage to prevent data loss on refresh
      */
     const [selectedDept, setSelectedDept] = useState(localStorage.getItem('mgt_selectedDept') || '');
     const [selectedProgram, setSelectedProgram] = useState(localStorage.getItem('mgt_selectedProgram') || '');
@@ -70,22 +70,7 @@ const Management = () => {
     };
 
     /**
-     * EFFECT: Re-hydration (Auto-fetch data for saved selections)
-     * If user returns and has saved IDs, this fetches the dependent dropdown data automatically
-     */
-    useEffect(() => {
-        const rehydrateData = async () => {
-            if (!token) return;
-            if (selectedDept) fetchPrograms(selectedDept);
-            if (selectedDept && selectedProgram) fetchYearLevels(selectedDept, selectedProgram);
-            if (selectedDept && selectedProgram && selectedYear) fetchSections(selectedDept, selectedProgram, selectedYear);
-            if (selectedSection) fetchCourses(selectedSection);
-        };
-        rehydrateData();
-    }, [token]);
-
-    /**
-     * FETCH 1: Departments
+     * FETCH FUNCTIONS
      */
     const fetchDepartments = useCallback(async () => {
         if (!token) return;
@@ -101,13 +86,6 @@ const Management = () => {
         }
     }, [token]);
 
-    useEffect(() => {
-        fetchDepartments();
-    }, [fetchDepartments]);
-
-    /**
-     * FETCH 2: Programs (Triggered by Dept selection)
-     */
     const fetchPrograms = async (deptId) => {
         try {
             const res = await authAPI.getInstructorPrograms(deptId, token);
@@ -116,9 +94,6 @@ const Management = () => {
         } catch (err) { console.error("Error fetching programs:", err); }
     };
 
-    /**
-     * FETCH 3: Year Levels (Triggered by Program selection)
-     */
     const fetchYearLevels = async (deptId, programId) => {
         try {
             const res = await authAPI.getInstructorYearLevels(deptId, programId, token);
@@ -127,9 +102,6 @@ const Management = () => {
         } catch (err) { console.error("Error fetching year levels:", err); }
     };
 
-    /**
-     * FETCH 4: Sections
-     */
     const fetchSections = async (deptId, programId, yearId) => {
         try {
             const res = await authAPI.getInstructorSections(deptId, programId, yearId, token);
@@ -138,9 +110,6 @@ const Management = () => {
         } catch (err) { console.error("Error fetching sections:", err); }
     };
 
-    /**
-     * FETCH 5: Courses (Triggered by Section selection)
-     */
     const fetchCourses = async (sectionId) => {
         try {
             const res = await authAPI.getInstructorCourses(sectionId, token);
@@ -149,13 +118,29 @@ const Management = () => {
         } catch (err) { console.error("Error fetching courses:", err); }
     };
 
-    // --- State Reset Handlers ---
+    /**
+     * EFFECT: Re-hydration (Auto-fetch data for saved selections)
+     */
+    useEffect(() => {
+        const rehydrateData = async () => {
+            if (!token) return;
+            await fetchDepartments();
+            if (selectedDept) await fetchPrograms(selectedDept);
+            if (selectedDept && selectedProgram) await fetchYearLevels(selectedDept, selectedProgram);
+            if (selectedDept && selectedProgram && selectedYear) await fetchSections(selectedDept, selectedProgram, selectedYear);
+            if (selectedSection) await fetchCourses(selectedSection);
+        };
+        rehydrateData();
+    }, [token, fetchDepartments]); // Added fetchDepartments to dependency to avoid missing initial load
+
+    // --- State Reset Handlers (Updated Logic) ---
+    // Note: We removed setShowCard(false) from these handlers so the previous card 
+    // stays visible until the user explicitly selects a new valid course.
 
     const handleDeptChange = (deptId) => {
         setSelectedDept(deptId);
         setSelectedProgram(''); setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
         setPrograms([]); setYearLevels([]); setSections([]); setCourses([]);
-        setShowCard(false);
         if (deptId) fetchPrograms(deptId);
     };
 
@@ -163,7 +148,6 @@ const Management = () => {
         setSelectedProgram(progId);
         setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
         setYearLevels([]); setSections([]); setCourses([]);
-        setShowCard(false);
         if (progId) fetchYearLevels(selectedDept, progId);
     };
 
@@ -171,7 +155,6 @@ const Management = () => {
         setSelectedYear(yearId);
         setSelectedSection(''); setSelectedCourse('');
         setSections([]); setCourses([]);
-        setShowCard(false);
         if (yearId) fetchSections(selectedDept, selectedProgram, yearId);
     };
 
@@ -179,21 +162,18 @@ const Management = () => {
         setSelectedSection(sectionId);
         setSelectedCourse('');
         setCourses([]);
-        setShowCard(false);
         if (sectionId) fetchCourses(sectionId);
     };
 
     /**
-     * Logic to identify the selected course and prepare data for the display card
+     * Memoized logic to find the course data.
+     * We look into the current 'courses' state or fallback to a stored version if needed.
      */
     const finalCardData = useMemo(() => {
-        if (!selectedCourse) return null;
+        if (!selectedCourse || !showCard) return null;
         return courses.find(c => String(c.course_id || c.id) === String(selectedCourse));
-    }, [selectedCourse, courses]);
+    }, [selectedCourse, courses, showCard]);
 
-    /**
-     * Handles navigation to the detailed view/SectionDashboard
-     */
     const handleOpenClassroom = (data) => {
         const yearObj = yearLevels.find(y => String(y.year_level_id || y.id) === String(selectedYear));
         const sectionObj = sections.find(s => String(s.section_id || s.id) === String(selectedSection));
@@ -209,17 +189,19 @@ const Management = () => {
         setView('focus');
     };
 
-    // Trigger Success Toast
     const handleSelectCourse = () => {
-        setShowCard(true);
-        setShowSuccessModal(true);
-        setTimeout(() => setShowSuccessModal(false), 3000); // Auto hide after 3s
+        // Only trigger if a course is actually selected in the dropdown
+        if (selectedCourse) {
+            setShowCard(true);
+            setShowSuccessModal(true);
+            setTimeout(() => setShowSuccessModal(false), 3000);
+        }
     };
 
     return (
         <div className="w-full min-h-screen p-6 relative">
             
-            {/* SUCCESS MODAL / TOAST (Top Right) */}
+            {/* SUCCESS MODAL / TOAST */}
             {showSuccessModal && (
                 <div className="fixed top-6 right-6 z-[100] animate-in slide-in-from-right-10 duration-300">
                     <div className="bg-white border-l-4 border-green-500 shadow-2xl rounded-xl p-4 flex items-center gap-4 min-w-[300px]">
@@ -327,7 +309,8 @@ const Management = () => {
                                 value={selectedCourse}
                                 onChange={(e) => {
                                     setSelectedCourse(e.target.value);
-                                    setShowCard(false);
+                                    // We don't hide the card here so the user can see the previous one 
+                                    // until they click the action button.
                                 }}
                                 className="bg-gray-50 disabled:opacity-40 border border-gray-300 rounded-2xl px-4 py-3 text-[11px] font-black text-black outline-none cursor-pointer"
                             >
@@ -350,14 +333,13 @@ const Management = () => {
                         </button>
                     </div>
 
-                    {/* UPDATED CARD DISPLAY AREA: Switched from center to side using Grid Layout */}
+                    {/* CARD DISPLAY AREA */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 py-12">
                         {showCard && finalCardData ? (
                             <div 
                                 onClick={() => handleOpenClassroom(finalCardData)}
                                 className="w-full bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-300 cursor-pointer"
                             >
-                                {/* Header Layout (G-Class Style) */}
                                 <div className="bg-[#1a73e8] h-[100px] p-5 relative group-hover:bg-[#185abc] transition-colors">
                                     <div className="flex justify-between items-start relative z-10">
                                         <div className="flex flex-col max-w-[80%]">
@@ -372,13 +354,11 @@ const Management = () => {
                                             <MoreVertical size={20} />
                                         </button>
                                     </div>
-                                    {/* Abstract shapes for background aesthetic */}
                                     <div className="absolute top-0 right-0 opacity-10 pointer-events-none">
                                         <div className="w-24 h-24 bg-white rounded-full -mr-10 -mt-10" />
                                     </div>
                                 </div>
 
-                                {/* Body Content */}
                                 <div className="p-5 h-[140px] flex flex-col justify-between">
                                     <div className="flex flex-col gap-1">
                                         <div className="flex items-center gap-2">
@@ -410,7 +390,7 @@ const Management = () => {
                                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                     <Plus size={24} className="text-gray-400" />
                                 </div>
-                                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black">
+                                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black text-center">
                                     {selectedCourse ? "Click select button to generate card" : "Complete selections to preview"}
                                 </p>
                             </div>

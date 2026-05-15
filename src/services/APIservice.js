@@ -76,20 +76,16 @@ export const authAPI = {
     // ─────────────────────────────────────────────────────────────────────────
     // STUDENT ACTIONS
     // ─────────────────────────────────────────────────────────────────────────
-    joinSection: async (token, { section_code }) => {
-        validateParams({ section_code });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/student/join-section`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ section_code }),
-            }
-        );
-    },
+   joinSection: async (sectionCode, token) => {
+    return await fetch(`${BASE_URL}/api/student/join-section`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ section_code: sectionCode })
+    });
+},
 
     getMySection: async (token) => {
         return await fetch(`${BASE_URL}/api/student/my-section`, {
@@ -289,6 +285,37 @@ getInstructorCourses: async (sectionId, token) => {
             }
         );
     },
+
+    getPendingStudents: async (sectionId, token) => {
+    return await fetch(`${BASE_URL}/api/instructor/sections/${sectionId}/students/pending`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+},
+
+// PATCH /api/instructor/sections/:section_id/students/:ss_id/approve
+// Approves a student's request to join the section
+approveStudent: async (sectionId, ssId, token) => {
+    return await fetch(`${BASE_URL}/api/instructor/sections/${sectionId}/students/${ssId}/approve`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+},
+
+// PATCH /api/instructor/sections/:section_id/students/:ss_id/reject
+// Rejects or removes a student's request/status in the section
+rejectStudent: async (sectionId, ssId, token) => {
+    return await fetch(`${BASE_URL}/api/instructor/sections/${sectionId}/students/${ssId}/reject`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+},
 
 
     uploadMaterial: async (sectionId, formData, token) => {

@@ -536,14 +536,9 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
     }, []);
 
     /**
-     * FETCHES ALL STUDENTS (ALL STATUSES) AND COURSE MATERIALS
-     *
-     * Uses the new getSectionStudents API which returns all students
-     * regardless of status (approved, pending, waiting, rejected).
-     * This ensures joiners appear immediately in the list upon enrollment.
-     *
-     * Previously used getSectionDetails which was a combined endpoint;
-     * now we call getSectionStudents directly for the student list.
+     * UPDATED FETCHDATA
+     * Ngayon, kinukuha natin ang listahan gamit ang getPendingStudents 
+     * at sinasama natin sa existing student list para makita ni Instructor.
      */
     const fetchData = useCallback(async () => {
         const storedSection = localStorage.getItem('selectedSection');
@@ -556,14 +551,26 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
         try {
             const token = getCleanToken();
 
-            // Fetch all students for this section (all statuses combined)
+            // 1. Fetch Students (Main List)
             const studentsRes = await authAPI.getSectionStudents(sId, token);
-
+            let mainStudents = [];
             if (studentsRes.ok) {
                 const sData = await studentsRes.json();
-                // The new API returns students as a top-level array or nested under "students"
-                setStudents(sData.students || sData || []);
+                mainStudents = sData.students || sData || [];
             }
+
+            // 2. Fetch Pending Students (New API)
+            const pendingRes = await authAPI.getPendingStudents(sId, token);
+            let pendingStudents = [];
+            if (pendingRes.ok) {
+                const pData = await pendingRes.json();
+                // Siguraduhin nating may "status: pending" para sa UI badge
+                pendingStudents = (pData.students || pData || []).map(s => ({ ...s, status: 'pending' }));
+            }
+
+            // Pagsamahin ang dalawa (Pending sa taas kung gusto mo, o depende sa sort)
+            setStudents([...pendingStudents, ...mainStudents]);
+
         } catch (err) {
             console.error("Fetch Error:", err);
             setError('Failed to sync data.');
@@ -571,7 +578,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
             setLoading(false);
         }
 
-        // Fetch materials separately (non-critical — failure does not affect student list)
+        // Fetch materials separately (using the new getMaterials endpoint)
         try {
             const token = getCleanToken();
             const sId2 = sectionId || (() => {
@@ -592,20 +599,18 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    // Open material viewer — fetch specific material details if no URL is available yet
+    // Open material viewer — uses the new getSpecificMaterial API
     const handleViewMaterial = async (material) => {
         const storedSection = localStorage.getItem('selectedSection');
         const activeSection = storedSection ? JSON.parse(storedSection) : null;
         const sId = sectionId || activeSection?.section_id || activeSection?.id;
         const materialId = material.id || material.material_id;
 
-        // If we already have a file URL, open the viewer immediately
         if (material.file_url || material.url) {
             setViewerMaterial(material);
             return;
         }
 
-        // Otherwise fetch specific material details to retrieve the URL
         if (!sId || !materialId) {
             setViewerMaterial(material);
             return;
@@ -671,6 +676,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
         try {
             const token = getCleanToken();
+            // Using updated uploadMaterial
             const res = await authAPI.uploadMaterial(sId, formData, token);
             clearInterval(progressInterval);
             setUploadProgress(100);
@@ -698,11 +704,8 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
     };
 
     /**
-     * HANDLES STUDENT APPROVAL OR REJECTION DIRECTLY FROM THE TABLE
-     *
-     * Uses approveRejectStudent which calls PATCH
-     * /api/instructor/sections/:sectionId/students/:ssId
-     * with the new status value in the request body.
+     * UPDATED HANDLEACTION
+     * Gumagamit na ng approveStudent at rejectStudent APIs
      */
     const handleAction = async (requestId, action) => {
         const storedSection = localStorage.getItem('selectedSection');
@@ -710,13 +713,21 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
         const sId = activeSection?.section_id || activeSection?.id || sectionId;
         if (!sId || !requestId) return;
 
-        const statusMapping = action === 'approve' ? 'approved' : 'rejected';
         try {
             const token = getCleanToken();
-            const res = await authAPI.approveRejectStudent(sId, requestId, statusMapping, token);
+            let res;
+            
+            if (action === 'approve') {
+                res = await authAPI.approveStudent(sId, requestId, token);
+            } else {
+                res = await authAPI.rejectStudent(sId, requestId, token);
+            }
+
             if (res.ok) {
-                // Refresh the student list to reflect the updated status in the UI
+                // Refresh list para mawala ang pending at lumipat sa active (o mawala pag reject)
                 await fetchData();
+            } else {
+                alert("Action failed. Please try again.");
             }
         } catch (err) {
             console.error("HandleAction Error:", err);
@@ -771,7 +782,6 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                             <h2 className="text-3xl font-black uppercase text-gray-900 tracking-tighter leading-none">
                                 {sectionName || "Section Details"}
                             </h2>
-                            {/* Section join code — displayed below the section name if available */}
                             {sectionCode && (
                                 <div className="flex items-center gap-2 mt-2">
                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Section Code</span>
@@ -956,7 +966,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 )}
             </div>
 
-            {/* LOADING OVERLAY — shown while fetching specific material details */}
+            {/* LOADING OVERLAY */}
             {isFetchingMaterial && (
                 <div className="fixed inset-0 z-[290] flex items-center justify-center bg-black/30 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl px-8 py-6 flex items-center gap-4 shadow-2xl">
@@ -969,7 +979,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 </div>
             )}
 
-            {/* GClass-style Full-Screen Material Viewer */}
+            {/* Material Viewer */}
             {viewerMaterial && (
                 <MaterialViewerModal
                     material={viewerMaterial}
@@ -977,9 +987,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 />
             )}
 
-            {/* ════════════════════════════════════════════════════════════════
-                MODAL: UPLOAD MATERIAL
-            ════════════════════════════════════════════════════════════════ */}
+            {/* MODAL: UPLOAD MATERIAL */}
             {isUploadModalOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
                     <div
