@@ -21,24 +21,32 @@ const Management = () => {
     const [selectedSection, setSelectedSection] = useState('');
     const [selectedCourse, setSelectedCourse] = useState('');
 
-    // Clean token from local storage
+    // Token retrieval and sanitization
     const token = useMemo(() => {
         const rawToken = localStorage.getItem('token');
         return rawToken ? rawToken.replace(/"/g, '') : null;
     }, []);
 
     /**
-     * FETCH 1: Departments (Initial Load)
+     * Helper to extract array data safely from API responses
+     * Handles both direct arrays and nested { data: [] } objects
+     */
+    const extractData = async (res) => {
+        if (!res.ok) return [];
+        const json = await res.json();
+        return Array.isArray(json) ? json : (json.data || []);
+    };
+
+    /**
+     * FETCH 1: Departments
      */
     const fetchDepartments = useCallback(async () => {
         if (!token) return;
         setIsLoading(true);
         try {
             const res = await authAPI.getInstructorDepartments(token);
-            if (res.ok) {
-                const data = await res.json();
-                setDepartments(Array.isArray(data) ? data : (data.data || []));
-            }
+            const data = await extractData(res);
+            setDepartments(data);
         } catch (err) {
             console.error("Error fetching departments:", err);
         } finally {
@@ -51,72 +59,73 @@ const Management = () => {
     }, [fetchDepartments]);
 
     /**
-     * FETCH 2: Programs (Triggered by Dept Change)
+     * FETCH 2: Programs (Triggered by Dept selection)
      */
     const fetchPrograms = async (deptId) => {
         try {
             const res = await authAPI.getInstructorPrograms(deptId, token);
-            if (res.ok) {
-                const data = await res.json();
-                setPrograms(Array.isArray(data) ? data : (data.data || []));
-            }
+            const data = await extractData(res);
+            setPrograms(data);
         } catch (err) { console.error("Error fetching programs:", err); }
     };
 
     /**
-     * FETCH 3: Year Levels (Triggered by Program Change)
+     * FETCH 3: Year Levels (Triggered by Program selection)
      */
     const fetchYearLevels = async (deptId, programId) => {
         try {
             const res = await authAPI.getInstructorYearLevels(deptId, programId, token);
-            if (res.ok) {
-                const data = await res.json();
-                setYearLevels(Array.isArray(data) ? data : (data.data || []));
-            }
+            const data = await extractData(res);
+            setYearLevels(data);
         } catch (err) { console.error("Error fetching year levels:", err); }
     };
 
     /**
-     * FETCH 4: Sections (Triggered by Year Change)
+     * FETCH 4: Sections (Triggered by Year Level selection)
      */
     const fetchSections = async (deptId, programId, yearId) => {
         try {
             const res = await authAPI.getInstructorSections(deptId, programId, yearId, token);
-            if (res.ok) {
-                const data = await res.json();
-                setSections(Array.isArray(data) ? data : (data.data || []));
-            }
+            const data = await extractData(res);
+            setSections(data);
         } catch (err) { console.error("Error fetching sections:", err); }
     };
 
     /**
-     * FETCH 5: Courses (Triggered by Section Change)
+     * FETCH 5: Courses (Triggered by Section selection)
      */
     const fetchCourses = async (sectionId) => {
         try {
             const res = await authAPI.getInstructorCourses(sectionId, token);
-            if (res.ok) {
-                const data = await res.json();
-                setCourses(Array.isArray(data) ? data : (data.data || []));
-            }
+            const data = await extractData(res);
+            setCourses(data);
         } catch (err) { console.error("Error fetching courses:", err); }
     };
 
     /**
-     * Logic to find the specific course object to display in the card
+     * Memoized selection of the final course data for the preview card
      */
     const finalCardData = useMemo(() => {
         if (!selectedCourse) return null;
-        // Search in courses array for the selected ID
         return courses.find(c => String(c.course_id) === String(selectedCourse));
     }, [selectedCourse, courses]);
 
+    /**
+     * Transition to the detailed Student Management dashboard
+     */
     const handleOpenClassroom = (data) => {
-        setActiveSection(data);
+        // Find the selected year object to include it in the activeSection metadata
+        const yearObj = yearLevels.find(y => String(y.year_level_id) === String(selectedYear));
+        
+        setActiveSection({
+            ...data,
+            year_level: yearObj?.year_level || 'N/A',
+            year_level_id: selectedYear
+        });
         setView('focus');
     };
 
-    // --- CHANGE HANDLERS (Clear lower levels when top levels change) ---
+    // --- State Reset Handlers (Cascade clearing) ---
 
     const handleDeptChange = (deptId) => {
         setSelectedDept(deptId);
@@ -150,17 +159,16 @@ const Management = () => {
         <div className="w-full min-h-screen p-6">
             {view === 'list' ? (
                 <div className="animate-in fade-in duration-500">
-                    {/* Header */}
                     <div className="mb-10">
                         <h2 className="text-3xl font-black text-black uppercase italic tracking-tighter">
                             Classroom Management
                         </h2>
                         <p className="text-[10px] text-gray-600 font-bold uppercase tracking-[0.2em] mt-1">
-                            Follow the sequence to access your assigned sections
+                            Sequential selection required to access assigned courses
                         </p>
                     </div>
 
-                    {/* Filter Bar (5 Separate Dropdowns) */}
+                    {/* Sequential Filter Bar */}
                     <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-200 flex flex-wrap gap-4 mb-12">
                         
                         {/* 1. Department */}
@@ -243,7 +251,6 @@ const Management = () => {
                         </div>
                     </div>
 
-                    {/* Card Display Area */}
                     <div className="flex flex-col items-center justify-center min-h-[300px]">
                         {finalCardData ? (
                             <div className="w-full max-w-sm bg-white rounded-[2.5rem] border border-gray-200 shadow-xl overflow-hidden group animate-in zoom-in-95 duration-300">
@@ -252,7 +259,7 @@ const Management = () => {
                                         {finalCardData.course_name}
                                     </h3>
                                     <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.2em] mt-2">
-                                        Section {finalCardData.section_name || sections.find(s => String(s.section_id) === String(selectedSection))?.section_name}
+                                        Section {sections.find(s => String(s.section_id) === String(selectedSection))?.section_name}
                                     </p>
                                 </div>
 

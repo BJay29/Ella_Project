@@ -4,8 +4,8 @@ import StudentTable from './StudentTable';
 /**
  * SectionDashboard Component
  * * Props:
- * - sectionData: The full course/section object selected from the 5th dropdown.
- * - onBack: Callback function to return to the classroom list view.
+ * - sectionData: The full object containing Dept, Program, Year, Section, and Course info.
+ * - onBack: Callback function to return to the Management list view.
  */
 const SectionDashboard = ({ sectionData, onBack }) => {
     
@@ -14,52 +14,74 @@ const SectionDashboard = ({ sectionData, onBack }) => {
         console.error("SectionDashboard Error: No sectionData provided.");
         return (
             <div className="p-10 text-center">
-                <p className="text-red-500 font-bold">Error: Failed to load section data.</p>
-                <button onClick={onBack} className="mt-4 text-blue-500 underline">Go Back</button>
+                <p className="text-red-500 font-bold uppercase tracking-tighter">
+                    Error: Failed to load section data.
+                </p>
+                <button 
+                    onClick={onBack} 
+                    className="mt-4 text-[11px] font-black uppercase text-blue-600 hover:underline"
+                >
+                    Return to Selection
+                </button>
             </div>
         );
     }
 
     /**
      * Data Normalization
-     * Ensures we extract the correct keys regardless of API naming variations.
-     * Since this now receives data from the "Course" level, we prioritize course_id.
+     * Mapping keys from the sectionData object to local variables.
+     * Includes the Year Level which was previously missing.
      */
-    const sectionId   = sectionData.section_id || sectionData.id || sectionData._id;
-    const courseId    = sectionData.course_id; 
-    const sectionName = sectionData.section_name || '—';
-    const sectionCode = sectionData.section_code || sectionData.join_code || '—';
-    const courseName  = sectionData.course_name || sectionData.subject || '—';
-    const deptAbbr    = sectionData.dept_abbr || '—';
-    const programAbbr = sectionData.program_abbr || '—';
+    const sectionId    = sectionData.section_id || sectionData.id;
+    const courseId     = sectionData.course_id; 
+    const yearLevelId  = sectionData.year_level_id;
+    
+    // Display Names
+    const sectionName  = sectionData.section_name || '—';
+    const courseName   = sectionData.course_name || '—';
+    const yearLevel    = sectionData.year_level || '—'; // Added Year Level support
+    const deptAbbr     = sectionData.dept_abbr || '—';
+    const programAbbr  = sectionData.program_abbr || '—';
+    
+    // Identifiers/Codes
+    const sectionCode  = sectionData.section_code || sectionData.join_code || '—';
+    const courseCode   = sectionData.course_code || '—';
 
-    // --- Lifecycle Logging for Debugging ---
+    // --- Debugging Log ---
     useEffect(() => {
-        console.log("SectionDashboard Mounted for Section ID:", sectionId, "and Course ID:", courseId);
+        console.log("SectionDashboard Active:", {
+            Section: sectionId,
+            Course: courseId,
+            Year: yearLevel
+        });
         
-        if (!sectionId) {
-            console.warn("Warning: sectionId is missing. Check your API response keys.", sectionData);
+        if (!sectionId || !courseId) {
+            console.warn("Missing Critical IDs: Ensure Management.js is passing the full object.");
         }
-    }, [sectionId, courseId, sectionData]);
+    }, [sectionId, courseId, yearLevel]);
 
     return (
         <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-            {/* Main Container for the Student List.
-                The StudentTable acts as the engine that fetches students 
-                based on the sectionId passed down.
+            {/* Main Wrapper for the Student Management Interface.
+                The StudentTable handles the actual data fetching for students 
+                enrolled in this specific Section/Course combination.
             */}
             <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden min-h-[70vh]">
                 
-                {/* Note: The StudentTable handles the 'View Requests' logic,
-                    student list fetching, and filtering for 'PENDING' statuses.
+                {/* Passing the normalized data to StudentTable.
+                    The StudentTable will use these to display headers and 
+                    filter student requests (Pending/Approved).
                 */}
                 <StudentTable
                     sectionId={sectionId}
                     courseId={courseId}
+                    yearLevelId={yearLevelId}
                     sectionName={sectionName}
                     sectionCode={sectionCode}
                     joinCode={sectionCode}
                     courseName={courseName}
+                    courseCode={courseCode}
+                    yearLevel={yearLevel}
                     deptAbbr={deptAbbr}
                     programAbbr={programAbbr}
                     onBack={onBack} 
