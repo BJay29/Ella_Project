@@ -4,6 +4,11 @@ import Management from './Management';
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Logout Confirmation Modal
+ * Asks for user confirmation before ending the session.
+ */
 const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
     if (!isOpen) return null;
     return (
@@ -31,6 +36,10 @@ const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
     );
 };
 
+/**
+ * Top Navigation Bar
+ * Contains Branding and User Profile dropdown
+ */
 const TopNav = ({ onLogoutClick, userName, userInitials }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     return (
@@ -71,6 +80,9 @@ const TopNav = ({ onLogoutClick, userName, userInitials }) => {
     );
 };
 
+/**
+ * Dashboard Statistics Card
+ */
 const StatCard = ({ icon, label, count, accentColor = 'border-transparent' }) => (
     <div className={`bg-white p-5 rounded-[1.5rem] shadow-sm flex flex-col items-center justify-center border-b-4 ${accentColor} transition-all hover:scale-105 cursor-default`}>
         <span className="text-xl mb-1">{icon}</span>
@@ -81,6 +93,9 @@ const StatCard = ({ icon, label, count, accentColor = 'border-transparent' }) =>
     </div>
 );
 
+/**
+ * Navigation Tab Component
+ */
 const NavTab = ({ active, label, onClick, icon }) => (
     <button
         onClick={onClick}
@@ -97,33 +112,52 @@ const NavTab = ({ active, label, onClick, icon }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// InstructorDashboard
+// InstructorDashboard Main Component
 // ─────────────────────────────────────────────────────────────────────────────
 const InstructorDashboard = () => {
     const [activeTab, setActiveTab] = useState('courses');
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
     
+    // Retrieve user identity from storage
     const userName = localStorage.getItem('userName') || localStorage.getItem('userEmail') || 'Instructor';
     const userInitials = userName.split(' ').map(w => w[0]?.toUpperCase() || '').slice(0, 2).join('') || 'IN';
 
+    // Memoized statistics for performance
     const stats = useMemo(() => ({
         pendingAlerts: 0, resolved: 0, totalStudents: 0, speakingPending: 0,
     }), []);
 
+    /**
+     * CLEAN LOGOUT LOGIC
+     * Specifically removes only auth-related items to prevent deleting
+     * the persisted Course Cards stored in localStorage.
+     */
     const handleLogoutConfirm = () => {
+        // Remove authentication token
         localStorage.removeItem('token');
-        sessionStorage.clear();
+        
+        // Remove specific user info
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userEmail');
+        
+        /** * IMPORTANT: Do NOT use localStorage.clear() or sessionStorage.clear() 
+         * as it will wipe the 'mgt_selectedCards_...' data needed for persistence.
+         */
+        
+        // Redirect to login page
         window.location.href = '/login';
     };
 
     return (
         <div className="min-h-screen bg-[#F3F4F6] font-sans pb-10">
+            {/* Modal Components */}
             <LogoutModal
                 isOpen={isLogoutModalOpen}
                 onClose={() => setIsLogoutModalOpen(false)}
                 onConfirm={handleLogoutConfirm}
             />
 
+            {/* Navigation Components */}
             <TopNav
                 onLogoutClick={() => setIsLogoutModalOpen(true)}
                 userName={userName}
@@ -153,7 +187,7 @@ const InstructorDashboard = () => {
             </div>
 
             <div className="p-4 md:p-8 pt-6">
-                {/* Stat Cards */}
+                {/* Dashboard Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <StatCard icon="⚠️" label="Pending Alerts"   count={stats.pendingAlerts} />
                     <StatCard icon="✅" label="Resolved"          count={stats.resolved}      accentColor="border-green-500" />
@@ -161,7 +195,7 @@ const InstructorDashboard = () => {
                     <StatCard icon="🎤" label="Speaking Pending"  count={stats.speakingPending} />
                 </div>
 
-                {/* Nav Tabs */}
+                {/* Main Navigation Tabs */}
                 <div className="flex items-center gap-6 md:gap-10 px-6 pt-6 border-b border-gray-200 mb-8 overflow-x-auto whitespace-nowrap bg-transparent scrollbar-hide">
                     <NavTab active={activeTab === 'courses'}         onClick={() => setActiveTab('courses')}       label="MY COURSES"       icon="📚" />
                     <NavTab active={activeTab === 'interventions'} onClick={() => setActiveTab('interventions')} label="INTERVENTIONS"     icon="⚠️" />
@@ -169,10 +203,11 @@ const InstructorDashboard = () => {
                     <NavTab active={activeTab === 'messages'}        onClick={() => setActiveTab('messages')}      label="MESSAGES"         icon="💬" />
                 </div>
 
+                {/* Tab Content Display */}
                 <main className="max-w-[1600px] mx-auto">
                     {activeTab === 'courses' && (
                         <div className="w-full animate-in fade-in slide-in-from-bottom-3 duration-500">
-                            {/* Management handles all section and student logic including approvals */}
+                            {/* Management component handles course list and persistence */}
                             <Management />
                         </div>
                     )}
@@ -188,6 +223,7 @@ const InstructorDashboard = () => {
                     )}
                 </main>
 
+                {/* Portal Footer */}
                 <footer className="mt-20 pb-6 text-center">
                     <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.5em] opacity-50">
                         Instructor Portal v1.0 • Stable Build • 2026
