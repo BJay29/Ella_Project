@@ -69,54 +69,44 @@ const Management = () => {
     };
 
     /**
-     * NEW: FETCH SAVED CARDS FROM DATABASE
-     * Ensures cards persist after page refresh by calling the GET API
+     * NEW EFFECT: LOAD PERMANENT CARDS FROM API
+     * This fetches the cards from the database using the GET api/instructor/course-card
      */
-    const fetchSavedCards = useCallback(async () => {
+    const fetchPermanentCards = useCallback(async () => {
         if (!token) return;
-        
+        setIsLoading(true);
         try {
             const res = await authAPI.getSavedCourseCards(token);
-            const data = await extractData(res, "Saved Cards");
+            const data = await extractData(res, "Permanent Cards");
             
-            if (data && Array.isArray(data) && data.length > 0) {
-                // Map database results to include a unique_key for UI rendering
-                const formattedCards = data.map(card => ({
+            if (data && data.length > 0) {
+                // Map the database data to include a unique_key for the UI
+                const formatted = data.map(card => ({
                     ...card,
-                    unique_key: card.unique_key || `db-${card.id || card.course_id}-${Math.random().toString(36).substring(7)}`
+                    unique_key: card.unique_key || `db-${card.id || card.course_id}-${Math.random().toString(36).substr(2, 9)}`
                 }));
-                setSelectedCards(formattedCards);
+                setSelectedCards(formatted);
+            } else {
+                // If DB is empty, fall back to LocalStorage for safety
+                const key = getTargetStorageKey();
+                const saved = localStorage.getItem(key);
+                if (saved) setSelectedCards(JSON.parse(saved));
             }
         } catch (err) {
-            console.error("Error loading permanent cards from database:", err);
-        } finally {
-            setIsLoaded(true);
-        }
-    }, [token]);
-
-    /**
-     * EFFECT: INITIAL LOAD
-     * Loads from LocalStorage first (for speed), then syncs with Database
-     */
-    useEffect(() => {
-        const loadInitialData = async () => {
-            // 1. Try loading from Local Storage first
+            console.error("Error fetching permanent cards:", err);
+            // Fallback to local storage if API fails
             const key = getTargetStorageKey();
             const saved = localStorage.getItem(key);
-            if (saved) {
-                try {
-                    setSelectedCards(JSON.parse(saved));
-                } catch (e) {
-                    console.error("Failed to parse saved cards", e);
-                }
-            }
-            
-            // 2. Sync with Backend Database
-            await fetchSavedCards();
-        };
-        
-        loadInitialData();
-    }, [getTargetStorageKey, fetchSavedCards]);
+            if (saved) setSelectedCards(JSON.parse(saved));
+        } finally {
+            setIsLoading(false);
+            setIsLoaded(true);
+        }
+    }, [token, getTargetStorageKey]);
+
+    useEffect(() => {
+        fetchPermanentCards();
+    }, [fetchPermanentCards]);
 
     /**
      * EFFECT: SAVE CARDS TO LOCAL STORAGE (Secondary Backup)
@@ -136,7 +126,7 @@ const Management = () => {
     }, [selectedCards, getTargetStorageKey, isLoaded]);
 
     /**
-     * FETCH FUNCTIONS
+     * FETCH FUNCTIONS FOR DROPDOWNS
      */
     const fetchDepartments = useCallback(async () => {
         if (!token) return;
