@@ -69,8 +69,8 @@ const Management = () => {
     };
 
     /**
-     * NEW EFFECT: LOAD PERMANENT CARDS FROM API
-     * This fetches the cards from the database using the GET api/instructor/course-card
+     * LOAD PERMANENT CARDS FROM API
+     * Fetches saved cards using GET /api/instructor/course-card
      */
     const fetchPermanentCards = useCallback(async () => {
         if (!token) return;
@@ -213,15 +213,15 @@ const Management = () => {
     };
 
     /**
-     * UPDATED: HANDLE SELECT COURSE
-     * Now calls the POST API to make the card permanent in the database
+     * HANDLE SELECT COURSE
+     * Calls POST /api/instructor/sections/:sectionId/courses/:courseId/card
      */
     const handleSelectCourse = async () => {
         if (selectedCourse && selectedSection && token) {
             try {
                 setIsLoading(true);
                 
-                // 1. Call API to save card permanently in database
+                // 1. Call API to save card permanently in database via POST
                 const res = await authAPI.saveCourseCard(token, selectedSection, selectedCourse);
 
                 if (res.ok) {
@@ -239,7 +239,7 @@ const Management = () => {
                             year_level_id: selectedYear
                         };
 
-                        // 2. Prevent UI duplicates
+                        // 2. Update UI and prevent duplicates
                         setSelectedCards(prev => {
                             const exists = prev.some(
                                 item =>
