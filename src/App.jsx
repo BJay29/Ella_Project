@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 // Auth Pages
 import Login         from './pages/auth/login';
+import SignupMethod  from './pages/auth/preregister'; // Added for registration flow
 import GoogleCallback from './pages/auth/googlecallback';
 
 // Dashboard Pages
@@ -83,6 +84,9 @@ function App() {
       <Routes>
         {/* --- PUBLIC AUTH ROUTES --- */}
         <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
+        
+        {/* Registration Entry Point (Identity Verification via SSO) */}
+        <Route path="/signup-method" element={<PublicRoute><SignupMethod /></PublicRoute>} />
         
         {/* SSO Callbacks - Handles both Login and Auto-Registration flow */}
         <Route path="/callback"     element={<GoogleCallback />} />

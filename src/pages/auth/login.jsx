@@ -8,6 +8,11 @@ import { authAPI } from '../../services/APIservice';
 import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi'; 
 import { FcGoogle } from 'react-icons/fc'; 
 
+/**
+ * LOGIN COMPONENT
+ * Handles manual authentication for Instructors/Admins and 
+ * provides an entry point for Student Google SSO and Registration.
+ */
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation(); 
@@ -32,7 +37,7 @@ const Login = () => {
     "WELCOME TO ELLA QUEST!", 
   ];
 
-  // Logic for Letter-by-Letter (Typewriter) Effect
+  // Typewriter effect logic for the Ella mascot speech bubble
   useEffect(() => {
     let currentText = messages[messageIndex];
     let charIndex = 0;
@@ -54,7 +59,7 @@ const Login = () => {
     return () => clearInterval(typingInterval);
   }, [messageIndex]);
 
-  // Interval to switch to next message
+  // Rotate through messages every 5 seconds
   useEffect(() => {
     const nextMessageInterval = setInterval(() => {
       setMessageIndex((prev) => (prev + 1) % messages.length);
@@ -62,7 +67,7 @@ const Login = () => {
     return () => clearInterval(nextMessageInterval);
   }, []);
 
-  // Check URL parameters for errors redirected from other pages
+  // Listen for redirected error states (e.g., from SSO callback)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const infoType = params.get('info');
@@ -74,7 +79,7 @@ const Login = () => {
     }
   }, [location, navigate]);
 
-  // Initial API ping
+  // Wake up backend server on mount
   useEffect(() => {
     authAPI.ping();
   }, []);
@@ -84,7 +89,10 @@ const Login = () => {
     setLoginData({ ...loginData, [name]: value });
   };
 
-  // Manual Login Handler (For Instructors, Admins, and CMs)
+  /**
+   * HANDLE MANUAL LOGIN
+   * Used by staff roles (Admin, Instructor, CM).
+   */
   const handleLogin = async (e) => {
     e.preventDefault();
     const { email, password } = loginData;
@@ -105,15 +113,16 @@ const Login = () => {
         const rawRole = data.role || data.user?.role || data.userRole || 'student';
         const normalizedRole = rawRole.toLowerCase().trim();
 
-        // Clear existing auth keys before setting new ones
+        // Security: Clear previous session data
         localStorage.removeItem('token');
         localStorage.removeItem('userRole');
         localStorage.removeItem('userEmail');
+        sessionStorage.clear();
 
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', normalizedRole);
         
-        // Redirect based on the normalized role
+        // Dynamic redirection based on user privilege level
         if (normalizedRole === 'instructor') {
           navigate('/instructor/dashboard', { replace: true });
         } else if (normalizedRole === 'admin') {
@@ -135,10 +144,12 @@ const Login = () => {
     }
   };
 
-  // Google SSO Handler
+  /**
+   * HANDLE GOOGLE SSO LOGIN
+   * Sets intent to 'login' to ensure the callback treats this as an entry, not a signup.
+   */
   const handleGoogleLogin = () => {
     try {
-      // Set intent to login
       sessionStorage.setItem('sso_intent', 'login');
       authAPI.initiateGoogleLogin();
     } catch (error) {
@@ -147,6 +158,7 @@ const Login = () => {
     }
   };
 
+  // Browser Autofill Styling overrides
   const autofillFix = {
     WebkitBoxShadow: "0 0 0px 1000px #7a9e50 inset",
     WebkitTextFillColor: "#ffffff",
@@ -154,13 +166,14 @@ const Login = () => {
 
   return (
     <div className="h-screen w-screen bg-[#C8E6C0] flex flex-col items-center justify-center font-sans relative overflow-hidden p-4">
-      {/* Background Decorative Elements */}
+      {/* Background Decor */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/20 rounded-full blur-3xl"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#7a9e50]/10 rounded-full blur-3xl"></div>
 
-      {/* Brand Section */}
+      {/* Mascot & Brand Section */}
       <div className="relative mb-6 flex flex-col items-center z-10">
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white px-5 py-2 rounded-2xl shadow-xl border-2 border-[#7a9e50] animate-bounce-subtle z-20 min-w-[120px] flex justify-center items-center transition-all duration-300">
+        {/* Animated Speech Bubble */}
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white px-5 py-2 rounded-2xl shadow-xl border-2 border-[#7a9e50] animate-bounce-subtle z-20 min-w-[120px] flex justify-center items-center">
           <p className="text-[10px] font-black text-[#7a9e50] tracking-widest whitespace-nowrap uppercase italic min-h-[14px]">
             {displayedMessage}
             <span className="animate-pulse ml-0.5">|</span>
@@ -168,12 +181,13 @@ const Login = () => {
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r-2 border-b-2 border-[#7a9e50] rotate-45"></div>
         </div>
 
+        {/* Mascot Avatar Container */}
         <div className="relative">
           <div className="absolute inset-0 bg-white/60 blur-xl rounded-full scale-110"></div>
           <div className="w-32 h-32 md:w-36 md:h-36 bg-white rounded-full border-4 border-[#7a9e50] shadow-2xl overflow-hidden flex items-center justify-center relative z-10 animate-float">
             <img
               src={ellaLogo}
-              alt="Ella Face"
+              alt="Ella Mascot"
               className="w-[140%] h-[140%] object-cover object-top mt-8" 
             />
           </div>
@@ -184,7 +198,7 @@ const Login = () => {
         </h1>
       </div>
 
-      {/* Login Container */}
+      {/* Login Interface */}
       <div className="w-full max-w-[320px] flex flex-col relative z-10">
         <div className="w-full text-left mb-2 pl-2">
           <h2 className="text-[11px] font-black tracking-[0.3em] text-gray-700 uppercase inline-block relative">
@@ -193,8 +207,8 @@ const Login = () => {
           </h2>
         </div>
 
-        {/* Login Form */}
         <form onSubmit={handleLogin} className="w-full flex flex-col gap-2.5">
+          {/* Email Input Field */}
           <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-md focus-within:ring-2 focus-within:ring-white/50">
             <div className="pl-4 pr-2 py-2.5 flex items-center justify-center">
               <HiOutlineMail className="w-4 h-4 text-white opacity-90" />
@@ -211,6 +225,7 @@ const Login = () => {
             />
           </div>
 
+          {/* Password Input Field */}
           <div className="flex items-center bg-[#7a9e50] rounded-full overflow-hidden border border-[#5a7a35] shadow-md focus-within:ring-2 focus-within:ring-white/50 relative">
             <div className="pl-4 pr-2 py-2.5 flex items-center justify-center">
               <HiOutlineLockClosed className="w-4 h-4 text-white opacity-90" />
@@ -228,15 +243,16 @@ const Login = () => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="pr-4 text-white/70 hover:text-white"
+              className="pr-4 text-white/70 hover:text-white transition-colors"
               tabIndex="-1"
             >
               {showPassword ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
             </button>
           </div>
 
+          {/* Recovery Link */}
           <div className="flex justify-end mr-2">
-            <Link to="/forgot-password" university-link className="text-[9px] italic text-[#3B82F6] font-bold hover:underline">
+            <Link to="/forgot-password" title="Recover account access" className="text-[9px] italic text-[#3B82F6] font-bold hover:underline">
               Forgot Password?
             </Link>
           </div>
@@ -244,18 +260,19 @@ const Login = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full bg-[#8aab45] hover:bg-[#9abb55] text-white border border-[#6a8a30] rounded-full py-2.5 font-black text-[11px] tracking-[0.2em] uppercase shadow-lg transition-all active:scale-95 mt-1 ${isLoading ? 'opacity-50' : ''}`}
+            className={`w-full bg-[#8aab45] hover:bg-[#9abb55] text-white border border-[#6a8a30] rounded-full py-2.5 font-black text-[11px] tracking-[0.2em] uppercase shadow-lg transition-all active:scale-95 mt-1 ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
           >
             {isLoading ? '...' : 'LOGIN'}
           </button>
 
-          {/* SSO Divider */}
+          {/* Visual Divider */}
           <div className="flex items-center my-1 w-full px-4">
             <div className="flex-grow border-t border-black/10"></div>
             <span className="px-3 text-[8px] text-gray-500 font-black opacity-60 uppercase tracking-widest">OR</span>
             <div className="flex-grow border-t border-black/10"></div>
           </div>
 
+          {/* Social Auth (SSO) Button */}
           <button
             type="button"
             onClick={handleGoogleLogin}
@@ -269,13 +286,13 @@ const Login = () => {
             </span>
           </button>
 
-          {/* Registration Link Section */}
+          {/* NAVIGATION TO NEW REGISTRATION FLOW */}
           <div className="text-center mt-3">
             <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
               Don't have an account?{' '}
               <Link 
-                to="/register" 
-                className="text-[#3B82F6] hover:text-[#2563EB] transition-colors underline decoration-1 underline-offset-2"
+                to="/signup-method" 
+                className="text-[#3B82F6] hover:text-[#2563EB] transition-colors underline decoration-1 underline-offset-2 font-black"
               >
                 Register here
               </Link>
@@ -284,15 +301,15 @@ const Login = () => {
         </form>
       </div>
 
-      {/* Application Tagline */}
+      {/* Footer Tagline */}
       <p className="absolute bottom-4 text-center text-[8px] text-gray-500 px-10 max-w-sm leading-tight font-bold opacity-50 uppercase tracking-tighter">
         An interactive language center engaging students through active learning tools and encouraging consistent practice.
       </p>
 
-      {/* Feedback Modal */}
+      {/* Error/Info Modal Component */}
       <ErrorModal isOpen={showErrorModal} message={errorMessage} onClose={() => setShowErrorModal(false)} />
 
-      {/* Internal Styles */}
+      {/* UI Animation Styles */}
       <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px); }

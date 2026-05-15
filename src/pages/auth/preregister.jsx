@@ -7,6 +7,11 @@ import { authAPI } from '../../services/APIservice';
 import { FcGoogle } from 'react-icons/fc';
 import { HiArrowLeft } from 'react-icons/hi';
 
+/**
+ * SIGNUP METHOD COMPONENT
+ * This page serves as the gateway for new users to verify their identity
+ * via Google SSO before proceeding to the registration details.
+ */
 const SignupMethod = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -17,31 +22,30 @@ const SignupMethod = () => {
 
   /**
    * HANDLE GOOGLE REGISTRATION
-   * Clears old storage data before redirecting to Google 
-   * to avoid session conflicts or loop errors.
+   * Prepares the session for a new user registration via Google OAuth.
    */
   const handleGoogleRegister = () => {
     setIsLoading(true);
     
     try {
-      // 1. STORAGE CLEANUP: Ensure no leftover tokens or roles interfere with registration
+      // 1. CLEAR PERSISTENCE: Wipe existing session data to prevent account mix-ups
       localStorage.removeItem('token');
       localStorage.removeItem('userRole');
       localStorage.removeItem('userEmail');   
       sessionStorage.clear();
 
-      // 2. SET INTENT: Explicitly set the intent to 'register' 
-      // so the callback handler knows to create a new account.
+      // 2. SET SSO INTENT: Flag this session as a 'register' attempt
+      // This is crucial for the Callback handler to know whether to Login or Signup
       sessionStorage.setItem('sso_intent', 'register');
 
-      console.log("Redirecting to Google SSO with intent: register...");
+      console.log("System: Initiating registration flow via Google SSO...");
       
-      // 3. Initiate the Google OAuth redirect
+      // 3. OAUTH REDIRECT: Trigger the Google Login process
       authAPI.initiateGoogleLogin();
     } catch (error) {
-      console.error("Google Auth Error:", error);
+      console.error("Critical Auth Error:", error);
       setIsLoading(false);
-      setMsg("COULD NOT CONNECT TO GOOGLE AUTH. PLEASE TRY AGAIN.");
+      setMsg("CONNECTION TO GOOGLE SERVICES FAILED. PLEASE CHECK YOUR INTERNET AND TRY AGAIN.");
       setShowError(true);
     }
   };
@@ -49,73 +53,77 @@ const SignupMethod = () => {
   return (
     <div className="h-screen w-screen bg-[#C8E6C0] flex flex-col items-center justify-center font-sans relative overflow-hidden">
       
-      {/* Background Decorative Blurs - Lowered z-index to stay in background */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/20 rounded-full blur-3xl z-0"></div>
+      {/* Background Aesthetic: Decorative Blur Elements */}
+      <div className="absolute top-[-5%] left-[-5%] w-[45%] h-[45%] bg-white/30 rounded-full blur-[100px] z-0 pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-green-200/40 rounded-full blur-[80px] z-0 pointer-events-none"></div>
       
-      {/* Main Registration Card Container */}
-      <div className="w-full max-w-[340px] bg-[#B8DBB8] rounded-[40px] p-10 flex flex-col items-center shadow-lg border border-black/10 animate-slideUp relative z-10">
+      {/* Main Container Card */}
+      <div className="w-full max-w-[360px] bg-[#B8DBB8] rounded-[50px] p-10 flex flex-col items-center shadow-2xl border border-white/20 animate-slideUp relative z-10">
         
-        {/* Visual Header Decoration */}
-        <div className="mb-6 mt-4">
-          <div className="w-16 h-1 bg-gray-700/20 rounded-full mb-4 mx-auto"></div>
+        {/* Subtle Card Accent */}
+        <div className="mb-8 w-full">
+          <div className="w-12 h-1.5 bg-gray-800/10 rounded-full mx-auto"></div>
         </div>
 
-        {/* Text Content */}
-        <h2 className="text-[12px] font-black tracking-[0.25em] text-gray-700 uppercase mb-2 text-center">
-          Quick Registration
+        {/* Header Section */}
+        <h2 className="text-[13px] font-black tracking-[0.3em] text-gray-800 uppercase mb-3 text-center italic">
+          Identity Verification
         </h2>
         
-        <p className="text-[10px] text-gray-600 font-bold text-center mb-8 leading-tight px-4 uppercase">
-          Verify your identity automatically using your Google account.
+        <p className="text-[10px] text-gray-700 font-bold text-center mb-10 leading-relaxed px-2 uppercase tracking-wide">
+          To ensure security, please verify your school or personal gmail account using Google SSO.
         </p>
 
         {/* Action Button: Google SSO */}
-        <div className="w-full flex flex-col items-center gap-4">
+        <div className="w-full group">
           <button
             type="button"
             onClick={handleGoogleRegister}
             disabled={isLoading}
-            className={`flex items-center justify-center gap-3 w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-full py-3 shadow-md transition-all active:scale-95 ${
-              isLoading ? 'opacity-50 cursor-not-allowed' : ''
+            className={`flex items-center justify-center gap-4 w-full bg-white hover:bg-gray-50 text-gray-800 border-b-4 border-gray-200 rounded-[20px] py-4 shadow-lg transition-all duration-300 active:border-b-0 active:translate-y-1 ${
+              isLoading ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'
             }`}
           >
             {isLoading ? (
-              <span className="text-[11px] font-bold animate-pulse italic">CONNECTING...</span>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-[11px] font-black tracking-widest italic animate-pulse">VERIFYING...</span>
+              </div>
             ) : (
               <>
-                <FcGoogle className="w-5 h-5" /> 
-                <span className="text-[11px] font-black tracking-wider uppercase">Continue with Google</span>
+                <FcGoogle className="w-6 h-6 group-hover:scale-110 transition-transform" /> 
+                <span className="text-[11px] font-black tracking-[0.15em] uppercase">Continue with Google</span>
               </>
             )}
           </button>
         </div>
 
-        {/* Navigation Link back to Login */}
-        <div className="mt-8 text-center border-t border-black/5 pt-4 w-full">
+        {/* Footer Navigation */}
+        <div className="mt-10 pt-6 border-t border-black/5 w-full flex justify-center">
           <Link 
             to="/login" 
-            className="flex items-center justify-center gap-1 text-[10px] font-bold text-blue-600 uppercase hover:underline cursor-pointer"
+            className="flex items-center gap-2 text-[10px] font-black text-gray-600 uppercase hover:text-blue-600 transition-colors group"
           >
-            <HiArrowLeft className="w-3 h-3" />
-            Back to Login
+            <HiArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            Back to Sign In
           </Link>
         </div>
       </div>
 
-      {/* Verification Feedback Modal */}
+      {/* Error Feedback Component */}
       <ErrorModal 
         isOpen={showError} 
         message={msg} 
         onClose={() => setShowError(false)} 
       />
 
-      {/* Internal Animation Styles */}
+      {/* Embedded Animation Definitions */}
       <style>{`
         @keyframes slideUp { 
-          from { opacity: 0; transform: translateY(20px); } 
-          to { opacity: 1; transform: translateY(0); } 
+          from { opacity: 0; transform: translateY(30px) scale(0.95); } 
+          to { opacity: 1; transform: translateY(0) scale(1); } 
         }
-        .animate-slideUp { animation: slideUp 0.5s ease-out; }
+        .animate-slideUp { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
       `}</style>
     </div>
   );
