@@ -97,28 +97,7 @@ const getMaterialConfig = (fileType = '') => {
     };
 };
 
-return (
-  <div className="container">
-      {/* Ang existing navigation buttons mo */}
-      <div className="flex gap-4">
-          <button onClick={() => setCurrentView('list')}>Student List</button>
-          <button onClick={() => setCurrentView('essays')}>Essay Submissions</button>
-      </div>
 
-      {/* Dito papasok ang logic */}
-      {currentView === 'list' ? (
-          // DITO MO ILALAGAY YUNG BUONG 1000 LINES NG TABLE MO
-          <div className="your-existing-table-logic">
-             {/* ... current code mo ... */}
-          </div>
-      ) : currentView === 'essays' ? (
-          // DITO PAPASOK YUNG BAGONG COMPONENT
-          <EssayReview sectionId={selectedSectionId} />
-      ) : (
-          <MaterialsLibrary />
-      )}
-  </div>
-);
 // ─────────────────────────────────────────────────────────────────────────────
 // Google Classroom-style Full-Screen Material Viewer Modal
 // — Same design & logic as MyCourses.jsx MaterialViewerModal
@@ -235,6 +214,8 @@ const MaterialViewerModal = ({ material, onClose }) => {
                 </div>
             );
         }
+
+        
 
         // AUDIO: centered player with icon
         if (resolvedFileType.includes('audio') || ['mp3','wav','ogg','flac','aac'].includes(resolvedFileType)) {
@@ -1199,6 +1180,28 @@ if (pendingRes.ok) {
                     </div>
                 </div>
             )}
+            return (
+  <div className="container">
+      {/* Ang existing navigation buttons mo */}
+      <div className="flex gap-4">
+          <button onClick={() => setCurrentView('list')}>Student List</button>
+          <button onClick={() => setCurrentView('essays')}>Essay Submissions</button>
+      </div>
+
+      {/* Dito papasok ang logic */}
+      {currentView === 'list' ? (
+          // DITO MO ILALAGAY YUNG BUONG 1000 LINES NG TABLE MO
+          <div className="your-existing-table-logic">
+             {/* ... current code mo ... */}
+          </div>
+      ) : currentView === 'essays' ? (
+          // DITO PAPASOK YUNG BAGONG COMPONENT
+          <EssayReview sectionId={selectedSectionId} />
+      ) : (
+          <MaterialsLibrary />
+      )}
+  </div>
+);
 
             <style>{`
                 @keyframes modalIn {
