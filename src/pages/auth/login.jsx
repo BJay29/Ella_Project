@@ -110,17 +110,17 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
+        // --- CLEANUP BEFORE SAVING NEW SESSION ---
+        localStorage.clear();
+        sessionStorage.clear();
+
         const rawRole = data.role || data.user?.role || data.userRole || 'student';
         const normalizedRole = rawRole.toLowerCase().trim();
 
-        // Security: Clear previous session data
-        localStorage.removeItem('token');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userEmail');
-        sessionStorage.clear();
-
+        // Save new authentication details
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', normalizedRole);
+        localStorage.setItem('userEmail', email);
         
         // Dynamic redirection based on user privilege level
         if (normalizedRole === 'instructor') {
@@ -146,13 +146,21 @@ const Login = () => {
 
   /**
    * HANDLE GOOGLE SSO LOGIN
-   * Sets intent to 'login' to ensure the callback treats this as an entry, not a signup.
+   * Sets intent to 'login' so the GoogleCallback component knows
+   * to treat the returning user as a login attempt, not a registration.
    */
   const handleGoogleLogin = () => {
     try {
+      // Clear existing session to prevent token mixing
+      localStorage.clear();
+      
+      // Set the intent for the callback logic
       sessionStorage.setItem('sso_intent', 'login');
+      
+      // Trigger redirect to Backend's Google Auth route
       authAPI.initiateGoogleLogin();
     } catch (error) {
+      console.error("SSO Error:", error);
       setErrorMessage("FAILED TO INITIATE GOOGLE LOGIN");
       setShowErrorModal(true);
     }
