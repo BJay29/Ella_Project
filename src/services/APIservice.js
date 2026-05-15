@@ -128,43 +128,54 @@ unenrollSection: async (sectionId, token) => {
   },
    
   
-  // ─────────────────────────────────────────────────────────────────────────
-    // INSTRUCTOR SECTION SELECTION
-    // ─────────────────────────────────────────────────────────────────────────
+  /**
+ * INSTRUCTOR PROGRESSIVE SELECTION APIS
+ * Use these for populating dropdowns step-by-step.
+ */
 
-    getInstructorCourses: async (token) => {
-        return await fetchWithTimeout(`${BASE_URL}/api/instructor/courses`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
-    },
+// 1. Get all Departments assigned to the instructor
+getInstructorDepartments: async (token) => {
+    return await fetchWithTimeout(`${BASE_URL}/api/instructor/departments`, {
+        method: 'GET',
+        headers: { 
+            'Authorization': `Bearer ${token}`, 
+            'Content-Type': 'application/json' 
+        },
+    });
+},
 
-    getInstructorDepartments: async (courseId, token) => {
-        validateParams({ courseId });
-        return await fetchWithTimeout(`${BASE_URL}/api/instructor/courses/${courseId}/departments`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
-    },
+// 2. Get Programs under a specific Department
+getInstructorPrograms: async (deptId, token) => {
+    return await fetchWithTimeout(`${BASE_URL}/api/instructor/departments/${deptId}/programs`, {
+        method: 'GET',
+        headers: { 
+            'Authorization': `Bearer ${token}`, 
+            'Content-Type': 'application/json' 
+        },
+    });
+},
 
-    getInstructorPrograms: async (courseId, deptId, token) => {
-        validateParams({ courseId, deptId });
-        return await fetchWithTimeout(`${BASE_URL}/api/instructor/courses/${courseId}/departments/${deptId}/programs`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
-    },
+// 3. Get Year Levels under a specific Program
+getInstructorYearLevels: async (deptId, programId, token) => {
+    return await fetchWithTimeout(`${BASE_URL}/api/instructor/departments/${deptId}/programs/${programId}/year-levels`, {
+        method: 'GET',
+        headers: { 
+            'Authorization': `Bearer ${token}`, 
+            'Content-Type': 'application/json' 
+        },
+    });
+},
 
-    getInstructorSectionsByProgram: async (courseId, deptId, programId, token) => {
-        validateParams({ courseId, deptId, programId });
-        return await fetchWithTimeout(
-            `${BASE_URL}/api/instructor/courses/${courseId}/departments/${deptId}/programs/${programId}/sections`,
-            {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            }
-        );
-    },
+// 4. Get Sections based on Dept, Program, and Year Level
+getInstructorSections: async (deptId, programId, yearLevelId, token) => {
+    return await fetchWithTimeout(`${BASE_URL}/api/instructor/departments/${deptId}/programs/${programId}/year-levels/${yearLevelId}/sections`, {
+        method: 'GET',
+        headers: { 
+            'Authorization': `Bearer ${token}`, 
+            'Content-Type': 'application/json' 
+        },
+    });
+},
 
     // ─────────────────────────────────────────────────────────────────────────
     // INSTRUCTOR DASHBOARD & SECTION MANAGEMENT
@@ -233,6 +244,67 @@ unenrollSection: async (sectionId, token) => {
             }
         );
     },
+    getSectionStudents: async (sectionId, token) => {
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/instructor/sections/${sectionId}/students`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+            }
+        );
+    },
+    getPendingStudents: async (sectionId, token) => {
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/instructor/sections/${sectionId}/students?status=pending`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+            }
+        );
+    },
+    getApprovedStudents: async (sectionId, token) => {
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/instructor/sections/${sectionId}/students?status=approved`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+            }
+        );
+    },
+    getWaitingStudents: async (sectionId, token) => {
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/instructor/sections/${sectionId}/students?status=waiting`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+            }
+        );
+    },
+    getRejectedStudents: async (sectionId, token) => {
+        return await fetchWithTimeout(
+            `${BASE_URL}/api/instructor/sections/${sectionId}/students?status=rejected`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+            }
+        );
+    },
+
 
     uploadMaterial: async (sectionId, formData, token) => {
         try {
