@@ -135,6 +135,12 @@ const StatCard = ({ label, value, color, delay = 0 }) => {
 //
 // Props may include pre-normalized values (correctCount, wrongCount, totalItems)
 // passed directly from GameEngine so the score ring always shows real numbers.
+//
+// QUIZ PASS BEHAVIOR:
+//   When isPassed === true AND mode === 'quiz', the retake button is replaced
+//   by a disabled "Next Level" indicator. The quiz is considered complete once
+//   passed — no further retakes are offered from the results screen.
+//   The "Return to Base" button remains so the student can go back to levels.
 // ─────────────────────────────────────────────────────────────────────────────
 export const ResultsScreen = ({
     summary,
@@ -251,7 +257,7 @@ export const ResultsScreen = ({
 
     return (
         <>
-            {/* ── Confetti celebration — only on pass ── */}
+            {/* Confetti celebration — only on pass */}
             {isPassed && visible && <ConfettiCanvas />}
 
             <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 fixed inset-0 z-50 overflow-y-auto">
@@ -273,14 +279,14 @@ export const ResultsScreen = ({
                     className="relative w-full max-w-lg py-8"
                     style={{ animation: visible ? 'fadeSlideUp 0.4s ease both' : 'none' }}
                 >
-                    {/* ── Ella Quest logo ── */}
+                    {/* Ella Quest logo */}
                     <div className="text-center mb-5">
                         <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white leading-none">
                             Ella <span className="text-indigo-500">Quest</span>
                         </h1>
                     </div>
 
-                    {/* ── Pass / Fail badge ── */}
+                    {/* Pass / Fail badge */}
                     <div
                         className="flex justify-center mb-6"
                         style={{ animation: 'fadeSlideUp 0.4s ease 0.1s both' }}
@@ -294,7 +300,7 @@ export const ResultsScreen = ({
                         </div>
                     </div>
 
-                    {/* ── Score ring — correct / total ── */}
+                    {/* Score ring — correct / total */}
                     <div
                         className="flex justify-center mb-8"
                         style={{ animation: 'scaleIn 0.5s ease 0.2s both' }}
@@ -326,7 +332,7 @@ export const ResultsScreen = ({
                         </div>
                     </div>
 
-                    {/* ── Animated stats — 4 columns ── */}
+                    {/* Animated stats — 4 columns */}
                     <div className="grid grid-cols-4 gap-3 mb-6">
                         <StatCard label="Correct"   value={correct} color="text-emerald-400" delay={300} />
                         <StatCard label="Incorrect" value={wrong}   color="text-rose-400"    delay={400} />
@@ -334,7 +340,7 @@ export const ResultsScreen = ({
                         <StatCard label="Coins"     value={coins}   color="text-amber-400"   delay={600} />
                     </div>
 
-                    {/* ── Quiz attempt dots ── */}
+                    {/* Quiz attempt dots */}
                     {mode === 'quiz' && maxAttempts != null && (
                         <div
                             className="flex items-center justify-center gap-2 mb-6"
@@ -358,7 +364,7 @@ export const ResultsScreen = ({
                         </div>
                     )}
 
-                    {/* ── Pass / Fail message ── */}
+                    {/* Pass / Fail message */}
                     <div
                         className={`rounded-2xl border p-4 mb-8 text-center ${
                             isPassed
@@ -376,31 +382,49 @@ export const ResultsScreen = ({
                         </p>
                     </div>
 
-                    {/* ── Action buttons ── */}
+                    {/* ── Action buttons ──────────────────────────────────────────────────────
+                        QUIZ PASS: show only "Return to Base" + a disabled "Next Level" badge.
+                                   The retake button is intentionally hidden when the quiz is
+                                   already passed — no more retakes are needed or offered.
+                        QUIZ FAIL: show "Try Again" (if attempts remain) + "Exit".
+                        ACTIVITY PASS: show "Back to Levels" + optional retake link.
+                        ACTIVITY FAIL: same as quiz fail logic but unlimited attempts.
+                    ─────────────────────────────────────────────────────────────────────── */}
                     <div
                         className="space-y-3"
                         style={{ animation: 'fadeSlideUp 0.4s ease 0.75s both' }}
                     >
                         {isPassed ? (
                             <>
+                                {/* Primary action — always visible on pass */}
                                 <button
                                     onClick={onBack}
                                     className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all active:scale-95 shadow-lg border-b-4 border-indigo-800"
                                 >
                                     {mode === 'activity' ? '← Back to Levels' : 'Return to Base'}
                                 </button>
-                                {canRetry && (
+
+                                {mode === 'activity' && canRetry && (
+                                    // Activity pass: still allow retake since activities are unlimited
                                     <button
                                         onClick={onTryAgain}
                                         className="w-full py-4 text-white/40 hover:text-white font-black text-xs uppercase tracking-widest transition-colors text-center"
                                     >
-                                        🔄 Retake {mode === 'activity' ? 'Activity' : 'Quiz'}
-                                        {mode === 'quiz' && attemptsRemaining != null && (
-                                            <span className="ml-2 text-amber-400">
-                                                ({attemptsRemaining} left)
-                                            </span>
-                                        )}
+                                        🔄 Retake Activity
                                     </button>
+                                )}
+
+                                {mode === 'quiz' && (
+                                    // Quiz pass: show a visual "Next Level" indicator that is
+                                    // non-interactive — signals the level is done, no retake offered.
+                                    // The student goes back to levels via "Return to Base" above.
+                                    <div className="w-full py-3 flex items-center justify-center gap-2 opacity-40 cursor-not-allowed select-none">
+                                        <div className="h-px flex-1 bg-white/10" />
+                                        <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">
+                                            🔒 Quiz complete — no retakes
+                                        </span>
+                                        <div className="h-px flex-1 bg-white/10" />
+                                    </div>
                                 )}
                             </>
                         ) : (
@@ -418,6 +442,7 @@ export const ResultsScreen = ({
                                         )}
                                     </button>
                                 ) : (
+                                    // No attempts remaining — show locked state instead of button
                                     <div className="w-full py-5 bg-white/5 border border-white/10 text-white/30 rounded-2xl font-black uppercase tracking-[0.2em] text-sm text-center">
                                         🔒 No Attempts Remaining
                                     </div>
@@ -479,7 +504,7 @@ const GameEngineui = ({
 }) => {
 const rawChoices = getChoices();
 
-// FIX: Force correct order for True/False
+// Force correct order for True/False — True always appears before False
 const choices = React.useMemo(() => {
     if (!rawChoices || rawChoices.length !== 2) return rawChoices;
 
@@ -540,7 +565,7 @@ const choices = React.useMemo(() => {
     return (
         <div className="min-h-screen bg-[#020617] relative font-sans text-white flex flex-col">
 
-            {/* ── Background ── */}
+            {/* Background */}
             <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
                 <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/8 rounded-full blur-[140px]" />
                 <div className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[50%] bg-purple-600/8 rounded-full blur-[140px]" />
@@ -553,7 +578,7 @@ const choices = React.useMemo(() => {
                 />
             </div>
 
-            {/* ── Top bar ── */}
+            {/* Top bar */}
             <div className="relative z-10 flex items-center justify-between px-6 pt-5 pb-2 shrink-0">
                 <div className="flex items-center gap-3 bg-white/5 backdrop-blur-sm border border-white/10 px-5 py-3 rounded-2xl">
                     <div className="flex flex-col leading-none">
@@ -586,7 +611,7 @@ const choices = React.useMemo(() => {
                 </div>
             </div>
 
-            {/* ── Timer progress bar ── */}
+            {/* Timer progress bar */}
             <div className="relative z-10 w-full h-1.5 bg-white/5 shrink-0">
                 <div
                     className={`h-full transition-all duration-1000 ease-linear ${
@@ -604,7 +629,7 @@ const choices = React.useMemo(() => {
                 />
             </div>
 
-            {/* ── Feedback banner ── */}
+            {/* Feedback banner */}
             {isFeedbackPhase && (
                 <div className={`relative z-10 mx-5 mt-4 px-6 py-4 rounded-2xl border text-center transition-all animate-in slide-in-from-top-2 duration-300 ${
                     userWasCorrect
@@ -616,21 +641,21 @@ const choices = React.useMemo(() => {
                     }`}>
                         {userWasCorrect ? '✓ Correct!' : '✕ Incorrect'}
                     </p>
-             {!userWasCorrect && (correctAnswerLetter || correctAnswerText) && (
-    <p className="text-white/60 text-xs font-bold mt-1 uppercase tracking-wide">
-        Correct answer:{' '}
-        <span className="text-emerald-400 font-black">
-            {correctAnswerLetter || correctAnswerText}
-        </span>
-    </p>
-)}        
- <p className="text-white/30 text-[10px] font-bold mt-1 uppercase tracking-widest animate-pulse">
+                    {!userWasCorrect && (correctAnswerLetter || correctAnswerText) && (
+                        <p className="text-white/60 text-xs font-bold mt-1 uppercase tracking-wide">
+                            Correct answer:{' '}
+                            <span className="text-emerald-400 font-black">
+                                {correctAnswerLetter || correctAnswerText}
+                            </span>
+                        </p>
+                    )}
+                    <p className="text-white/30 text-[10px] font-bold mt-1 uppercase tracking-widest animate-pulse">
                         {isLastItem ? 'Finishing mission...' : 'Next question coming...'}
                     </p>
                 </div>
             )}
 
-            {/* ── Main content ── */}
+            {/* Main content */}
             <div className="relative z-10 flex-1 flex flex-col items-center justify-start px-10 pt-10 pb-36 max-w-4xl mx-auto w-full gap-18">
 
                 {/* Question card */}
@@ -649,9 +674,9 @@ const choices = React.useMemo(() => {
                     )}
                 </div>
 
-                {/* ── Choices / Input ── */}
-<div className="w-full mt-15">                  
-      {isIdentification ? (
+                {/* Choices / Input */}
+                <div className="w-full mt-15">                  
+                    {isIdentification ? (
                         <div className="flex flex-col items-center gap-5">
                             <p className="text-[14px] font-black text-white/25 uppercase tracking-widest italic">
                                 {isFeedbackPhase ? 'Your answer' : 'Type your answer below'}
@@ -734,10 +759,10 @@ const choices = React.useMemo(() => {
                                         : 'bg-white/10 text-white/40 group-hover:bg-white/20';
                                 }
 
-                              const badgeIcon =
-    isFeedbackPhase && isThisChoiceCorrect                  ? '✓' :
-    isFeedbackPhase && wasSubmitted && !isThisChoiceCorrect ? '✕' :
-    (isTrueFalse ? '' : letter);
+                                const badgeIcon =
+                                    isFeedbackPhase && isThisChoiceCorrect                  ? '✓' :
+                                    isFeedbackPhase && wasSubmitted && !isThisChoiceCorrect ? '✕' :
+                                    (isTrueFalse ? '' : letter);
 
                                 const choiceText =
                                     choice.answer_text  ||
@@ -756,19 +781,18 @@ const choices = React.useMemo(() => {
                                             }
                                         }}
                                         disabled={isSubmitting || isFeedbackPhase || choiceId == null}
-                                      className={`group relative flex items-center gap-4 px-5 py-5 rounded-3xl border-2 text-left transition-all duration-200 disabled:pointer-events-none min-h-[80px] ${btnClass}`}
+                                        className={`group relative flex items-center gap-4 px-5 py-5 rounded-3xl border-2 text-left transition-all duration-200 disabled:pointer-events-none min-h-[80px] ${btnClass}`}
                                     >
-                                   {!isTrueFalse && (
-    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${badgeClass}`}>
-        {badgeIcon}
-    </div>
-)}
-
-<span className={`font-bold leading-snug uppercase tracking-tight ${
-    isTrueFalse ? 'text-center w-full' : 'text-left flex-1'
-}`}>
-    {choiceText}
-</span>
+                                        {!isTrueFalse && (
+                                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${badgeClass}`}>
+                                                {badgeIcon}
+                                            </div>
+                                        )}
+                                        <span className={`font-bold leading-snug uppercase tracking-tight ${
+                                            isTrueFalse ? 'text-center w-full' : 'text-left flex-1'
+                                        }`}>
+                                            {choiceText}
+                                        </span>
                                         {isFeedbackPhase && isThisChoiceCorrect && (
                                             <span className="text-[9px] font-black uppercase tracking-widest text-white/80 bg-white/15 px-2 py-0.5 rounded-full">
                                                 Correct
@@ -782,7 +806,7 @@ const choices = React.useMemo(() => {
                 </div>
             </div>
 
-            {/* ── Bottom controls ── */}
+            {/* Bottom controls */}
             <div className="fixed bottom-0 left-0 right-0 z-20 px-5 pb-5 pt-4 bg-gradient-to-t from-[#020617] via-[#020617]/90 to-transparent flex items-center justify-between gap-4">
                 <button
                     onClick={() => navigate(-1)}

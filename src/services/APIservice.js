@@ -311,6 +311,32 @@ getSpecificMaterial: async (sectionId, materialId, token) => {
         throw error;
     }
 },
+
+saveCourseCard: async (token, sectionId, courseId) => {
+        try {
+            // Dinamic URL base sa documentation mo: /api/instructor/sections/:section_id/courses/:course_id/card
+            const url = `${BASE_URL}/instructor/sections/${sectionId}/courses/${courseId}/card`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token.replace(/"/g, '')}`, // Clean token quotes
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                // Kung may kailangang body ang backend, dito ilalagay. 
+                // Pero base sa URL, mukhang path parameters lang ang gamit.
+                body: JSON.stringify({ 
+                    timestamp: new Date().toISOString() 
+                })
+            });
+
+            return response;
+        } catch (error) {
+            console.error("API Error [saveCourseCard]:", error);
+            throw error;
+        }
+    },
     // ─────────────────────────────────────────────────────────────────────────
     // CM ASSIGN QUEST MODAL
     // ─────────────────────────────────────────────────────────────────────────

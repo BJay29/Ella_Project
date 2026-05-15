@@ -20,29 +20,17 @@ const Management = () => {
     const [sections, setSections] = useState([]);
     const [courses, setCourses] = useState([]);
     
-
     /**
      * DYNAMIC STORAGE KEY HELPER
-     * This ensures cards are tied to a specific user ID so they don't vanish or mix 
-     * up when different users log in/out.
      */
-const getTargetStorageKey = useCallback(() => {
-    // Use stable user identity instead of token
-    const userEmail = localStorage.getItem('userEmail');
-    const userName = localStorage.getItem('userName');
+    const getTargetStorageKey = useCallback(() => {
+        const userEmail = localStorage.getItem('userEmail');
+        const userName = localStorage.getItem('userName');
+        if (userEmail) return `mgt_selectedCards_${userEmail}`;
+        if (userName) return `mgt_selectedCards_${userName}`;
+        return 'mgt_selectedCards_guest';
+    }, []);
 
-    // PRIORITY: email
-    if (userEmail) {
-        return `mgt_selectedCards_${userEmail}`;
-    }
-
-    // FALLBACK: username
-    if (userName) {
-        return `mgt_selectedCards_${userName}`;
-    }
-
-    return 'mgt_selectedCards_guest';
-}, []);
     const [selectedDept, setSelectedDept] = useState('');
     const [selectedProgram, setSelectedProgram] = useState('');
     const [selectedYear, setSelectedYear] = useState('');
@@ -50,40 +38,27 @@ const getTargetStorageKey = useCallback(() => {
     const [selectedCourse, setSelectedCourse] = useState('');
     
     // List of created cards
-const [selectedCards, setSelectedCards] = useState(() => []);
-const firstLoadRef = useRef(true);
+    const [selectedCards, setSelectedCards] = useState([]);
+    const firstLoadRef = useRef(true);
+
     /**
-     * EFFECT: LOAD SAVED CARDS
-     * Runs once on mount to retrieve persisted data for the specific user
+     * EFFECT: LOAD SAVED CARDS FROM LOCAL STORAGE
      */
-   useEffect(() => {
-
-    if (!isLoaded) return;
-
-    if (firstLoadRef.current) {
-        firstLoadRef.current = false;
-        return;
-    }
-
-    const key = getTargetStorageKey();
-
-    console.log('SAVE KEY:', key);
-    console.log('SAVING:', selectedCards);
-
-    try {
-
-        localStorage.setItem(
-            key,
-            JSON.stringify(selectedCards)
-        );
-
-    } catch (error) {
-
-        console.error('Error saving cards:', error);
-
-    }
-
-}, [selectedCards, getTargetStorageKey, isLoaded]);
+    useEffect(() => {
+        const loadInitialData = () => {
+            const key = getTargetStorageKey();
+            const saved = localStorage.getItem(key);
+            if (saved) {
+                try {
+                    setSelectedCards(JSON.parse(saved));
+                } catch (e) {
+                    console.error("Failed to parse saved cards", e);
+                }
+            }
+            setIsLoaded(true);
+        };
+        loadInitialData();
+    }, [getTargetStorageKey]);
 
     // Token retrieval logic
     const token = useMemo(() => {
@@ -93,26 +68,22 @@ const firstLoadRef = useRef(true);
     }, []);
 
     /**
-     * EFFECT: SAVE CARDS TO LOCAL STORAGE
-     * Triggers every time selectedCards state changes, but ONLY after initial load
+     * EFFECT: SAVE CARDS TO LOCAL STORAGE (Secondary Backup)
      */
-  useEffect(() => {
-    if (!isLoaded) return;
+    useEffect(() => {
+        if (!isLoaded) return;
+        if (firstLoadRef.current) {
+            firstLoadRef.current = false;
+            return;
+        }
+        const key = getTargetStorageKey();
+        try {
+            localStorage.setItem(key, JSON.stringify(selectedCards));
+        } catch (error) {
+            console.error('Error saving cards:', error);
+        }
+    }, [selectedCards, getTargetStorageKey, isLoaded]);
 
-    // Prevent overwriting on initial mount
-    if (firstLoadRef.current) {
-        firstLoadRef.current = false;
-        return;
-    }
-
-    const key = getTargetStorageKey();
-
-    try {
-        localStorage.setItem(key, JSON.stringify(selectedCards));
-    } catch (error) {
-        console.error('Error saving cards:', error);
-    }
-}, [selectedCards, getTargetStorageKey, isLoaded]);
     /**
      * EXTRACT DATA HELPER
      */
@@ -220,51 +191,68 @@ const firstLoadRef = useRef(true);
         setView('focus');
     };
 
-    const handleSelectCourse = () => {
-        if (selectedCourse) {
-            const courseObj = courses.find(c => String(c.course_id || c.id) === String(selectedCourse));
-            const sectionObj = sections.find(s => String(s.section_id || s.id) === String(selectedSection));
-            const yearObj = yearLevels.find(y => String(y.year_level_id || y.id) === String(selectedYear));
+    /**
+     * UPDATED: HANDLE SELECT COURSE
+     * Now calls the POST API to make the card permanent in the database
+     */
+    const handleSelectCourse = async () => {
+        if (selectedCourse && selectedSection && token) {
+            try {
+                setIsLoading(true);
+                
+                // 1. Call API to save card permanently in database
+                const res = await authAPI.saveCourseCard(token, selectedSection, selectedCourse);
 
-            if (courseObj) {
-                const newCard = {
-                    ...courseObj,
-                    unique_key: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                    section_name: sectionObj?.section_name || 'N/A',
-                    section_code: sectionObj?.section_code || 'N/A',
-                    year_level: yearObj?.year_name || 'N/A',
-                    year_level_id: selectedYear
-                };
+                if (res.ok) {
+                    const courseObj = courses.find(c => String(c.course_id || c.id) === String(selectedCourse));
+                    const sectionObj = sections.find(s => String(s.section_id || s.id) === String(selectedSection));
+                    const yearObj = yearLevels.find(y => String(y.year_level_id || y.id) === String(selectedYear));
 
-                // PREVENT DUPLICATE COURSE CARDS
-                setSelectedCards(prev => {
-                    const exists = prev.some(
-                        item =>
-                            String(item.course_id || item.id) === String(newCard.course_id || newCard.id) &&
-                            String(item.section_code) === String(newCard.section_code)
-                    );
+                    if (courseObj) {
+                        const newCard = {
+                            ...courseObj,
+                            unique_key: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                            section_name: sectionObj?.section_name || 'N/A',
+                            section_code: sectionObj?.section_code || 'N/A',
+                            year_level: yearObj?.year_name || 'N/A',
+                            year_level_id: selectedYear
+                        };
 
-                    if (exists) {
-                        setSuccessMessage({
-                            title: 'Duplicate Course',
-                            sub: 'This course card already exists'
+                        // 2. Prevent UI duplicates
+                        setSelectedCards(prev => {
+                            const exists = prev.some(
+                                item =>
+                                    String(item.course_id || item.id) === String(newCard.course_id || newCard.id) &&
+                                    String(item.section_code) === String(newCard.section_code)
+                            );
+
+                            if (exists) {
+                                setSuccessMessage({ title: 'Duplicate Course', sub: 'This course card already exists' });
+                                setShowSuccessModal(true);
+                                setTimeout(() => setShowSuccessModal(false), 3000);
+                                return prev;
+                            }
+                            return [newCard, ...prev];
                         });
+
+                        // 3. Show Success Notification
+                        setSuccessMessage({ title: 'Course Saved', sub: 'Card is now permanent in database' });
                         setShowSuccessModal(true);
                         setTimeout(() => setShowSuccessModal(false), 3000);
-                        return prev;
+
+                        // 4. Reset dropdowns
+                        setSelectedDept(''); setSelectedProgram(''); setSelectedYear('');
+                        setSelectedSection(''); setSelectedCourse('');
+                        setPrograms([]); setYearLevels([]); setSections([]); setCourses([]);
                     }
-                    return [newCard, ...prev];
-                });
-
-                // Show Success Notification
-                setSuccessMessage({ title: 'Course Added', sub: 'Ready for management' });
-                setShowSuccessModal(true);
-                setTimeout(() => setShowSuccessModal(false), 3000);
-
-                // RESET DROPDOWNS AFTER CREATING CARD
-                setSelectedDept(''); setSelectedProgram(''); setSelectedYear('');
-                setSelectedSection(''); setSelectedCourse('');
-                setPrograms([]); setYearLevels([]); setSections([]); setCourses([]);
+                } else {
+                    console.error("Failed to save card permanently");
+                    alert("Server error: Could not save course card.");
+                }
+            } catch (err) {
+                console.error("Error in handleSelectCourse:", err);
+            } finally {
+                setIsLoading(false);
             }
         }
     };
@@ -395,11 +383,11 @@ const firstLoadRef = useRef(true);
                         </div>
 
                         <button
-                            disabled={!selectedCourse}
+                            disabled={!selectedCourse || isLoading}
                             onClick={handleSelectCourse}
                             className="bg-black text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
                         >
-                            Create Course Card
+                            {isLoading ? 'Saving...' : 'Create Course Card'}
                         </button>
                     </div>
 
