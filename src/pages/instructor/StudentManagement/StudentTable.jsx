@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { authAPI } from '../../../services/APIservice';
+import EssayReview from './GradongPortal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UI Components & Helpers
@@ -26,6 +27,8 @@ const StatusBadge = ({ status }) => {
         </span>
     );
 };
+
+const [currentView, setCurrentView] = useState('list');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Material Type Config (GClass-style colored banners)
@@ -94,6 +97,28 @@ const getMaterialConfig = (fileType = '') => {
     };
 };
 
+return (
+  <div className="container">
+      {/* Ang existing navigation buttons mo */}
+      <div className="flex gap-4">
+          <button onClick={() => setCurrentView('list')}>Student List</button>
+          <button onClick={() => setCurrentView('essays')}>Essay Submissions</button>
+      </div>
+
+      {/* Dito papasok ang logic */}
+      {currentView === 'list' ? (
+          // DITO MO ILALAGAY YUNG BUONG 1000 LINES NG TABLE MO
+          <div className="your-existing-table-logic">
+             {/* ... current code mo ... */}
+          </div>
+      ) : currentView === 'essays' ? (
+          // DITO PAPASOK YUNG BAGONG COMPONENT
+          <EssayReview sectionId={selectedSectionId} />
+      ) : (
+          <MaterialsLibrary />
+      )}
+  </div>
+);
 // ─────────────────────────────────────────────────────────────────────────────
 // Google Classroom-style Full-Screen Material Viewer Modal
 // — Same design & logic as MyCourses.jsx MaterialViewerModal
