@@ -76,17 +76,37 @@ export const authAPI = {
     // ─────────────────────────────────────────────────────────────────────────
     // STUDENT ACTIONS
     // ─────────────────────────────────────────────────────────────────────────
-   joinSection: async (sectionCode, token) => {
-    return await fetch(`${BASE_URL}/api/student/join-section`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ section_code: sectionCode })
-    });
-},
+ joinSection: async (sectionCode, token) => {
+    // 1. Safety Check: Ensure token exists before making the call
+    if (!token) {
+        console.error("Join Section Error: No authentication token provided.");
+        throw new Error("You must be logged in to join a section.");
+    }
 
+    try {
+        const response = await fetch(`${BASE_URL}/api/student/join-section`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json', // Force JSON response from backend
+                'Authorization': `Bearer ${token}` // Ensure Bearer is correctly formatted
+            },
+            // Double check if your backend expects 'section_code' or just 'code'
+            body: JSON.stringify({ section_code: sectionCode })
+        });
+
+        // 2. Specialized handling for 401 Unauthorized
+        if (response.status === 401) {
+            console.error("Auth Error: Token is invalid or expired.");
+            // Optional: Redirect to login or refresh token here
+        }
+
+        return response;
+    } catch (error) {
+        console.error("Network Error in joinSection:", error);
+        throw error;
+    }
+},
     getMySection: async (token) => {
         return await fetch(`${BASE_URL}/api/student/my-section`, {
             method: 'GET',
