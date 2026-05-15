@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import SectionDashboard from './StudentManagement/SectionDashboard';
-import { authAPI } from '../../services/APIservice'; 
+import { authAPI } from '../../services/APIservice';
+import { Plus, User, MoreVertical, ExternalLink } from 'lucide-react'; // Added for UI icons
 
 const Management = () => {
     const [view, setView] = useState('list');
     const [isLoading, setIsLoading] = useState(false);
     const [activeSection, setActiveSection] = useState(null);
-    const [showCard, setShowCard] = useState(false); // New state to control card visibility
+    const [showCard, setShowCard] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     // --- Data States for Dropdowns ---
     const [departments, setDepartments] = useState([]);
@@ -41,18 +43,10 @@ const Management = () => {
         }
         try {
             const json = await res.json();
-            console.log(`Management Log [${label} Raw Response]:`, json);
-
             if (Array.isArray(json)) return json;
             if (json.data && Array.isArray(json.data)) return json.data;
-            
             const dynamicKey = Object.keys(json).find(key => Array.isArray(json[key]));
-            if (dynamicKey) {
-                console.log(`Management Log: Auto-detected array in key: "${dynamicKey}"`);
-                return json[dynamicKey];
-            }
-
-            return [];
+            return dynamicKey ? json[dynamicKey] : [];
         } catch (err) {
             console.error(`Management Log [${label}]: JSON Parse Error`, err);
             return [];
@@ -130,7 +124,7 @@ const Management = () => {
         setSelectedDept(deptId);
         setSelectedProgram(''); setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
         setPrograms([]); setYearLevels([]); setSections([]); setCourses([]);
-        setShowCard(false); // Hide card on change
+        setShowCard(false);
         if (deptId) fetchPrograms(deptId);
     };
 
@@ -138,7 +132,7 @@ const Management = () => {
         setSelectedProgram(progId);
         setSelectedYear(''); setSelectedSection(''); setSelectedCourse('');
         setYearLevels([]); setSections([]); setCourses([]);
-        setShowCard(false); // Hide card on change
+        setShowCard(false);
         if (progId) fetchYearLevels(selectedDept, progId);
     };
 
@@ -146,7 +140,7 @@ const Management = () => {
         setSelectedYear(yearId);
         setSelectedSection(''); setSelectedCourse('');
         setSections([]); setCourses([]);
-        setShowCard(false); // Hide card on change
+        setShowCard(false);
         if (yearId) fetchSections(selectedDept, selectedProgram, yearId);
     };
 
@@ -154,7 +148,7 @@ const Management = () => {
         setSelectedSection(sectionId);
         setSelectedCourse('');
         setCourses([]);
-        setShowCard(false); // Hide card on change
+        setShowCard(false);
         if (sectionId) fetchCourses(sectionId);
     };
 
@@ -176,6 +170,7 @@ const Management = () => {
         const preparedData = {
             ...data,
             section_name: sectionObj?.section_name || sectionObj?.name || 'N/A',
+            section_code: sectionObj?.section_code || 'N/A',
             year_level: yearObj?.year_name || yearObj?.year_level || yearObj?.name || 'N/A',
             year_level_id: selectedYear
         };
@@ -183,8 +178,31 @@ const Management = () => {
         setView('focus');
     };
 
+    // Trigger Success Toast
+    const handleSelectCourse = () => {
+        setShowCard(true);
+        setShowSuccessModal(true);
+        setTimeout(() => setShowSuccessModal(false), 3000); // Auto hide after 3s
+    };
+
     return (
-        <div className="w-full min-h-screen p-6">
+        <div className="w-full min-h-screen p-6 relative">
+            
+            {/* SUCCESS MODAL / TOAST (Top Right) */}
+            {showSuccessModal && (
+                <div className="fixed top-6 right-6 z-[100] animate-in slide-in-from-right-10 duration-300">
+                    <div className="bg-white border-l-4 border-green-500 shadow-2xl rounded-xl p-4 flex items-center gap-4 min-w-[300px]">
+                        <div className="bg-green-100 p-2 rounded-full">
+                            <Plus size={18} className="text-green-600" />
+                        </div>
+                        <div>
+                            <p className="text-[11px] font-black uppercase text-black">Course Selected</p>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase">Ready for management</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {view === 'list' ? (
                 <div className="animate-in fade-in duration-500">
                     <div className="mb-10">
@@ -278,7 +296,7 @@ const Management = () => {
                                 value={selectedCourse}
                                 onChange={(e) => {
                                     setSelectedCourse(e.target.value);
-                                    setShowCard(false); // Hide card until button click
+                                    setShowCard(false);
                                 }}
                                 className="bg-gray-50 disabled:opacity-40 border border-gray-300 rounded-2xl px-4 py-3 text-[11px] font-black text-black outline-none cursor-pointer"
                             >
@@ -291,53 +309,78 @@ const Management = () => {
                             </select>
                         </div>
 
-                        {/* TRIGGER BUTTON: Only enabled when a course is selected */}
+                        {/* TRIGGER BUTTON */}
                         <button
                             disabled={!selectedCourse}
-                            onClick={() => setShowCard(true)}
+                            onClick={handleSelectCourse}
                             className="bg-black text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
                         >
                             Select Course
                         </button>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center min-h-[300px]">
-                        {/* Display the Course Card only when showCard state is true */}
+                    {/* REDESIGNED CARD DISPLAY AREA (Centered) */}
+                    <div className="flex flex-col items-center justify-center py-12">
                         {showCard && finalCardData ? (
                             <div 
                                 onClick={() => handleOpenClassroom(finalCardData)}
-                                className="w-full max-w-sm bg-white rounded-[2.5rem] border border-gray-200 shadow-xl overflow-hidden group animate-in zoom-in-95 duration-300 cursor-pointer hover:border-black transition-all"
+                                className="w-full max-w-[320px] bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-300 cursor-pointer"
                             >
-                                <div className="bg-black h-32 p-8 flex flex-col justify-end relative overflow-hidden group-hover:bg-green-600 transition-colors duration-500">
-                                    <h3 className="text-white text-2xl font-black uppercase italic tracking-tighter leading-none truncate">
-                                        {finalCardData.course_name || finalCardData.name}
-                                    </h3>
-                                    <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.2em] mt-2">
-                                        Section {sections.find(s => String(s.section_id || s.id) === String(selectedSection))?.section_name || "N/A"}
-                                    </p>
+                                {/* Header Layout (G-Class Style) */}
+                                <div className="bg-[#1a73e8] h-[100px] p-5 relative group-hover:bg-[#185abc] transition-colors">
+                                    <div className="flex justify-between items-start relative z-10">
+                                        <div className="flex flex-col max-w-[80%]">
+                                            <h3 className="text-white text-lg font-bold leading-tight group-hover:underline truncate">
+                                                {finalCardData.course_name || finalCardData.name}
+                                            </h3>
+                                            <p className="text-white text-[12px] font-medium truncate mt-0.5">
+                                                {sections.find(s => String(s.section_id || s.id) === String(selectedSection))?.section_name || "N/A"}
+                                            </p>
+                                        </div>
+                                        <button className="text-white hover:bg-white/20 p-1.5 rounded-full transition-colors">
+                                            <MoreVertical size={20} />
+                                        </button>
+                                    </div>
+                                    {/* Abstract shapes for background aesthetic */}
+                                    <div className="absolute top-0 right-0 opacity-10 pointer-events-none">
+                                        <div className="w-24 h-24 bg-white rounded-full -mr-10 -mt-10" />
+                                    </div>
                                 </div>
 
-                                <div className="p-8">
-                                    <div className="flex justify-between items-center mb-8">
-                                        <div>
-                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Program</span>
-                                            <span className="text-[11px] font-bold text-black">{finalCardData.program_abbr || "N/A"}</span>
+                                {/* Body Content */}
+                                <div className="p-5 h-[140px] flex flex-col justify-between">
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Code:</span>
+                                            <span className="text-[11px] font-bold text-gray-700">{finalCardData.course_code || "N/A"}</span>
                                         </div>
-                                        <div className="text-right">
-                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Code</span>
-                                            <span className="text-[11px] font-bold text-black">{finalCardData.course_code || "N/A"}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Section Code:</span>
+                                            <span className="text-[11px] font-bold text-blue-600">
+                                                {sections.find(s => String(s.section_id || s.id) === String(selectedSection))?.section_code || "N/A"}
+                                            </span>
                                         </div>
                                     </div>
 
-                                    <div className="w-full py-4 bg-black group-hover:bg-green-600 text-white rounded-2xl text-[10px] text-center font-black uppercase tracking-widest transition-all shadow-lg active:scale-95">
-                                        Manage Students
+                                    <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                                        <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                                            <User size={16} />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="p-2 text-gray-400 hover:text-[#1a73e8] transition-colors">
+                                                <ExternalLink size={18} />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-center select-none opacity-40">
+                            <div className="text-center select-none opacity-40 py-20">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Plus size={24} className="text-gray-400" />
+                                </div>
                                 <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black">
-                                    {selectedCourse ? "Click the button to preview" : "Complete all selections to preview classroom"}
+                                    {selectedCourse ? "Click select button to generate card" : "Complete selections to preview"}
                                 </p>
                             </div>
                         )}
