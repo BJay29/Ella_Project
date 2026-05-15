@@ -108,18 +108,18 @@ const MaterialViewerModal = ({ material, onClose }) => {
     const fileType = (material.file_type || material.type || '').toLowerCase();
     const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
 
-    // ── Derive ext from URL as fallback ──
+    // Derive file extension from URL as fallback
     const getExtFromUrl = (url = '') => url.split('.').pop()?.split('?')[0]?.toLowerCase() || '';
     const resolvedFileType = fileType || getExtFromUrl(fileUrl);
 
-    // ── Escape key closes viewer ──
+    // Escape key closes the viewer
     useEffect(() => {
         const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
     }, [onClose]);
 
-    // ── Fetch PDF as blob to avoid CORS / mixed-content issues ──
+    // Fetch PDF as blob to avoid CORS / mixed-content issues
     useEffect(() => {
         let objectUrl = null;
 
@@ -176,7 +176,7 @@ const MaterialViewerModal = ({ material, onClose }) => {
             );
         }
 
-        // ── PDF: blob iframe — no new tab, no toolbar ──
+        // PDF: blob iframe — no new tab, no toolbar
         if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
             return pdfBlobUrl ? (
                 <iframe
@@ -195,7 +195,7 @@ const MaterialViewerModal = ({ material, onClose }) => {
             );
         }
 
-        // ── VIDEO: object-contain, native controls ──
+        // VIDEO: object-contain, native controls
         if (resolvedFileType.includes('video') || ['mp4','webm','mov','avi','mkv'].includes(resolvedFileType)) {
             return (
                 <div className="flex items-center justify-center h-full bg-black">
@@ -211,7 +211,7 @@ const MaterialViewerModal = ({ material, onClose }) => {
             );
         }
 
-        // ── AUDIO: centered player with icon ──
+        // AUDIO: centered player with icon
         if (resolvedFileType.includes('audio') || ['mp3','wav','ogg','flac','aac'].includes(resolvedFileType)) {
             return (
                 <div className="flex flex-col items-center justify-center h-full gap-10 bg-gray-50 px-8">
@@ -231,7 +231,7 @@ const MaterialViewerModal = ({ material, onClose }) => {
             );
         }
 
-        // ── IMAGE: inline display, object-contain, no new tab ──
+        // IMAGE: inline display, object-contain, no new tab
         if (
             resolvedFileType.includes('image') ||
             ['jpg','jpeg','png','gif','webp','svg','bmp','tiff'].includes(resolvedFileType)
@@ -265,7 +265,7 @@ const MaterialViewerModal = ({ material, onClose }) => {
             );
         }
 
-        // ── GENERIC: no preview, download prompt ──
+        // GENERIC: no preview available, show download prompt
         return (
             <div className="flex flex-col items-center justify-center h-full gap-6 bg-gray-50 px-8">
                 <div className={`w-28 h-28 ${config.bg} rounded-3xl flex items-center justify-center text-white shadow-2xl`}>
@@ -292,15 +292,15 @@ const MaterialViewerModal = ({ material, onClose }) => {
 
     return (
         <>
-            {/* ── Full-screen fixed overlay ── */}
+            {/* Full-screen fixed overlay */}
             <div
                 className="fixed inset-0 z-[300] flex flex-col bg-white"
                 style={{ animation: 'gclassViewerIn 0.2s ease-out' }}
             >
-                {/* ── Top Navigation Bar ── */}
+                {/* Top Navigation Bar */}
                 <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm">
 
-                    {/* Left: Close + File Info */}
+                    {/* Left: Close button + File Info */}
                     <div className="flex items-center gap-4 min-w-0">
                         {/* Close button */}
                         <button
@@ -364,7 +364,7 @@ const MaterialViewerModal = ({ material, onClose }) => {
                     </div>
                 </div>
 
-                {/* ── Main Content Area ── */}
+                {/* Main Content Area */}
                 <div className="flex-1 overflow-hidden">
                     {renderContent()}
                 </div>
@@ -505,10 +505,8 @@ const FileDropZone = ({ onFileSelect, selectedFile }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAbbr, onBack }) => {
     const [students, setStudents] = useState([]);
-    const [pendingRequests, setPendingRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [error, setError] = useState('');
 
@@ -517,7 +515,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
 
-    // ── Material Viewer State ──
+    // Material Viewer State
     const [viewerMaterial, setViewerMaterial] = useState(null);
     const [isFetchingMaterial, setIsFetchingMaterial] = useState(false);
 
@@ -537,6 +535,16 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
         return token.replace(/['"]+/g, '').trim();
     }, []);
 
+    /**
+     * FETCHES ALL STUDENTS (ALL STATUSES) AND COURSE MATERIALS
+     *
+     * Uses the new getSectionStudents API which returns all students
+     * regardless of status (approved, pending, waiting, rejected).
+     * This ensures joiners appear immediately in the list upon enrollment.
+     *
+     * Previously used getSectionDetails which was a combined endpoint;
+     * now we call getSectionStudents directly for the student list.
+     */
     const fetchData = useCallback(async () => {
         const storedSection = localStorage.getItem('selectedSection');
         const activeSection = storedSection ? JSON.parse(storedSection) : null;
@@ -547,22 +555,14 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
         setLoading(true);
         try {
             const token = getCleanToken();
-            const [detailsRes, pendingRes] = await Promise.all([
-                authAPI.getSectionDetails(sId, token),
-                authAPI.getPendingStudents(sId, token),
-            ]);
 
-            if (pendingRes.ok) {
-                const pData = await pendingRes.json();
-                const pendingList = pData.pending_students || (Array.isArray(pData) ? pData : []);
-                setPendingRequests(pendingList);
-            }
+            // Fetch all students for this section (all statuses combined)
+            const studentsRes = await authAPI.getSectionStudents(sId, token);
 
-            if (detailsRes.ok) {
-                const sData = await detailsRes.json();
-                const allStudents = sData.students || [];
-                const approvedOnly = allStudents.filter(s => s.status?.toLowerCase() === 'approved');
-                setStudents(approvedOnly);
+            if (studentsRes.ok) {
+                const sData = await studentsRes.json();
+                // The new API returns students as a top-level array or nested under "students"
+                setStudents(sData.students || sData || []);
             }
         } catch (err) {
             console.error("Fetch Error:", err);
@@ -571,6 +571,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
             setLoading(false);
         }
 
+        // Fetch materials separately (non-critical — failure does not affect student list)
         try {
             const token = getCleanToken();
             const sId2 = sectionId || (() => {
@@ -591,20 +592,20 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    // ── Open material viewer — fetch specific material if no URL yet ──
+    // Open material viewer — fetch specific material details if no URL is available yet
     const handleViewMaterial = async (material) => {
         const storedSection = localStorage.getItem('selectedSection');
         const activeSection = storedSection ? JSON.parse(storedSection) : null;
         const sId = sectionId || activeSection?.section_id || activeSection?.id;
         const materialId = material.id || material.material_id;
 
-        // If we already have a file URL, open immediately
+        // If we already have a file URL, open the viewer immediately
         if (material.file_url || material.url) {
             setViewerMaterial(material);
             return;
         }
 
-        // Otherwise fetch specific material details to get the URL
+        // Otherwise fetch specific material details to retrieve the URL
         if (!sId || !materialId) {
             setViewerMaterial(material);
             return;
@@ -696,16 +697,27 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
         }
     };
 
+    /**
+     * HANDLES STUDENT APPROVAL OR REJECTION DIRECTLY FROM THE TABLE
+     *
+     * Uses approveRejectStudent which calls PATCH
+     * /api/instructor/sections/:sectionId/students/:ssId
+     * with the new status value in the request body.
+     */
     const handleAction = async (requestId, action) => {
         const storedSection = localStorage.getItem('selectedSection');
         const activeSection = storedSection ? JSON.parse(storedSection) : null;
         const sId = activeSection?.section_id || activeSection?.id || sectionId;
         if (!sId || !requestId) return;
+
         const statusMapping = action === 'approve' ? 'approved' : 'rejected';
         try {
             const token = getCleanToken();
             const res = await authAPI.approveRejectStudent(sId, requestId, statusMapping, token);
-            if (res.ok) await fetchData();
+            if (res.ok) {
+                // Refresh the student list to reflect the updated status in the UI
+                await fetchData();
+            }
         } catch (err) {
             console.error("HandleAction Error:", err);
         }
@@ -738,7 +750,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
     return (
         <div className="flex flex-col h-full bg-white relative overflow-hidden text-gray-900">
 
-            {/* ── HEADER AREA ── */}
+            {/* HEADER AREA */}
             <div className="px-10 pt-10 pb-4 bg-white border-b border-gray-50">
                 <div className="flex justify-between items-center mb-10">
                     <div className="flex items-center gap-6">
@@ -759,21 +771,16 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                             <h2 className="text-3xl font-black uppercase text-gray-900 tracking-tighter leading-none">
                                 {sectionName || "Section Details"}
                             </h2>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-4">
-                        <button
-                            onClick={() => setIsRequestsModalOpen(true)}
-                            className="px-6 py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#16a34a] transition-all flex items-center gap-3 relative"
-                        >
-                            View Requests
-                            {pendingRequests.length > 0 && (
-                                <span className="absolute -top-2 -right-2 h-6 w-6 bg-red-600 text-white rounded-full flex items-center justify-center text-[10px] font-black border-4 border-white animate-bounce">
-                                    {pendingRequests.length}
-                                </span>
+                            {/* Section join code — displayed below the section name if available */}
+                            {sectionCode && (
+                                <div className="flex items-center gap-2 mt-2">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Section Code</span>
+                                    <span className="px-2.5 py-1 bg-gray-100 border border-gray-200 rounded-lg text-[11px] font-black text-gray-700 tracking-widest uppercase select-all">
+                                        {sectionCode}
+                                    </span>
+                                </div>
                             )}
-                        </button>
+                        </div>
                     </div>
                 </div>
 
@@ -797,7 +804,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 </div>
             </div>
 
-            {/* ── SEARCH & ACTION BAR ── */}
+            {/* SEARCH & ACTION BAR */}
             <div className="px-10 py-6 flex justify-between items-center bg-gray-50/30">
                 {activeTab === 'students' ? (
                     <div className="relative group max-w-2xl w-full">
@@ -833,7 +840,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 )}
             </div>
 
-            {/* ── MAIN CONTENT AREA ── */}
+            {/* MAIN CONTENT AREA */}
             <div className="flex-1 overflow-auto px-10 py-2 no-scrollbar">
                 {activeTab === 'students' ? (
                     <table className="w-full text-left">
@@ -851,46 +858,66 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
                             ) : filteredStudents.length > 0 ? (
-                                filteredStudents.map((student) => (
-                                    <tr key={student.ss_id || student.id} className="group hover:bg-gray-50 transition-all">
-                                        <td className="px-6 py-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className="h-10 w-10 rounded-full bg-gray-900 flex items-center justify-center text-white text-[10px] font-black">
-                                                    {(student.full_name || 'U').substring(0, 2).toUpperCase()}
+                                filteredStudents.map((student) => {
+                                    const isPending = (student.status || '').toLowerCase() === 'pending';
+                                    return (
+                                        <tr key={student.ss_id || student.id} className="group hover:bg-gray-50 transition-all">
+                                            <td className="px-6 py-6">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="h-10 w-10 rounded-full bg-gray-900 flex items-center justify-center text-white text-[10px] font-black">
+                                                        {(student.full_name || 'U').substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                    <span className="text-sm font-black text-gray-900 uppercase italic tracking-tight group-hover:text-[#16a34a]">
+                                                        {student.full_name || `${student.first_name} ${student.last_name}`}
+                                                    </span>
                                                 </div>
-                                                <span className="text-sm font-black text-gray-900 uppercase italic tracking-tight group-hover:text-[#16a34a]">
-                                                    {student.full_name || `${student.first_name} ${student.last_name}`}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-6"><span className="text-[11px] font-bold text-gray-800">{student.email}</span></td>
-                                        <td className="px-6 py-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-[#16a34a]" style={{ width: `${student.progress || 0}%` }} />
+                                            </td>
+                                            <td className="px-6 py-6"><span className="text-[11px] font-bold text-gray-800">{student.email}</span></td>
+                                            <td className="px-6 py-6">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-[#16a34a]" style={{ width: `${student.progress || 0}%` }} />
+                                                    </div>
+                                                    <span className="text-[10px] font-black text-gray-900">{student.progress || 0}%</span>
                                                 </div>
-                                                <span className="text-[10px] font-black text-gray-900">{student.progress || 0}%</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-6"><StatusBadge status={student.status} /></td>
-                                        <td className="px-6 py-6 text-[10px] font-black text-gray-700 uppercase tracking-widest">{student.last_active || 'Never'}</td>
-                                        <td className="px-6 py-6 text-right">
-                                            <button className="px-5 py-2.5 bg-white border border-gray-900 text-gray-900 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-black hover:text-white transition-all">View Details</button>
-                                        </td>
-                                    </tr>
-                                ))
+                                            </td>
+                                            <td className="px-6 py-6"><StatusBadge status={student.status} /></td>
+                                            <td className="px-6 py-6 text-[10px] font-black text-gray-700 uppercase tracking-widest">{student.last_active || 'Never'}</td>
+                                            <td className="px-6 py-6 text-right">
+                                                {isPending ? (
+                                                    <div className="flex gap-2 justify-end">
+                                                        <button 
+                                                            onClick={() => handleAction(student.ss_id || student.id, 'approve')}
+                                                            className="px-4 py-2 bg-[#16a34a] text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 transition-all"
+                                                        >
+                                                            Accept
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleAction(student.ss_id || student.id, 'deny')}
+                                                            className="px-4 py-2 bg-white border border-red-500 text-red-500 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                                                        >
+                                                            Deny
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button className="px-5 py-2.5 bg-white border border-gray-900 text-gray-900 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-black hover:text-white transition-all">View Details</button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             ) : (
                                 <tr>
                                     <td colSpan={6} className="py-32 text-center text-gray-900">
                                         <div className="text-6xl mb-4">🔍</div>
-                                        <p className="text-[10px] font-black uppercase tracking-[0.3em]">No approved students found</p>
+                                        <p className="text-[10px] font-black uppercase tracking-[0.3em]">No students found</p>
                                     </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
                 ) : (
-                    /* ── GOOGLE CLASSROOM-STYLE MATERIALS LIST ── */
+                    /* GOOGLE CLASSROOM-STYLE MATERIALS LIST */
                     <div className="max-w-3xl mx-auto py-6 space-y-3">
                         {materials.length > 0 ? (
                             <>
@@ -929,7 +956,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 )}
             </div>
 
-            {/* ── LOADING OVERLAY (while fetching specific material) ── */}
+            {/* LOADING OVERLAY — shown while fetching specific material details */}
             {isFetchingMaterial && (
                 <div className="fixed inset-0 z-[290] flex items-center justify-center bg-black/30 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl px-8 py-6 flex items-center gap-4 shadow-2xl">
@@ -942,7 +969,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                 </div>
             )}
 
-            {/* ── GClass-style Full-Screen Material Viewer ── */}
+            {/* GClass-style Full-Screen Material Viewer */}
             {viewerMaterial && (
                 <MaterialViewerModal
                     material={viewerMaterial}
@@ -951,7 +978,7 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
             )}
 
             {/* ════════════════════════════════════════════════════════════════
-                ── MODAL: UPLOAD MATERIAL ──
+                MODAL: UPLOAD MATERIAL
             ════════════════════════════════════════════════════════════════ */}
             {isUploadModalOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
@@ -1097,77 +1124,6 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
                                 </button>
                             </div>
                         </form>
-                    </div>
-                </div>
-            )}
-
-            {/* ── SLIDE-OVER: JOIN REQUESTS ── */}
-            {isRequestsModalOpen && (
-                <div className="fixed inset-0 z-[100] flex justify-end">
-                    <div
-                        className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-300"
-                        onClick={() => setIsRequestsModalOpen(false)}
-                    />
-                    <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500 border-l border-gray-100">
-                        <div className="p-10 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                            <div>
-                                <h3 className="text-3xl font-black italic uppercase text-gray-900 tracking-tighter">Join Requests</h3>
-                                <p className="text-[10px] font-black text-[#16a34a] uppercase tracking-widest mt-1">Verification Needed</p>
-                            </div>
-                            <button
-                                onClick={() => setIsRequestsModalOpen(false)}
-                                className="h-12 w-12 flex items-center justify-center rounded-2xl bg-white border border-gray-200 text-gray-900 hover:bg-black hover:text-white transition-all font-bold"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-10 space-y-6 no-scrollbar">
-                            {pendingRequests.length > 0 ? (
-                                pendingRequests.map((req) => (
-                                    <div key={req.ss_id || req.id} className="group p-6 bg-white border border-gray-200 rounded-3xl hover:border-black transition-all">
-                                        <div className="mb-4">
-                                            <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Student Name</span>
-                                            <h4 className="text-lg font-black text-gray-900 uppercase italic tracking-tight group-hover:text-[#16a34a]">
-                                                {req.full_name || `${req.first_name} ${req.last_name}`}
-                                            </h4>
-                                        </div>
-                                        <div className="mb-6">
-                                            <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Gbox Account</span>
-                                            <p className="text-xs font-bold text-gray-800 lowercase">{req.email}</p>
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <button
-                                                onClick={() => handleAction(req.ss_id || req.id, 'approve')}
-                                                className="flex-1 py-4 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#16a34a] transition-all"
-                                            >
-                                                Confirm
-                                            </button>
-                                            <button
-                                                onClick={() => handleAction(req.ss_id || req.id, 'deny')}
-                                                className="px-6 py-4 bg-white border border-gray-200 text-gray-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
-                                            >
-                                                Deny
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-center text-gray-900">
-                                    <div className="text-5xl mb-4">✅</div>
-                                    <p className="text-[10px] font-black uppercase tracking-[0.3em]">No Pending Joiners</p>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="p-10 border-t border-gray-100 bg-gray-50">
-                            <button
-                                onClick={() => setIsRequestsModalOpen(false)}
-                                className="w-full py-4 border-2 border-dashed border-gray-300 text-gray-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:border-gray-900 hover:text-black transition-all"
-                            >
-                                Close Panel
-                            </button>
-                        </div>
                     </div>
                 </div>
             )}

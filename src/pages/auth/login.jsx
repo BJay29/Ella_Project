@@ -138,7 +138,7 @@ const Login = () => {
   // Google SSO Handler
   const handleGoogleLogin = () => {
     try {
-      // Set intent to login (GoogleCallback will handle auto-registration if user is new)
+      // Set intent to login
       sessionStorage.setItem('sso_intent', 'login');
       authAPI.initiateGoogleLogin();
     } catch (error) {
@@ -236,7 +236,7 @@ const Login = () => {
           </div>
 
           <div className="flex justify-end mr-2">
-            <Link to="/forgot-password" className="text-[9px] italic text-[#3B82F6] font-bold hover:underline">
+            <Link to="/forgot-password" university-link className="text-[9px] italic text-[#3B82F6] font-bold hover:underline">
               Forgot Password?
             </Link>
           </div>
@@ -249,7 +249,7 @@ const Login = () => {
             {isLoading ? '...' : 'LOGIN'}
           </button>
 
-          {/* SSO Section */}
+          {/* SSO Divider */}
           <div className="flex items-center my-1 w-full px-4">
             <div className="flex-grow border-t border-black/10"></div>
             <span className="px-3 text-[8px] text-gray-500 font-black opacity-60 uppercase tracking-widest">OR</span>
@@ -269,10 +269,16 @@ const Login = () => {
             </span>
           </button>
 
-          {/* Footnote - Removed manual Register link for students as it's now automated via SSO */}
-          <div className="text-center mt-2">
-            <p className="text-[9px] text-gray-600 font-bold opacity-70 italic uppercase tracking-tighter">
-              Instant entry for students via Google SSO
+          {/* Registration Link Section */}
+          <div className="text-center mt-3">
+            <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+              Don't have an account?{' '}
+              <Link 
+                to="/register" 
+                className="text-[#3B82F6] hover:text-[#2563EB] transition-colors underline decoration-1 underline-offset-2"
+              >
+                Register here
+              </Link>
             </p>
           </div>
         </form>
@@ -286,6 +292,7 @@ const Login = () => {
       {/* Feedback Modal */}
       <ErrorModal isOpen={showErrorModal} message={errorMessage} onClose={() => setShowErrorModal(false)} />
 
+      {/* Internal Styles */}
       <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px); }

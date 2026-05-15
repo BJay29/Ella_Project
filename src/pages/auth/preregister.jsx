@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-// Inalis ang import ng ellaLogo dito
 import ErrorModal from "../../components/modals/errormodal";
 import { authAPI } from '../../services/APIservice';
 
-// Import Icons
+// Icon Imports
 import { FcGoogle } from 'react-icons/fc';
 import { HiArrowLeft } from 'react-icons/hi';
 
@@ -12,32 +11,32 @@ const SignupMethod = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   
-  // Modal States
+  // UI Feedback States
   const [showError, setShowError] = useState(false);
   const [msg, setMsg] = useState('');
 
   /**
    * HANDLE GOOGLE REGISTRATION
-   * Nililinis muna ang storage bago mag-redirect sa Google
-   * para iwas "loop" or auto-redirect errors.
+   * Clears old storage data before redirecting to Google 
+   * to avoid session conflicts or loop errors.
    */
   const handleGoogleRegister = () => {
     setIsLoading(true);
     
     try {
-      // 1. NUCLEAR CLEANUP: Linisin ang lumang basura sa storage
+      // 1. STORAGE CLEANUP: Ensure no leftover tokens or roles interfere with registration
       localStorage.removeItem('token');
       localStorage.removeItem('userRole');
       localStorage.removeItem('userEmail');   
       sessionStorage.clear();
 
-      // 2. IMPORTANT FIX: I-set ang intent PAGKATAPOS ng clear.
-      // Ito ang magsasabi sa GoogleCallback na "REGISTER" ang mode natin.
+      // 2. SET INTENT: Explicitly set the intent to 'register' 
+      // so the callback handler knows to create a new account.
       sessionStorage.setItem('sso_intent', 'register');
 
       console.log("Redirecting to Google SSO with intent: register...");
       
-      // 3. Initiate Google Login
+      // 3. Initiate the Google OAuth redirect
       authAPI.initiateGoogleLogin();
     } catch (error) {
       console.error("Google Auth Error:", error);
@@ -50,14 +49,18 @@ const SignupMethod = () => {
   return (
     <div className="h-screen w-screen bg-[#C8E6C0] flex flex-col items-center justify-center font-sans relative overflow-hidden">
       
-      {/* Main Card Container */}
-      <div className="w-full max-w-[340px] bg-[#B8DBB8] rounded-[40px] p-10 flex flex-col items-center shadow-lg border border-black/10 animate-slideUp">
+      {/* Background Decorative Blurs - Lowered z-index to stay in background */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/20 rounded-full blur-3xl z-0"></div>
+      
+      {/* Main Registration Card Container */}
+      <div className="w-full max-w-[340px] bg-[#B8DBB8] rounded-[40px] p-10 flex flex-col items-center shadow-lg border border-black/10 animate-slideUp relative z-10">
         
-        {/* Branding Logo - Inalis ang Ella Character Image dito */}
+        {/* Visual Header Decoration */}
         <div className="mb-6 mt-4">
           <div className="w-16 h-1 bg-gray-700/20 rounded-full mb-4 mx-auto"></div>
         </div>
 
+        {/* Text Content */}
         <h2 className="text-[12px] font-black tracking-[0.25em] text-gray-700 uppercase mb-2 text-center">
           Quick Registration
         </h2>
@@ -66,13 +69,15 @@ const SignupMethod = () => {
           Verify your identity automatically using your Google account.
         </p>
 
-        {/* Primary Action: Google SSO Button */}
+        {/* Action Button: Google SSO */}
         <div className="w-full flex flex-col items-center gap-4">
           <button
             type="button"
             onClick={handleGoogleRegister}
             disabled={isLoading}
-            className={`flex items-center justify-center gap-3 w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-full py-3 shadow-md transition-all active:scale-95 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`flex items-center justify-center gap-3 w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-full py-3 shadow-md transition-all active:scale-95 ${
+              isLoading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
             {isLoading ? (
               <span className="text-[11px] font-bold animate-pulse italic">CONNECTING...</span>
@@ -85,11 +90,11 @@ const SignupMethod = () => {
           </button>
         </div>
 
-        {/* Footer Link */}
+        {/* Navigation Link back to Login */}
         <div className="mt-8 text-center border-t border-black/5 pt-4 w-full">
           <Link 
             to="/login" 
-            className="flex items-center justify-center gap-1 text-[10px] font-bold text-blue-600 uppercase hover:underline"
+            className="flex items-center justify-center gap-1 text-[10px] font-bold text-blue-600 uppercase hover:underline cursor-pointer"
           >
             <HiArrowLeft className="w-3 h-3" />
             Back to Login
@@ -97,14 +102,14 @@ const SignupMethod = () => {
         </div>
       </div>
 
-      {/* Error Modal */}
+      {/* Verification Feedback Modal */}
       <ErrorModal 
         isOpen={showError} 
         message={msg} 
         onClose={() => setShowError(false)} 
       />
 
-      {/* Animation Styles */}
+      {/* Internal Animation Styles */}
       <style>{`
         @keyframes slideUp { 
           from { opacity: 0; transform: translateY(20px); } 
