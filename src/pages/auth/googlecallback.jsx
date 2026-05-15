@@ -4,17 +4,13 @@ import ErrorModal from "../../components/modals/errormodal";
 
 /**
  * GoogleCallback Component
- * Final Flow: 
- * 1. Receive SSO Token and User Data from Backend
- * 2. Save credentials to LocalStorage immediately
- * 3. Redirect directly to the appropriate Dashboard based on Role
- * Note: Registration is now handled silently by the Backend (Just-in-Time Provisioning)
+ * Handles the redirection after Google SSO.
+ * Added Logic: Prevents existing users from "re-registering" and redirects them to login.
  */
 const GoogleCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Ref to prevent double execution in React Strict Mode
   const initialized = useRef(false);
 
   // Modal states for error handling
@@ -22,37 +18,54 @@ const GoogleCallback = () => {
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    // Prevent double execution
     if (initialized.current) return;
     initialized.current = true;
 
     console.log("--- GOOGLE CALLBACK INITIATED ---");
     
-    // 1. Extract parameters from URL
     const params = new URLSearchParams(location.search);
     const token = params.get('token');
     const email = params.get('email');
+    const isNewUser = params.get('isNewUser') === 'true'; // Backend should ideally provide this
     
-    // Role extraction and normalization
     const rawRole = params.get('role');
     const role = rawRole ? rawRole.toLowerCase().trim() : 'student';
 
-    console.log("Parsed SSO Data:", { hasToken: !!token, role, email });
+    // Retrieve the intent set in SignupMethod or Login
+    const intent = sessionStorage.getItem('sso_intent');
+
+    console.log("Parsed SSO Data:", { hasToken: !!token, role, email, intent, isNewUser });
 
     if (token) {
-      // --- DIRECT ENTRY LOGIC ---
-      // We no longer check if 'isNewUser' is true because registration is automatic.
+      /**
+       * REGISTRATION ATTEMPT LOGIC
+       * If user clicked "Register Here" but the account already exists.
+       * We check 'isNewUser' from backend. If backend doesn't provide it, 
+       * we assume if they have a role assigned, they might already be registered.
+       */
+      if (intent === 'register' && !isNewUser) {
+        console.warn("Registration Blocked: User already exists.");
+        
+        // Clear everything to ensure no ghost sessions
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // Redirect to login with a specific error message
+        navigate('/login?info=account_exists', { replace: true });
+        return;
+      }
+
+      // --- PROCEED WITH AUTHENTICATION ---
       console.log("Authentication successful. Saving credentials...");
 
-      // Store Authentication Data
       localStorage.setItem('token', token);
       localStorage.setItem('userRole', role);
       localStorage.setItem('userEmail', email);
 
-      // Clear temporary session intent if any exists
+      // Successfully logged in or registered, remove intent
       sessionStorage.removeItem('sso_intent');
 
-      // Determine Dashboard Path based on User Role
+      // Determine Dashboard Path
       let dashboardPath = `/${role}/dashboard`;
 
       if (role === 'curriculum_manager' || role === 'cm') {
@@ -66,8 +79,6 @@ const GoogleCallback = () => {
       }
 
       console.log(`Action: Redirecting to ${role} dashboard.`);
-      
-      // Redirect to the main application
       navigate(dashboardPath, { replace: true });
 
     } else {
@@ -78,7 +89,6 @@ const GoogleCallback = () => {
     }
   }, [location, navigate]);
 
-  // Handler for closing the error modal
   const handleModalClose = () => {
     setShowError(false);
     localStorage.clear();
@@ -88,7 +98,6 @@ const GoogleCallback = () => {
 
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#C8E6C0]">
-      {/* Loading Spinner and Status UI */}
       <div className="flex flex-col items-center gap-4 animate-in fade-in duration-500">
         <div className="w-12 h-12 border-4 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
         <div className="text-center">
@@ -101,7 +110,6 @@ const GoogleCallback = () => {
         </div>
       </div>
 
-      {/* Error Modal Component */}
       <ErrorModal 
         isOpen={showError} 
         title="Auth Failed"
