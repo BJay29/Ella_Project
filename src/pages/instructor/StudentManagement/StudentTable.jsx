@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { authAPI } from '../../../services/APIservice';
-import EssayReview from './GradongPortal';
+import GradingPortal from './GradingPortal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UI Components & Helpers
@@ -27,8 +27,6 @@ const StatusBadge = ({ status }) => {
         </span>
     );
 };
-
-const [currentView, setCurrentView] = useState('list');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Material Type Config (GClass-style colored banners)
@@ -507,6 +505,103 @@ const FileDropZone = ({ onFileSelect, selectedFile }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Essay Submission Card — for Grading Portal tab
+// ─────────────────────────────────────────────────────────────────────────────
+const SubmissionStatusBadge = ({ status }) => {
+    const s = (status || '').toLowerCase();
+    const isGraded = s === 'graded';
+    const isPending = s === 'pending' || s === 'submitted';
+    return (
+        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border flex-shrink-0 ${
+            isGraded
+                ? 'bg-green-50 text-green-700 border-green-200'
+                : isPending
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-gray-100 text-gray-500 border-gray-200'
+        }`}>
+            {isGraded ? 'Graded' : isPending ? 'For Review' : status || 'Submitted'}
+        </span>
+    );
+};
+
+const EssaySubmissionCard = ({ submission, onReview }) => {
+    const isGraded = (submission.status || '').toLowerCase() === 'graded';
+    const studentName = submission.studentName || submission.full_name || submission.student_name || 'Unknown Student';
+    const essayTitle = submission.essayTitle || submission.essay_title || submission.title || 'Untitled Essay';
+    const submittedDate = submission.date || submission.submitted_at || submission.created_at
+        ? new Date(submission.date || submission.submitted_at || submission.created_at).toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric'
+          })
+        : 'Recently submitted';
+    const wordCount = submission.wordCount || submission.word_count || 0;
+    const score = submission.score;
+    const initials = studentName.substring(0, 2).toUpperCase();
+
+    return (
+        <div
+            className="group flex items-stretch bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer"
+            onClick={() => onReview(submission)}
+        >
+            {/* Left accent strip */}
+            <div className={`w-1.5 flex-shrink-0 ${isGraded ? 'bg-green-500' : 'bg-amber-400'}`} />
+
+            {/* Content */}
+            <div className="flex-1 px-5 py-4 min-w-0 flex items-center gap-4">
+                {/* Avatar */}
+                <div className="h-11 w-11 rounded-full bg-gray-900 flex items-center justify-center text-white text-[11px] font-black flex-shrink-0">
+                    {initials}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">{studentName}</p>
+                            <h4 className="text-[13px] font-black text-gray-900 uppercase tracking-tight truncate leading-tight group-hover:text-[#16a34a] transition-colors">
+                                {essayTitle}
+                            </h4>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <SubmissionStatusBadge status={submission.status} />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 mt-2">
+                        <span className="text-[9px] font-bold text-gray-400 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {submittedDate}
+                        </span>
+                        {wordCount > 0 && (
+                            <span className="text-[9px] font-bold text-gray-400 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                {wordCount.toLocaleString()} words
+                            </span>
+                        )}
+                        {isGraded && score !== undefined && score !== null && (
+                            <span className="text-[9px] font-black text-green-600 flex items-center gap-1 ml-auto">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
+                                </svg>
+                                Score: {score}/100
+                            </span>
+                        )}
+                        {!isGraded && (
+                            <span className="ml-auto text-[9px] font-black text-[#16a34a] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                Review →
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Component: StudentTable
 // ─────────────────────────────────────────────────────────────────────────────
 const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAbbr, onBack }) => {
@@ -524,6 +619,11 @@ const StudentTable = ({ sectionId, sectionName, sectionCode, deptAbbr, programAb
     // Material Viewer State
     const [viewerMaterial, setViewerMaterial] = useState(null);
     const [isFetchingMaterial, setIsFetchingMaterial] = useState(false);
+
+    // ── Grading Portal State ──────────────────────────────────────────────────
+    const [submissions, setSubmissions] = useState([]);
+    const [submissionsLoading, setSubmissionsLoading] = useState(false);
+    const [activeSubmission, setActiveSubmission] = useState(null); // null = list view, obj = detail view
 
     // Form State for Upload Modal
     const [uploadForm, setUploadForm] = useState({
@@ -643,6 +743,63 @@ if (pendingRes.ok) {
     }, [sectionId, getCleanToken]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
+
+    // ── Fetch Essay Submissions when Grading Portal tab is active ─────────────
+    const fetchSubmissions = useCallback(async () => {
+        const storedSection = localStorage.getItem('selectedSection');
+        const activeSection = storedSection ? JSON.parse(storedSection) : null;
+        const sId = sectionId || activeSection?.section_id || activeSection?.id;
+        if (!sId) return;
+
+        setSubmissionsLoading(true);
+        try {
+            const token = getCleanToken();
+            // Call your API — adjust method name to match your authAPI service
+            const res = await authAPI.getEssaySubmissions(sId, token);
+            if (res && res.ok) {
+                const data = await res.json();
+                setSubmissions(data.submissions || data || []);
+            }
+        } catch (err) {
+            console.warn('Essay submissions fetch failed:', err);
+        } finally {
+            setSubmissionsLoading(false);
+        }
+    }, [sectionId, getCleanToken]);
+
+    useEffect(() => {
+        if (activeTab === 'gradingPortal') {
+            fetchSubmissions();
+        }
+    }, [activeTab, fetchSubmissions]);
+
+    // ── Save Grade Handler ────────────────────────────────────────────────────
+    const handleSaveGrade = useCallback(async (submissionId, { score, feedback }) => {
+        const storedSection = localStorage.getItem('selectedSection');
+        const activeSection = storedSection ? JSON.parse(storedSection) : null;
+        const sId = sectionId || activeSection?.section_id || activeSection?.id;
+        if (!sId || !submissionId) return;
+
+        try {
+            const token = getCleanToken();
+            // Call your API — adjust method name to match your authAPI service
+            const res = await authAPI.submitEssayGrade(sId, submissionId, { score, feedback }, token);
+            if (res && res.ok) {
+                // Update local submissions list to reflect graded status
+                setSubmissions(prev =>
+                    prev.map(sub =>
+                        (sub.id === submissionId || sub.submission_id === submissionId)
+                            ? { ...sub, score, feedback, status: 'graded' }
+                            : sub
+                    )
+                );
+                // Go back to submissions list
+                setActiveSubmission(null);
+            }
+        } catch (err) {
+            console.error('Save grade error:', err);
+        }
+    }, [sectionId, getCleanToken]);
 
     // Open material viewer — uses the new getSpecificMaterial API
     const handleViewMaterial = async (material) => {
@@ -803,6 +960,21 @@ if (pendingRes.ok) {
         { value: 'image', label: 'Image / Graphic', icon: '🖼️' },
     ];
 
+    // ── Stats for Grading Portal ──────────────────────────────────────────────
+    const gradedCount = submissions.filter(s => (s.status || '').toLowerCase() === 'graded').length;
+    const pendingCount = submissions.length - gradedCount;
+
+    // ── If activeSubmission is set, render the full GradingPortal component ──
+    if (activeSubmission) {
+        return (
+            <GradingPortal
+                studentSubmission={activeSubmission}
+                onBack={() => setActiveSubmission(null)}
+                onSaveGrade={handleSaveGrade}
+            />
+        );
+    }
+
     return (
         <div className="flex flex-col h-full bg-white relative overflow-hidden text-gray-900">
 
@@ -839,6 +1011,7 @@ if (pendingRes.ok) {
                     </div>
                 </div>
 
+                {/* ── TABS (now 3) ── */}
                 <div className="flex gap-8">
                     <button
                         onClick={() => setActiveTab('students')}
@@ -855,6 +1028,19 @@ if (pendingRes.ok) {
                         }`}
                     >
                         Materials Library
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('gradingPortal')}
+                        className={`pb-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                            activeTab === 'gradingPortal' ? 'border-b-4 border-[#16a34a] text-gray-900' : 'text-gray-500 hover:text-black'
+                        }`}
+                    >
+                        Grading Portal
+                        {pendingCount > 0 && activeTab !== 'gradingPortal' && (
+                            <span className="inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full bg-amber-400 text-white text-[8px] font-black">
+                                {pendingCount}
+                            </span>
+                        )}
                     </button>
                 </div>
             </div>
@@ -876,7 +1062,7 @@ if (pendingRes.ok) {
                             className="w-full pl-14 pr-8 py-5 bg-white border border-gray-200 rounded-2xl text-[11px] font-bold uppercase tracking-widest focus:ring-4 focus:ring-green-50 focus:border-[#16a34a] transition-all outline-none text-gray-900 shadow-sm"
                         />
                     </div>
-                ) : (
+                ) : activeTab === 'materials' ? (
                     <div className="flex justify-between items-center w-full">
                         <div>
                             <p className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Course Materials</p>
@@ -891,6 +1077,25 @@ if (pendingRes.ok) {
                             </svg>
                             Add Material
                         </button>
+                    </div>
+                ) : (
+                    /* Grading Portal action bar */
+                    <div className="flex justify-between items-center w-full">
+                        <div>
+                            <p className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Essay Submissions</p>
+                            <p className="text-[9px] font-bold text-gray-400 mt-0.5">
+                                {gradedCount} graded · {pendingCount} for review · {submissions.length} total
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${
+                                pendingCount > 0
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : 'bg-green-50 text-green-700 border-green-200'
+                            }`}>
+                                {pendingCount > 0 ? `${pendingCount} Pending Review` : 'All Graded'}
+                            </span>
+                        </div>
                     </div>
                 )}
             </div>
@@ -971,7 +1176,7 @@ if (pendingRes.ok) {
                             )}
                         </tbody>
                     </table>
-                ) : (
+                ) : activeTab === 'materials' ? (
                     /* GOOGLE CLASSROOM-STYLE MATERIALS LIST */
                     <div className="max-w-3xl mx-auto py-6 space-y-3">
                         {materials.length > 0 ? (
@@ -1005,6 +1210,74 @@ if (pendingRes.ok) {
                                 >
                                     Add First Material
                                 </button>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    /* ── GRADING PORTAL: SUBMISSIONS LIST ── */
+                    <div className="max-w-3xl mx-auto py-6 space-y-3">
+                        {submissionsLoading ? (
+                            <div className="space-y-3">
+                                {Array.from({ length: 4 }).map((_, i) => (
+                                    <div key={i} className="animate-pulse flex items-center gap-4 bg-white border border-gray-100 rounded-2xl p-5">
+                                        <div className="h-11 w-11 rounded-full bg-gray-200 flex-shrink-0" />
+                                        <div className="flex-1 space-y-2">
+                                            <div className="h-2.5 bg-gray-200 rounded w-1/4" />
+                                            <div className="h-3 bg-gray-200 rounded w-2/3" />
+                                            <div className="h-2 bg-gray-200 rounded w-1/3" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : submissions.length > 0 ? (
+                            <>
+                                {/* Stats Row */}
+                                <div className="grid grid-cols-3 gap-3 mb-6">
+                                    <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
+                                        <p className="text-2xl font-black text-gray-900">{submissions.length}</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Total</p>
+                                    </div>
+                                    <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-center">
+                                        <p className="text-2xl font-black text-amber-700">{pendingCount}</p>
+                                        <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest mt-0.5">For Review</p>
+                                    </div>
+                                    <div className="bg-green-50 border border-green-100 rounded-2xl p-4 text-center">
+                                        <p className="text-2xl font-black text-green-700">{gradedCount}</p>
+                                        <p className="text-[9px] font-black text-green-500 uppercase tracking-widest mt-0.5">Graded</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="h-px flex-1 bg-gray-200" />
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">All Submissions</span>
+                                    <div className="h-px flex-1 bg-gray-200" />
+                                </div>
+
+                                {/* Pending first, then graded */}
+                                {[...submissions]
+                                    .sort((a, b) => {
+                                        const aGraded = (a.status || '').toLowerCase() === 'graded';
+                                        const bGraded = (b.status || '').toLowerCase() === 'graded';
+                                        return aGraded - bGraded;
+                                    })
+                                    .map((sub, idx) => (
+                                        <EssaySubmissionCard
+                                            key={sub.id || sub.submission_id || idx}
+                                            submission={sub}
+                                            onReview={(s) => setActiveSubmission(s)}
+                                        />
+                                    ))
+                                }
+                            </>
+                        ) : (
+                            <div className="py-40 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-[3rem]">
+                                <div className="h-16 w-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-6">
+                                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </div>
+                                <p className="text-[11px] font-black text-gray-700 uppercase tracking-[0.3em] mb-1">No Submissions Yet</p>
+                                <p className="text-[10px] text-gray-400">Student essay submissions will appear here once received.</p>
                             </div>
                         )}
                     </div>
@@ -1180,28 +1453,7 @@ if (pendingRes.ok) {
                     </div>
                 </div>
             )}
-            return (
-  <div className="container">
-      {/* Ang existing navigation buttons mo */}
-      <div className="flex gap-4">
-          <button onClick={() => setCurrentView('list')}>Student List</button>
-          <button onClick={() => setCurrentView('essays')}>Essay Submissions</button>
-      </div>
-
-      {/* Dito papasok ang logic */}
-      {currentView === 'list' ? (
-          // DITO MO ILALAGAY YUNG BUONG 1000 LINES NG TABLE MO
-          <div className="your-existing-table-logic">
-             {/* ... current code mo ... */}
-          </div>
-      ) : currentView === 'essays' ? (
-          // DITO PAPASOK YUNG BAGONG COMPONENT
-          <EssayReview sectionId={selectedSectionId} />
-      ) : (
-          <MaterialsLibrary />
-      )}
-  </div>
-);
+            
 
             <style>{`
                 @keyframes modalIn {
