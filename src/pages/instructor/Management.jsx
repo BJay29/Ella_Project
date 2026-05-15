@@ -25,13 +25,12 @@ const Management = () => {
     const token = useMemo(() => {
         const rawToken = localStorage.getItem('token');
         const cleanToken = rawToken ? rawToken.replace(/"/g, '') : null;
-        if (!cleanToken) console.warn("Management Log: No token found in localStorage.");
+        if (!cleanToken) console.warn("Management Log: No token found.");
         return cleanToken;
     }, []);
 
     /**
-     * EXTRACT DATA HELPER
-     * Scans API response for arrays to handle various backend structures
+     * HELPER: Extracts array from various backend response structures
      */
     const extractData = async (res, label) => {
         if (!res.ok) {
@@ -42,18 +41,12 @@ const Management = () => {
             const json = await res.json();
             console.log(`Management Log [${label} Raw Response]:`, json);
 
-            // 1. If response is directly an array
             if (Array.isArray(json)) return json;
-
-            // 2. Check standard data keys
             if (json.data && Array.isArray(json.data)) return json.data;
             
-            // 3. Dynamic search: Find the first key that is an array (e.g., { departments: [...] })
+            // Look for the first available array key (e.g., "departments", "year_levels")
             const dynamicKey = Object.keys(json).find(key => Array.isArray(json[key]));
-            if (dynamicKey) {
-                console.log(`Management Log: Auto-detected array in key: "${dynamicKey}"`);
-                return json[dynamicKey];
-            }
+            if (dynamicKey) return json[dynamicKey];
 
             return [];
         } catch (err) {
@@ -63,7 +56,7 @@ const Management = () => {
     };
 
     /**
-     * FETCH 1: Departments
+     * FETCH: Departments
      */
     const fetchDepartments = useCallback(async () => {
         if (!token) return;
@@ -73,7 +66,7 @@ const Management = () => {
             const data = await extractData(res, "Departments");
             setDepartments(data);
         } catch (err) {
-            console.error("Management Log: Error fetching departments:", err);
+            console.error("Error fetching departments:", err);
         } finally {
             setIsLoading(false);
         }
@@ -84,7 +77,7 @@ const Management = () => {
     }, [fetchDepartments]);
 
     /**
-     * FETCH 2: Programs (Triggered by Dept selection)
+     * FETCH: Programs
      */
     const fetchPrograms = async (deptId) => {
         try {
@@ -95,7 +88,7 @@ const Management = () => {
     };
 
     /**
-     * FETCH 3: Year Levels (Triggered by Program selection)
+     * FETCH: Year Levels
      */
     const fetchYearLevels = async (deptId, programId) => {
         try {
@@ -106,13 +99,10 @@ const Management = () => {
     };
 
     /**
-     * FETCH 4: Sections
-     * FIX: Using the nested API route to avoid 404 errors
+     * FETCH: Sections
      */
     const fetchSections = async (deptId, programId, yearId) => {
         try {
-            console.log(`Management Log: Fetching Sections for Year ID: ${yearId}`);
-            // Use the correct API method provided in your prompt
             const res = await authAPI.getInstructorSections(deptId, programId, yearId, token);
             const data = await extractData(res, "Sections");
             setSections(data);
@@ -120,7 +110,7 @@ const Management = () => {
     };
 
     /**
-     * FETCH 5: Courses (Triggered by Section selection)
+     * FETCH: Courses
      */
     const fetchCourses = async (sectionId) => {
         try {
@@ -130,7 +120,7 @@ const Management = () => {
         } catch (err) { console.error("Error fetching courses:", err); }
     };
 
-    // --- State Reset Handlers (Cascading selection logic) ---
+    // --- Cascading Change Handlers ---
 
     const handleDeptChange = (deptId) => {
         setSelectedDept(deptId);
@@ -150,7 +140,6 @@ const Management = () => {
         setSelectedYear(yearId);
         setSelectedSection(''); setSelectedCourse('');
         setSections([]); setCourses([]);
-        // Pass all three IDs required by the new getInstructorSections API
         if (yearId) fetchSections(selectedDept, selectedProgram, yearId);
     };
 
@@ -170,7 +159,8 @@ const Management = () => {
         const yearObj = yearLevels.find(y => String(y.year_level_id || y.id) === String(selectedYear));
         const preparedData = {
             ...data,
-            year_level: yearObj?.year_level || yearObj?.name || 'N/A',
+            // Use year_name for the dashboard display
+            year_level: yearObj?.year_name || yearObj?.year_level || 'N/A',
             year_level_id: selectedYear
         };
         setActiveSection(preparedData);
@@ -203,8 +193,8 @@ const Management = () => {
                                 <option value="">Select Dept</option>
                                 {departments.map(d => (
                                     <option key={d.dept_id || d.id} value={d.dept_id || d.id}>
-                                        {/* FIX: Check all possible name fields to avoid "Unnamed Dept" */}
-                                        {d.dept_name || d.name || d.dept_abbr || "Unnamed Dept"}
+                                        {/* FIXED: Uses department_name from your JSON response */}
+                                        {d.department_name || d.dept_name || d.name || "Unnamed Dept"}
                                     </option>
                                 ))}
                             </select>
@@ -240,8 +230,8 @@ const Management = () => {
                                 <option value="">Select Year</option>
                                 {yearLevels.map(y => (
                                     <option key={y.year_level_id || y.id} value={y.year_level_id || y.id}>
-                                        {/* FIX: Ensure year level text is visible */}
-                                        {y.year_level || y.name || `Year ${y.year_level_id || y.id}`}
+                                        {/* FIXED: Uses year_name (e.g., "First Year") instead of just ID */}
+                                        {y.year_name || y.year_level || y.name || `Year ${y.year_level_id}`}
                                     </option>
                                 ))}
                             </select>
