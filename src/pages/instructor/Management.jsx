@@ -7,7 +7,6 @@ const Management = () => {
     const [view, setView] = useState('list');
     const [isLoading, setIsLoading] = useState(false);
     const [activeSection, setActiveSection] = useState(null);
-    const [showCard, setShowCard] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     // --- Data States for Dropdowns ---
@@ -17,12 +16,16 @@ const Management = () => {
     const [sections, setSections] = useState([]);
     const [courses, setCourses] = useState([]);
 
-    // --- Selection States ---
-    const [selectedDept, setSelectedDept] = useState('');
-    const [selectedProgram, setSelectedProgram] = useState('');
-    const [selectedYear, setSelectedYear] = useState('');
-    const [selectedSection, setSelectedSection] = useState('');
-    const [selectedCourse, setSelectedCourse] = useState('');
+    /**
+     * PERSISTENCE STATE INITIALIZATION
+     * Loads saved selections from localStorage to prevent data loss on refresh/re-login
+     */
+    const [selectedDept, setSelectedDept] = useState(localStorage.getItem('mgt_selectedDept') || '');
+    const [selectedProgram, setSelectedProgram] = useState(localStorage.getItem('mgt_selectedProgram') || '');
+    const [selectedYear, setSelectedYear] = useState(localStorage.getItem('mgt_selectedYear') || '');
+    const [selectedSection, setSelectedSection] = useState(localStorage.getItem('mgt_selectedSection') || '');
+    const [selectedCourse, setSelectedCourse] = useState(localStorage.getItem('mgt_selectedCourse') || '');
+    const [showCard, setShowCard] = useState(localStorage.getItem('mgt_showCard') === 'true');
 
     // Token retrieval and sanitization
     const token = useMemo(() => {
@@ -31,6 +34,19 @@ const Management = () => {
         if (!cleanToken) console.warn("Management Log: No token found in localStorage.");
         return cleanToken;
     }, []);
+
+    /**
+     * EFFECT: Persistence Sync
+     * Automatically updates localStorage whenever a selection changes
+     */
+    useEffect(() => {
+        localStorage.setItem('mgt_selectedDept', selectedDept);
+        localStorage.setItem('mgt_selectedProgram', selectedProgram);
+        localStorage.setItem('mgt_selectedYear', selectedYear);
+        localStorage.setItem('mgt_selectedSection', selectedSection);
+        localStorage.setItem('mgt_selectedCourse', selectedCourse);
+        localStorage.setItem('mgt_showCard', showCard);
+    }, [selectedDept, selectedProgram, selectedYear, selectedSection, selectedCourse, showCard]);
 
     /**
      * EXTRACT DATA HELPER
@@ -52,6 +68,21 @@ const Management = () => {
             return [];
         }
     };
+
+    /**
+     * EFFECT: Re-hydration (Auto-fetch data for saved selections)
+     * If user returns and has saved IDs, this fetches the dependent dropdown data automatically
+     */
+    useEffect(() => {
+        const rehydrateData = async () => {
+            if (!token) return;
+            if (selectedDept) fetchPrograms(selectedDept);
+            if (selectedDept && selectedProgram) fetchYearLevels(selectedDept, selectedProgram);
+            if (selectedDept && selectedProgram && selectedYear) fetchSections(selectedDept, selectedProgram, selectedYear);
+            if (selectedSection) fetchCourses(selectedSection);
+        };
+        rehydrateData();
+    }, [token]);
 
     /**
      * FETCH 1: Departments
@@ -319,12 +350,12 @@ const Management = () => {
                         </button>
                     </div>
 
-                    {/* REDESIGNED CARD DISPLAY AREA (Centered) */}
-                    <div className="flex flex-col items-center justify-center py-12">
+                    {/* UPDATED CARD DISPLAY AREA: Switched from center to side using Grid Layout */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 py-12">
                         {showCard && finalCardData ? (
                             <div 
                                 onClick={() => handleOpenClassroom(finalCardData)}
-                                className="w-full max-w-[320px] bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-300 cursor-pointer"
+                                className="w-full bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-300 cursor-pointer"
                             >
                                 {/* Header Layout (G-Class Style) */}
                                 <div className="bg-[#1a73e8] h-[100px] p-5 relative group-hover:bg-[#185abc] transition-colors">
@@ -375,8 +406,8 @@ const Management = () => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-center select-none opacity-40 py-20">
-                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <div className="col-span-full text-left select-none opacity-40 py-20 flex flex-col items-center justify-center">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                     <Plus size={24} className="text-gray-400" />
                                 </div>
                                 <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black">
