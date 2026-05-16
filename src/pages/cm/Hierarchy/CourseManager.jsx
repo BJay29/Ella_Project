@@ -45,6 +45,7 @@ const CourseManager = () => {
             }
         } catch (err) {
             setError("Could not load departments.");
+            toast.error("Failed to load departments.");
         }
     };
 
@@ -93,7 +94,7 @@ const CourseManager = () => {
                     setPrograms(data.programs || data || []);
                 }
             } catch (err) {
-                console.error("Error fetching programs");
+                console.error("Error fetching programs", err);
             }
         };
         fetchPrograms();
@@ -120,7 +121,7 @@ const CourseManager = () => {
                     setYearLevels(data.year_levels || data || []);
                 }
             } catch (err) {
-                console.error("Error fetching year levels");
+                console.error("Error fetching year levels", err);
             }
         };
         fetchYears();
@@ -148,7 +149,7 @@ const CourseManager = () => {
                     setSections(data.sections || data || []);
                 }
             } catch (err) {
-                console.error("Connection error fetching sections");
+                console.error("Connection error fetching sections", err);
             }
         };
         fetchSections();
@@ -193,14 +194,17 @@ const CourseManager = () => {
             if (res.ok) {
                 const data = await res.json();
                 
+                // Fetch updated dataset immediately to render new card with code
                 await fetchRegisteredCourses(); 
                 setCourseName(''); 
                 setCourseCode(''); 
                 setDescription(''); 
                 
-                // --- Top Right Toast Notification ---
-                const successMsg = data.course_join_code || data.data?.course_join_code
-                    ? `Course successfully deployed! Code: ${data.course_join_code || data.data?.course_join_code}`
+                // Extract generated code across common response properties
+                const activeCode = data.course_join_code || data.join_code || data.data?.course_join_code || data.data?.join_code;
+
+                const successMsg = activeCode
+                    ? `Course successfully deployed! Code: ${activeCode}`
                     : "Course successfully deployed to section!";
 
                 toast.success(successMsg, {
@@ -209,12 +213,12 @@ const CourseManager = () => {
                     theme: "colored",
                 });
             } else {
-                const errData = await res.json();
+                const errData = await res.json().catch(() => ({}));
                 setError(errData.message || "Deployment failed.");
-                toast.error("Failed to deploy course.");
+                toast.error(errData.message || "Failed to deploy course.");
             }
         } catch (err) {
-            setError("Network error.");
+            setError("Network error encountered.");
             toast.error("Connection failed.");
         } finally {
             setLoading(false);
@@ -223,10 +227,13 @@ const CourseManager = () => {
 
     // --- INSTANT DELETION HANDLER ---
     const handleDelete = async (courseId, targetCourseCode) => {
+        if (!window.confirm(`Are you sure you want to remove ${targetCourseCode || 'this course'} from the curriculum?`)) {
+            return;
+        }
+
         try {
             const token = localStorage.getItem('token');
             
-            // Fixed parameter cascading context matching your backend requirements
             const res = await authAPI.deleteCourse(
                 parseInt(selectedDept),
                 parseInt(selectedProgram),
@@ -237,7 +244,6 @@ const CourseManager = () => {
             );
 
             if (res.ok) {
-                // Refresh the list immediately after successful removal
                 await fetchRegisteredCourses();
                 toast.error(`Course ${targetCourseCode || ''} removed from curriculum.`, { 
                     position: "top-right",
@@ -256,7 +262,7 @@ const CourseManager = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-6 space-y-8 animate-in fade-in duration-500">
-            {/* Added ToastContainer for notifications to appear */}
+            {/* Notification container element */}
             <ToastContainer />
 
             <div className="flex flex-col gap-2">
@@ -335,11 +341,13 @@ const CourseManager = () => {
                         <div className="pt-2 space-y-4">
                             <label className="text-[11px] font-black text-indigo-600 uppercase tracking-widest ml-2">Course Information</label>
                             <input 
+                                required
                                 type="text" placeholder="Title (e.g. Machine Learning)" value={courseName}
                                 onChange={(e) => setCourseName(e.target.value)}
                                 className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition-all outline-none"
                             />
                             <input 
+                                required
                                 type="text" placeholder="Code (e.g. CS-402)" value={courseCode}
                                 onChange={(e) => setCourseCode(e.target.value)}
                                 className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition-all outline-none uppercase"
@@ -357,7 +365,7 @@ const CourseManager = () => {
                             type="submit" disabled={loading}
                             className="w-full py-5 bg-indigo-600 text-white font-black rounded-[2rem] shadow-xl shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all uppercase text-xs tracking-widest disabled:bg-slate-300"
                         >
-                            {loading ? "Loading..." : "Add Courses"}
+                            {loading ? "Processing..." : "Add Course"}
                         </button>
                     </form>
                 </div>
@@ -372,44 +380,60 @@ const CourseManager = () => {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {assignedCourses.map((course) => (
-                                <div key={`course-${course.id || course.course_id}`} className="group bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100 hover:shadow-2xl hover:shadow-indigo-100 transition-all border-b-4 border-b-transparent hover:border-b-indigo-500">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="px-3 py-1 bg-indigo-50 rounded-full">
-                                            <span className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">
-                                                {course.course_code}
-                                            </span>
-                                        </div>
-                                        <button 
-                                            onClick={() => handleDelete(course.id || course.course_id, course.course_code)}
-                                            className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <h4 className="text-lg font-black text-slate-900 leading-tight mb-2 uppercase">
-                                        {course.course_name}
-                                    </h4>
-                                    <p className="text-xs text-slate-500 italic mb-6 line-clamp-2">
-                                        {course.description || "No description provided."}
-                                    </p>
-                                    <div className="pt-4 border-t border-slate-50 flex justify-between items-center flex-wrap gap-2">
-                                        <div className="flex gap-2">
-                                            <div className="text-[9px] font-black bg-slate-900 text-white px-2 py-1 rounded-lg uppercase">
-                                                SID: {course.section_id}
+                            {assignedCourses.map((course) => {
+                                // Dynamic resolve key for displaying generated codes safely on cards
+                                const displayCode = course.course_join_code || course.join_code;
+
+                                return (
+                                    <div 
+                                        key={`course-${course.id || course.course_id}`} 
+                                        className="group bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100 hover:shadow-2xl hover:shadow-indigo-100 transition-all border-b-4 border-b-transparent hover:border-b-indigo-500 text-left"
+                                    >
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="px-3 py-1 bg-indigo-50 rounded-full">
+                                                <span className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">
+                                                    {course.course_code}
+                                                </span>
                                             </div>
+                                            <button 
+                                                onClick={() => handleDelete(course.id || course.course_id, course.course_code)}
+                                                className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                                                title="Delete Course"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
                                         </div>
-                                        {/* Course Join Code Indicator Display */}
-                                        {course.course_join_code && (
-                                            <div className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-3 py-1 rounded-xl border border-emerald-200 select-all tracking-wider uppercase">
-                                                Code: {course.course_join_code}
+
+                                        <h4 className="text-lg font-black text-slate-900 leading-tight mb-2 uppercase">
+                                            {course.course_name}
+                                        </h4>
+                                        <p className="text-xs text-slate-500 italic mb-6 line-clamp-2">
+                                            {course.description || "No description provided."}
+                                        </p>
+
+                                        <div className="pt-4 border-t border-slate-50 flex justify-between items-center flex-wrap gap-2">
+                                            <div className="flex gap-2">
+                                                <div className="text-[9px] font-black bg-slate-900 text-white px-2 py-1 rounded-lg uppercase">
+                                                    SID: {course.section_id}
+                                                </div>
                                             </div>
-                                        )}
+
+                                            {/* Renders generated code or alternative error-prevention text fallback */}
+                                            {displayCode ? (
+                                                <div className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-3 py-1 rounded-xl border border-emerald-200 select-all tracking-wider uppercase">
+                                                    Code: {displayCode}
+                                                </div>
+                                            ) : (
+                                                <div className="text-[9px] font-bold bg-amber-50 text-amber-600 px-2 py-1 rounded-lg italic">
+                                                    Code Pending
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

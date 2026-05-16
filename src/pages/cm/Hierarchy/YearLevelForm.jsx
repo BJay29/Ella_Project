@@ -110,11 +110,21 @@ const YearLevelForm = ({ deptId, programId, onNext }) => {
     };
 
     /**
-     * Deletion Logic
+     * Updated Deletion Logic
+     * Verifies parent and child contexts, safely triggers the endpoint, and provides reliable cleanups.
      */
     const handleDelete = async () => {
         const id = getYearId(yearToDelete);
-        if (!deptId || !programId || !id) return;
+        
+        if (!deptId || !programId) {
+            alert("Deletion failed: Department or Program context context is missing.");
+            return;
+        }
+
+        if (!id) {
+            alert("Deletion failed: Unable to resolve a target Year Level ID.");
+            return;
+        }
 
         setLoading(true);
         try {
@@ -122,15 +132,17 @@ const YearLevelForm = ({ deptId, programId, onNext }) => {
             const response = await authAPI.deleteYearLevel(deptId, programId, id, token);
             
             if (response.ok) {
-                fetchYearLevels();
+                // Refresh records list from backend database
+                await fetchYearLevels();
                 setIsDeleteModalOpen(false);
                 setYearToDelete(null);
             } else {
                 const data = await response.json().catch(() => ({}));
-                alert(data.message || "Deletion failed");
+                alert(data.message || "The deletion request was rejected by the server.");
             }
         } catch (err) {
-            console.error("Delete Error:", err);
+            console.error("Delete operation encountered an exception:", err);
+            alert("A network error occurred while attempting to delete the year level.");
         } finally {
             setLoading(false);
         }
@@ -282,11 +294,13 @@ const YearLevelForm = ({ deptId, programId, onNext }) => {
                         <h3 className="text-xl font-black uppercase tracking-tighter italic mb-2 text-slate-900">Confirm Deletion</h3>
                         <p className="text-slate-600 text-sm mb-6 font-bold">
                             Are you sure you want to remove <span className="text-red-600 font-black italic">"{yearToDelete?.year_name}"</span>? 
-                            This action cannot be undone.
+                            <br />This action cannot be undone.
                         </p>
                         <div className="flex gap-3">
-                            <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-4 bg-slate-100 text-slate-900 font-black rounded-2xl text-xs uppercase tracking-widest">Cancel</button>
-                            <button onClick={handleDelete} className="flex-1 bg-red-600 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-lg shadow-red-200">Delete</button>
+                            <button onClick={() => { setIsDeleteModalOpen(false); setYearToDelete(null); }} className="flex-1 py-4 bg-slate-100 text-slate-900 font-black rounded-2xl text-xs uppercase tracking-widest">Cancel</button>
+                            <button onClick={handleDelete} disabled={loading} className="flex-1 bg-red-600 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-lg shadow-red-200">
+                                {loading ? 'Deleting...' : 'Delete'}
+                            </button>
                         </div>
                     </div>
                 </div>
