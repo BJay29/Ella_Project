@@ -408,6 +408,39 @@ gradeQuizEssay: async (answerId, gradeData, token) => {
 },
 
 // ─────────────────────────────────────────────────────────────────────────────
+// STUDENT INTERVENTION ENDPOINTS (GET & PATCH)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch all assigned interventions and remedial tasks for the logged-in student
+ * @param {string} token - Auth token of the student
+ */
+getStudentInterventions: async (token) => {
+    return await fetch(`${BASE_URL}/student/interventions`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+},
+
+/**
+ * Mark an assigned intervention remedial task as completed by the student
+ * @param {string|number} interventionId - ID of the target intervention record
+ * @param {string} token - Auth token of the student
+ */
+completeStudentInterventionTask: async (interventionId, token) => {
+    return await fetch(`${BASE_URL}/student/interventions/${interventionId}/complete-task`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+},
+
+// ─────────────────────────────────────────────────────────────────────────────
 // INTERVENTION INSTRUCTOR ENDPOINTS (GET & PATCH)
 // ─────────────────────────────────────────────────────────────────────────────
 
