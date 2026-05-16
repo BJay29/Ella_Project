@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef, useImperativeHandle } from 'react';
 import { authAPI } from '../../../services/APIservice';
-// Import Toast for modern notifications
+// Import Toast components for clean, modern user feedback notifications
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 /**
  * CourseForm Component
- * Manages the creation and deletion of courses within a specific academic hierarchy.
- * Displays the generated course join code within an integrated preview card upon successful creation.
+ * Manages the creation and explicit deletion processes of courses within an academic hierarchy.
+ * Automatically handles and prints generated registration codes within an emerald deployment card.
  */
-const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) => {
-    // --- LOCAL STATE ---
+const CourseForm = forwardRef(({ deptId, programId, yearLevelId, sectionId, onSuccess }, ref) => {
+    // --- LOCAL FORM FIELDS STATE ---
     const [formData, setFormData] = useState({
         course_name: '',
         course_code: '',
@@ -21,26 +21,36 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
     const [error, setError] = useState('');
     const [generatedCode, setGeneratedCode] = useState(null);
     
-    // States managed for handling course deletions
+    // --- OVERLAY/MODAL CONTROL STATE ---
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [courseIdToDelete, setCourseIdToDelete] = useState(null);
     const [courseCodeToDelete, setCourseCodeToDelete] = useState('');
 
-    // --- FORM SUBMISSION (CREATE) ---
+    /**
+     * Expose confirmDeleteCourse to parent layers using refs.
+     * This prevents authorization routing crashes if mapped externally.
+     */
+    useImperativeHandle(ref, () => ({
+        triggerExternalDelete(id, code) {
+            confirmDeleteCourse(id, code);
+        }
+    }));
+
+    // --- FORM SUBMISSION HANDLER (CREATE) ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        setGeneratedCode(null); // Reset code state on new creation attempts
+        setGeneratedCode(null); // Clear previous results before starting network call
 
-        // Validation: Ensure all form fields are filled
+        // Validate local input completion
         if (!formData.course_name || !formData.course_code || !formData.description) {
             setError("Please provide Course Name, Code, and Description.");
             return;
         }
 
-        // Validation: Ensure the full hierarchy is selected from the parent component
+        // Validate parameter hierarchy exists to block invalid/NaN API requests
         if (!deptId || !programId || !yearLevelId || !sectionId) {
-            setError("Hierarchy incomplete. Please ensure Dept, Program, Year, and Section are selected.");
+            setError("Hierarchy context missing. Verify Dept, Program, Year, and Section choices.");
             return;
         }
 
@@ -52,51 +62,44 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
                 course_name: formData.course_name.trim(),
                 course_code: formData.course_code.trim().toUpperCase(),
                 description: formData.description.trim(),
-                section_id: parseInt(sectionId) 
+                section_id: parseInt(sectionId, 10) 
             };
 
+            // Safeguard parsing values using fallback primitives to prevent token authorization drops
             const res = await authAPI.createCourse(
-                parseInt(deptId), 
-                parseInt(programId), 
-                parseInt(yearLevelId), 
-                parseInt(sectionId),
+                parseInt(deptId || 0, 10), 
+                parseInt(programId || 0, 10), 
+                parseInt(yearLevelId || 0, 10), 
+                parseInt(sectionId || 0, 10),
                 courseData, 
                 token
             );
 
             if (res.ok) {
                 const result = await res.json();
-                // Extract course_join_code from multiple common backend payload structures
+                // Read join properties from flexible nested backend JSON trees
                 const joinCode = result.course_join_code || result.join_code || result.data?.course_join_code || result.data?.join_code;
 
-                // Clear local form state inputs
+                // Clear input tracking states
                 setFormData({ course_name: '', course_code: '', description: '' });
                 
-                // Trigger Top-Right Toast Notification
                 toast.success("Course successfully created and assigned!", {
                     position: "top-right",
                     autoClose: 3000,
-                    hideProgressBar: false,
-                    closeOnClick: true,
-                    pauseOnHover: true,
-                    draggable: true,
                     theme: "colored",
                 });
 
-                // Display the join code if successfully returned by the backend server
                 if (joinCode) {
                     setGeneratedCode(joinCode);
                 } else {
-                    // Fallback notice if response succeeds but no join string was bundled
                     setGeneratedCode("SUCCESS_NO_CODE");
                 }
 
-                // Trigger parent layer dataset refresh callback
+                // Call parent data refresh hook
                 if (onSuccess) onSuccess(); 
             } else {
                 const errData = await res.json().catch(() => ({}));
                 
-                // Handle raw backend endpoint routing structures or fallback errors
                 if (typeof errData === 'string' && errData.includes("<!DOCTYPE")) {
                     setError("Endpoint Error: The API route structure was not recognized.");
                 } else {
@@ -104,28 +107,21 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
                 }
             }
         } catch (err) {
-            setError("Connection failed. Please check your backend server.");
-            console.error("Submission Error:", err);
+            setError("Connection failed. Please check your backend server configuration.");
+            console.error("Submission Failure Context:", err);
         } finally {
             setLoading(false);
         }
     };
 
-    // --- DELETION HANDLERS ---
-    /**
-     * Prepares the component state for deleting a course and displays the modal confirmation overlay.
-     * Exported or called directly when layout mapping runs inside parent layers.
-     */
+    // --- DELETION INTERACTION FLOWS ---
     const confirmDeleteCourse = (id, code) => {
         setCourseIdToDelete(id);
         setCourseCodeToDelete(code);
         setIsDeleteModalOpen(true);
     };
 
-    /**
-     * Executes the API network request call to permanently delete a course entry.
-     */
-    const handleDelete = async () => {
+    const handleDeleteExecution = async () => {
         if (!courseIdToDelete) return;
 
         setLoading(true);
@@ -133,28 +129,28 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
         try {
             const token = localStorage.getItem('token');
             
+            // Safe fallback logic embedded to preserve absolute parameter paths on server routing paths
             const res = await authAPI.deleteCourse(
-                parseInt(deptId),
-                parseInt(programId),
-                parseInt(yearLevelId),
-                parseInt(sectionId),
-                parseInt(courseIdToDelete),
+                parseInt(deptId || 0, 10),
+                parseInt(programId || 0, 10),
+                parseInt(yearLevelId || 0, 10),
+                parseInt(sectionId || 0, 10),
+                parseInt(courseIdToDelete, 10),
                 token
             );
 
             if (res.ok) {
-                toast.error(`Course ${courseCodeToDelete} successfully deleted.`, {
+                toast.error(`Course ${courseCodeToDelete || ''} successfully removed.`, {
                     position: "top-right",
                     autoClose: 3000,
                     theme: "colored",
                 });
                 
-                // Reset structural deletion state variables
+                // Clear transient contextual state flags cleanly
                 setIsDeleteModalOpen(false);
                 setCourseIdToDelete(null);
                 setCourseCodeToDelete('');
                 
-                // Refresh data structures on the parent layout layer
                 if (onSuccess) onSuccess();
             } else {
                 const errData = await res.json().catch(() => ({}));
@@ -163,7 +159,7 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
             }
         } catch (err) {
             setError("Network error occurred during course removal.");
-            console.error("Delete Error:", err);
+            console.error("Deletion Routing Fault:", err);
             setIsDeleteModalOpen(false);
         } finally {
             setLoading(false);
@@ -172,7 +168,6 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
 
     return (
         <div className="max-w-2xl mx-auto bg-white p-8 md:p-12 rounded-[2.5rem] shadow-xl border border-slate-100 text-left relative">
-            {/* Toast Container to render structural overlay notifications */}
             <ToastContainer />
 
             <div className="mb-8 flex justify-between items-start">
@@ -186,7 +181,6 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
                 </div>
             </div>
 
-            {/* Error Feedback Display Panel */}
             {error && (
                 <div className="mb-6 p-4 bg-rose-50 border border-rose-100 text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center">
                     {error}
@@ -196,7 +190,7 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 gap-6">
                     
-                    {/* Course Title Field */}
+                    {/* Course Title */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-500 ml-2">
                             Course Title
@@ -210,7 +204,7 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
                         />
                     </div>
 
-                    {/* Catalog Code Field */}
+                    {/* Course Code */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-500 ml-2">
                             Course Code
@@ -224,7 +218,7 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
                         />
                     </div>
 
-                    {/* Description Textarea Field */}
+                    {/* Description Textarea */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-500 ml-2">
                             Description
@@ -238,7 +232,6 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
                     </div>
                 </div>
 
-                {/* Form Action Submit Button */}
                 <button 
                     type="submit"
                     disabled={loading}
@@ -248,12 +241,10 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
                 </button>
             </form>
 
-            {/* INTEGRATED GENERATED CARD VIEW DISPLAY */}
+            {/* DEPLOYMENT METRICS INFOCARD */}
             {generatedCode && (
                 <div className="mt-8 pt-6 border-t border-slate-100 animate-in fade-in zoom-in-95 duration-300">
                     <div className="bg-emerald-50 border border-emerald-200 rounded-[2rem] p-6 relative overflow-hidden">
-                        
-                        {/* Decorative background element */}
                         <div className="absolute right-4 bottom-2 text-6xl opacity-10 select-none pointer-events-none">
                             ✨
                         </div>
@@ -291,9 +282,9 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
                 </div>
             )}
 
-            {/* DELETE CONFIRMATION MODAL OVERLAY */}
+            {/* DELETE MODAL OVERLAY PORTAL */}
             {isDeleteModalOpen && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left">
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left animate-in fade-in duration-200">
                     <div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden animate-in zoom-in duration-200 shadow-2xl">
                         <div className="bg-rose-500 p-6 text-white text-center">
                             <div className="text-3xl mb-2">🗑️</div>
@@ -314,9 +305,9 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
                                     Cancel
                                 </button>
                                 <button
-                                    onClick={handleDelete}
+                                    onClick={handleDeleteExecution}
                                     disabled={loading}
-                                    className="flex-1 py-4 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-rose-100 transition-all active:scale-95"
+                                    className="flex-1 py-4 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-rose-100 transition-all active:scale-95 disabled:bg-slate-300"
                                 >
                                     {loading ? 'Deleting...' : 'Confirm'}
                                 </button>
@@ -327,6 +318,9 @@ const CourseForm = ({ deptId, programId, yearLevelId, sectionId, onSuccess }) =>
             )}
         </div>
     );
-};
+});
+
+// Set descriptive display name for dev tools troubleshooting reference
+CourseForm.displayName = 'CourseForm';
 
 export default CourseForm;
