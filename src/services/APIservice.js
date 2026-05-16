@@ -99,7 +99,7 @@ joinSection: async (sectionCode, token) => {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${cleanToken}`
             },
-            body: JSON.stringify({ section_code: sectionCode })
+            body: JSON.stringify({course_join_code: courseCode })
         });
 
         return response;

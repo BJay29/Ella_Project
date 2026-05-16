@@ -32,24 +32,19 @@ const normalise = (raw) => ({
     raw.course?.id ||
     raw.section?.course_id,
 
-  // ✅ FIXED COURSE NAME
   course_name:
     raw.course_name ||
     raw.course?.course_name ||
     raw.course?.name ||
-    raw.course?.name ||
     raw.section?.course_name ||
     raw.section?.course?.course_name ||
-    raw.section?.course?.name ||
     raw.section?.course?.name ||
     raw.subject_name ||
     raw.subject ||
     raw.courseName ||
     raw.name ||
-    raw.course_name||
     'Untitled Course',
 
-  // ✅ FIXED SECTION NAME
   section_name:
     raw.section_name ||
     raw.section?.section_name ||
@@ -63,7 +58,6 @@ const normalise = (raw) => ({
     raw.section?.section_code ||
     raw.code,
 
-  // ✅ FIXED PROGRAM
   program:
     raw.program_name ||
     raw.program ||
@@ -72,7 +66,6 @@ const normalise = (raw) => ({
     raw.course?.program_name ||
     'N/A',
 
-  // ✅ FIXED INSTRUCTOR
   instructor:
     raw.instructor_name ||
     raw.instructor ||
@@ -130,9 +123,6 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GClass Material Type Config
-// ─────────────────────────────────────────────────────────────────────────────
 const getMaterialConfig = (fileType = '') => {
   const type = fileType.toLowerCase();
   if (type.includes('pdf') || type === 'pdf') return {
@@ -192,9 +182,6 @@ const getMaterialConfig = (fileType = '') => {
   };
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Google Classroom-style Full-Screen Material Viewer Modal
-// ─────────────────────────────────────────────────────────────────────────────
 const MaterialViewerModal = ({ material, onClose }) => {
   if (!material) return null;
 
@@ -205,37 +192,31 @@ const MaterialViewerModal = ({ material, onClose }) => {
   const fileType = (material.file_type || material.type || '').toLowerCase();
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
 
-  // ── Derive ext from URL as fallback ──
   const getExtFromUrl = (url = '') => url.split('.').pop()?.split('?')[0]?.toLowerCase() || '';
   const resolvedFileType = fileType || getExtFromUrl(fileUrl);
 
   useEffect(() => {
-  const loadPdf = async () => {
-    if (!fileUrl) return;
-
-    try {
-      const res = await fetch(fileUrl);
-      const blob = await res.blob();
-
-      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-      const url = URL.createObjectURL(pdfBlob);
-
-      setPdfBlobUrl(url);
-    } catch (err) {
-      console.error("PDF load error:", err);
+    const loadPdf = async () => {
+      if (!fileUrl) return;
+      try {
+        const res = await fetch(fileUrl);
+        const blob = await res.blob();
+        const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+        const url = URL.createObjectURL(pdfBlob);
+        setPdfBlobUrl(url);
+      } catch (err) {
+        console.error("PDF load error:", err);
+      }
+    };
+    if (resolvedFileType.includes('pdf')) {
+      loadPdf();
     }
-  };
-
-  if (resolvedFileType.includes('pdf')) {
-    loadPdf();
-  }
-
- return () => {
-  if (pdfBlobUrl) {
-    URL.revokeObjectURL(pdfBlobUrl);
-  }
-};
-}, [fileUrl]);
+    return () => {
+      if (pdfBlobUrl) {
+        URL.revokeObjectURL(pdfBlobUrl);
+      }
+    };
+  }, [fileUrl]);
 
   const handleDownload = async () => {
     if (!fileUrl) return;
@@ -268,37 +249,26 @@ const MaterialViewerModal = ({ material, onClose }) => {
       );
     }
 
-    // ── PDF: direct iframe embed, no Google Docs proxy ──
-if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
-  return pdfBlobUrl ? (
-    <iframe
-      src={pdfBlobUrl}
-      className="w-full h-full border-0"
-      title={title}
-    />
-  ) : (
-    <div className="flex items-center justify-center h-full">
-      <span className="text-sm text-gray-400">Loading PDF...</span>
-    </div>
-  );
-}
-    // ── VIDEO: object-contain, native controls ──
+    if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
+      return pdfBlobUrl ? (
+        <iframe src={pdfBlobUrl} className="w-full h-full border-0" title={title} />
+      ) : (
+        <div className="flex items-center justify-center h-full">
+          <span className="text-sm text-gray-400">Loading PDF...</span>
+        </div>
+      );
+    }
+
     if (resolvedFileType.includes('video') || ['mp4','webm','mov','avi','mkv'].includes(resolvedFileType)) {
       return (
         <div className="flex items-center justify-center h-full bg-black">
-          <video
-            src={fileUrl}
-            controls
-            autoPlay={false}
-            className="w-full h-full object-contain"
-          >
+          <video src={fileUrl} controls autoPlay={false} className="w-full h-full object-contain">
             Your browser does not support video playback.
           </video>
         </div>
       );
     }
 
-    // ── AUDIO: centered player with icon ──
     if (resolvedFileType.includes('audio') || ['mp3','wav','ogg','flac','aac'].includes(resolvedFileType)) {
       return (
         <div className="flex flex-col items-center justify-center h-full gap-10 bg-gray-50 dark:bg-gray-900/30 px-8">
@@ -318,11 +288,7 @@ if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
       );
     }
 
-    // ── IMAGE: inline display, object-contain, no new tab ──
-    if (
-      resolvedFileType.includes('image') ||
-      ['jpg','jpeg','png','gif','webp','svg','bmp','tiff'].includes(resolvedFileType)
-    ) {
+    if (resolvedFileType.includes('image') || ['jpg','jpeg','png','gif','webp','svg','bmp','tiff'].includes(resolvedFileType)) {
       return (
         <div className="flex items-center justify-center h-full w-full bg-gray-50 dark:bg-gray-900/30 p-6 overflow-auto">
           <img
@@ -335,7 +301,6 @@ if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
               e.target.nextSibling && (e.target.nextSibling.style.display = 'flex');
             }}
           />
-          {/* Fallback if image fails to load */}
           <div className="hidden flex-col items-center justify-center gap-4 text-gray-400">
             <svg className="w-16 h-16 opacity-30" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
@@ -352,7 +317,6 @@ if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
       );
     }
 
-    // ── GENERIC: no preview, download prompt ──
     return (
       <div className="flex flex-col items-center justify-center h-full gap-6 bg-gray-50 dark:bg-gray-900/30 px-8">
         <div className={`w-28 h-28 ${config.bg} rounded-3xl flex items-center justify-center text-white shadow-2xl`}>
@@ -379,14 +343,9 @@ if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
 
   return (
     <>
-      {/* ── Full-screen fixed overlay ── */}
       <div className="fixed inset-0 z-[300] flex flex-col bg-white dark:bg-gray-900" style={{ animation: 'gclassViewerIn 0.2s ease-out' }}>
-
-        {/* ── Top Navigation Bar ── */}
         <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-          {/* Left: Close + File Info */}
           <div className="flex items-center gap-4 min-w-0">
-            {/* Close button */}
             <button
               onClick={onClose}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all font-black text-[10px] uppercase tracking-widest flex-shrink-0"
@@ -396,11 +355,7 @@ if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
               </svg>
               Close
             </button>
-
-            {/* Divider */}
             <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
-
-            {/* File type badge + title */}
             <div className="flex items-center gap-3 min-w-0">
               <div className={`${config.bg} w-8 h-8 rounded-lg flex items-center justify-center text-white flex-shrink-0`}>
                 <div className="scale-[0.65]">{config.icon}</div>
@@ -418,8 +373,6 @@ if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
               </span>
             </div>
           </div>
-
-          {/* Right: Action buttons */}
           <div className="flex items-center gap-2 flex-shrink-0 ml-4">
             {fileUrl && (
               <a
@@ -447,13 +400,10 @@ if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
             )}
           </div>
         </div>
-
-        {/* ── Main Content Area ── */}
         <div className="flex-1 overflow-hidden">
           {renderContent()}
         </div>
       </div>
-
       <style>{`
         @keyframes gclassViewerIn {
           from { opacity: 0; transform: scale(0.99) translateY(6px); }
@@ -466,9 +416,6 @@ if (resolvedFileType.includes('pdf') || resolvedFileType === 'pdf') {
   );
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GClassroom-style Material Row (Student View) — clickable
-// ─────────────────────────────────────────────────────────────────────────────
 const GClassMaterialRow = ({ file, onView }) => {
   const config = getMaterialConfig(file.file_type || file.type || '');
   const title = file.title || file.original_name || file.file_name || 'Material File';
@@ -518,7 +465,6 @@ const GClassMaterialRow = ({ file, onView }) => {
   );
 };
 
-// ── ENROLLMENT CARD COMPONENT ──
 const EnrollmentCard = ({ enroll, onClick, onUnenroll }) => {
   const isApproved = enroll.status?.toLowerCase() === 'approved' || enroll.status?.toLowerCase() === 'active';
   const [showOptions, setShowOptions] = useState(false);
@@ -627,75 +573,60 @@ const JoinModal = ({
   onJoin,
   onClose
 }) => {
-
   const handleInputChange = (e) => {
-    if (typeof setSectionCode === 'function') {
-      setSectionCode(e.target.value);
-    }
-
-    if (typeof setJoinStatus === 'function') {
-      setJoinStatus('idle');
-    }
-
-    if (typeof setJoinMessage === 'function') {
-      setJoinMessage('');
-    }
+    if (typeof setSectionCode === 'function') setSectionCode(e.target.value);
+    if (typeof setJoinStatus === 'function') setJoinStatus('idle');
+    if (typeof setJoinMessage === 'function') setJoinMessage('');
   };
 
   return (
     <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden">
-        
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-50 dark:border-gray-700">
-          <h2 className="text-lg font-black text-gray-800 dark:text-white">
-            Join Section
-          </h2>
-
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl"
-          >
-            &times;
-          </button>
+          <h2 className="text-lg font-black text-gray-800 dark:text-white">Join Section</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
         </div>
-
         <div className="px-6 py-6 text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            Enter the section code provided by your instructor.
+            Enter the course join code provided by your instructor.
           </p>
-
           <input
             type="text"
             value={sectionCode || ''}
             onChange={handleInputChange}
             className="w-full py-4 px-4 rounded-2xl outline-none border-2 border-gray-100 dark:border-gray-700 focus:border-[#4CAF50] text-gray-800 dark:text-white font-black tracking-widest text-center text-xl uppercase bg-gray-50 dark:bg-gray-900/50"
-            placeholder="CODE"
-            maxLength={10}
+            placeholder="JOIN CODE"
+            maxLength={20}
           />
-
+          {joinStatus === 'success' && (
+            <p className="text-xs text-green-500 font-bold mt-4">
+              ✅ Successfully joined! Redirecting...
+            </p>
+          )}
           {joinStatus === 'error' && (
             <p className="text-xs text-red-500 font-bold mt-4">
               ⚠️ {joinMessage}
             </p>
           )}
         </div>
-
         <div className="px-6 pb-6">
           <button
             onClick={onJoin}
-            disabled={joinStatus === 'loading' || !sectionCode?.trim()}
+            disabled={joinStatus === 'loading' || joinStatus === 'success' || !sectionCode?.trim()}
             className="w-full py-4 rounded-2xl bg-[#4CAF50] text-white font-bold hover:bg-[#43A047] active:scale-95 transition-all shadow-lg disabled:opacity-50"
           >
             {joinStatus === 'loading'
               ? 'Processing...'
+              : joinStatus === 'success'
+              ? 'Joined!'
               : 'Send Join Request'}
           </button>
         </div>
-
       </div>
     </div>
   );
 };
+
 const MyCourses = () => {
   const { addJoinNotification, notificationsEnabled } = useNotification();
   const [enrollments, setEnrollments] = useState([]);
@@ -714,7 +645,6 @@ const MyCourses = () => {
 
   const [successToast, setSuccessToast] = useState({ show: false, message: '' });
 
-  // ── Material Viewer State ──
   const [viewerMaterial, setViewerMaterial] = useState(null);
   const [isFetchingMaterial, setIsFetchingMaterial] = useState(false);
 
@@ -730,12 +660,13 @@ const MyCourses = () => {
       if (!res.ok) throw new Error('Could not fetch courses.');
       const data = await res.json();
       const raw = Array.isArray(data) ? data : (data.data || data.sections || data.enrollments || []);
-setEnrollments(
-  raw.map(item => {
-    console.log("RAW ENROLLMENT:", item);
-    return normalise(item);
-  })
-);    } catch (err) {
+      setEnrollments(
+        raw.map(item => {
+          console.log("RAW ENROLLMENT:", item);
+          return normalise(item);
+        })
+      );
+    } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -789,7 +720,6 @@ setEnrollments(
     }
   };
 
-  // ── Open material viewer — fetch specific material if no URL yet ──
   const handleViewMaterial = async (file) => {
     if (file.file_url || file.url) {
       setViewerMaterial(file);
@@ -819,94 +749,91 @@ setEnrollments(
   };
 
   useEffect(() => { fetchEnrollments(); }, [fetchEnrollments]);
-const handleJoin = async () => {
 
-  const code = sectionCode?.trim()?.toUpperCase();
+  // ── FIXED: handleJoin uses course_join_code ──
+  const handleJoin = async () => {
+    const code = sectionCode?.trim()?.toUpperCase();
 
-  if (!code) {
-    setJoinStatus('error');
-    setJoinMessage('Section code is required.');
-    return;
-  }
-
-  const token = getToken();
-
-  if (!token) {
-    setJoinStatus('error');
-    setJoinMessage('Session expired.');
-    return;
-  }
-
-  setJoinStatus('loading');
-  setJoinMessage('');
-
-  try {
-
-    console.log('Joining section:', code);
-
-    // ✅ FIXED API CALL
-    const res = await authAPI.joinSection(code, token);
-
-    let data = {};
-
-    try {
-      data = await res.json();
-    } catch (err) {
-      console.error('JSON Parse Error:', err);
+    if (!code) {
+      setJoinStatus('error');
+      setJoinMessage('Course join code is required.');
+      return;
     }
 
-    console.log('JOIN RESPONSE:', data);
+    const token = getToken();
+    if (!token) {
+      setJoinStatus('error');
+      setJoinMessage('Session expired.');
+      return;
+    }
 
-    if (res.ok) {
+    setJoinStatus('loading');
+    setJoinMessage('');
 
-      setJoinStatus('success');
+    try {
+      console.log('Joining with course_join_code:', code);
 
-      await fetchEnrollments();
+      const res = await fetch('https://ellaquest-backend.onrender.com/api/student/sections/join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          course_join_code: code,   // ✅ correct field name
+        }),
+      });
 
-      if (notificationsEnabled) {
-        addJoinNotification(
-          code,
-          data?.section_name || code,
-          data?.course_name || ''
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (err) {
+        console.error('JSON Parse Error:', err);
+      }
+
+      console.log('JOIN RESPONSE:', data);
+
+      if (res.ok) {
+        setJoinStatus('success');
+        await fetchEnrollments();
+
+        if (notificationsEnabled) {
+          addJoinNotification(
+            code,
+            data?.course?.course_name || data?.course_name || '',
+            data?.section?.section_name || data?.section_name || ''
+          );
+        }
+
+        setTimeout(() => {
+          setShowModal(false);
+          setJoinStatus('idle');
+          setJoinMessage('');
+          setSectionCode('');
+        }, 1200);
+
+      } else {
+        setJoinStatus('error');
+        setJoinMessage(
+          data?.message ||
+          data?.error ||
+          `Join failed (${res.status})`
         );
       }
 
-      setTimeout(() => {
-        setShowModal(false);
-        setJoinStatus('idle');
-        setJoinMessage('');
-        setSectionCode('');
-      }, 1200);
-
-    } else {
-
+    } catch (err) {
+      console.error('JOIN ERROR:', err);
       setJoinStatus('error');
-
-      setJoinMessage(
-        data?.message ||
-        data?.error ||
-        `Join failed (${res.status})`
-      );
+      setJoinMessage(err?.message || 'Network connection error.');
     }
+  };
 
-  } catch (err) {
-
-    console.error('JOIN ERROR:', err);
-
-    setJoinStatus('error');
-
-    setJoinMessage(
-      err?.message || 'Network connection error.'
-    );
-  }
-};
   // ── SECTION DETAIL VIEW ──
   if (selectedSectionId && !loading) {
     const classmatesList = sectionDetails?.classmates || sectionDetails?.students || [];
 
     return (
       <div className="w-full h-screen flex flex-col bg-white dark:bg-gray-900 relative overflow-hidden">
-        {/* Top Nav */}
         <div className="flex border-b border-gray-100 dark:border-gray-800 px-8 h-16 items-center justify-between bg-white dark:bg-gray-800 sticky top-0 z-30">
           <button
             onClick={() => setSelectedSectionId(null)}
@@ -930,7 +857,6 @@ const handleJoin = async () => {
           </button>
         </div>
 
-        {/* ── Scrollable content — scrollbar hidden ── */}
         <div className="flex-grow overflow-y-auto bg-gray-50 dark:bg-gray-900/50 no-scrollbar">
           <div className="max-w-7xl mx-auto px-8 py-10">
             {loadingDetails ? (
@@ -939,7 +865,6 @@ const handleJoin = async () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Course Banner */}
                 <div className="lg:col-span-4 bg-[#4CAF50] rounded-2xl p-8 text-white relative h-52 flex flex-col justify-end shadow-lg overflow-hidden border-4 border-white dark:border-gray-800">
                   <div className="absolute top-0 left-1/4 w-full h-full bg-gradient-to-br from-white/5 to-transparent skew-x-12"></div>
                   <h1 className="text-4xl font-black z-10 drop-shadow-md tracking-tight">
@@ -957,7 +882,6 @@ const handleJoin = async () => {
                   <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
                 </div>
 
-                {/* Right Sidebar */}
                 <div className="lg:col-span-1 lg:order-2 space-y-6">
                   <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Student Profile</h4>
@@ -992,7 +916,6 @@ const handleJoin = async () => {
                   </div>
                 </div>
 
-                {/* Main Content */}
                 <div className="lg:col-span-3 lg:order-1 space-y-8">
                   <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
                     <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 dark:border-gray-700">
@@ -1038,7 +961,6 @@ const handleJoin = async () => {
           </div>
         </div>
 
-        {/* Loading overlay while fetching material */}
         {isFetchingMaterial && (
           <div className="fixed inset-0 z-[290] flex items-center justify-center bg-black/30 backdrop-blur-sm">
             <div className="bg-white dark:bg-gray-800 rounded-2xl px-8 py-6 flex items-center gap-4 shadow-2xl">
@@ -1051,12 +973,10 @@ const handleJoin = async () => {
           </div>
         )}
 
-        {/* GClass-style Full-Screen Material Viewer */}
         {viewerMaterial && (
           <MaterialViewerModal material={viewerMaterial} onClose={() => setViewerMaterial(null)} />
         )}
 
-        {/* People Slide-Over */}
         {showPeopleModal && (
           <div className="fixed inset-0 z-[100] flex justify-end">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowPeopleModal(false)}></div>
@@ -1166,18 +1086,23 @@ const handleJoin = async () => {
         )}
       </div>
 
-     {showModal && (
-  <JoinModal
-    sectionCode={sectionCode}
-    setSectionCode={setSectionCode}
-    joinStatus={joinStatus}
-    setJoinStatus={setJoinStatus}
-    joinMessage={joinMessage}
-    setJoinMessage={setJoinMessage}
-    onJoin={handleJoin}
-    onClose={() => setShowModal(false)}
-  />
-)}
+      {showModal && (
+        <JoinModal
+          sectionCode={sectionCode}
+          setSectionCode={setSectionCode}
+          joinStatus={joinStatus}
+          setJoinStatus={setJoinStatus}
+          joinMessage={joinMessage}
+          setJoinMessage={setJoinMessage}
+          onJoin={handleJoin}
+          onClose={() => {
+            setShowModal(false);
+            setJoinStatus('idle');
+            setJoinMessage('');
+            setSectionCode('');
+          }}
+        />
+      )}
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
