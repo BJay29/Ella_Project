@@ -22,11 +22,11 @@ const ProgramForm = ({ deptId, onNext }) => {
      * returned by the backend (id, _id, or program_id).
      */
     const getProgId = (prog) => {
-        return prog.id ?? prog._id ?? prog.program_id ?? prog.prog_id ?? null;
+        return prog?.id ?? prog?._id ?? prog?.program_id ?? prog?.prog_id ?? null;
     };
 
     /**
-     * Fetch programs from the new curriculum-manager endpoint
+     * Fetch programs from the curriculum-manager endpoint
      */
     const fetchPrograms = async () => {
         if (!deptId) {
@@ -36,17 +36,17 @@ const ProgramForm = ({ deptId, onNext }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            // Updated call: courseId is removed to match new API service
+            // CourseId is removed to match new API service requirements
             const response = await authAPI.getPrograms(deptId, token);
             
             if (response.ok) {
                 const data = await response.json();
-                // Handle different possible response structures
+                // Handle different possible response structures from the backend
                 const programsArray = Array.isArray(data) ? data : (data.programs || []);
                 setPrograms(programsArray);
             } else {
                 const errorData = await response.json().catch(() => ({}));
-                console.error("Fetch programs failed:", errorData.message);
+                console.error("Fetch programs failed:", errorData.message || "Unknown error");
             }
         } catch (err) {
             console.error("Failed to fetch programs:", err);
@@ -87,10 +87,10 @@ const ProgramForm = ({ deptId, onNext }) => {
 
             let response;
             if (editingId) {
-                // Update existing program using the new curriculum path
+                // Update existing program using the curriculum path
                 response = await authAPI.updateProgram(deptId, editingId, payload, token);
             } else {
-                // Create new program using the new curriculum path
+                // Create new program using the curriculum path
                 response = await authAPI.createProgram(deptId, payload, token);
             }
 
@@ -110,10 +110,20 @@ const ProgramForm = ({ deptId, onNext }) => {
 
     /**
      * Handle Program Deletion
+     * Updated with strict verification, cleaner feedback loops, and English logging.
      */
     const handleDelete = async () => {
         const id = getProgId(progToDelete);
-        if (!deptId || !id) return;
+        
+        if (!deptId) {
+            alert("Deletion failed: Department context is missing.");
+            return;
+        }
+        
+        if (!id) {
+            alert("Deletion failed: Unable to parse a valid Program ID.");
+            return;
+        }
 
         setLoading(true);
         try {
@@ -121,15 +131,17 @@ const ProgramForm = ({ deptId, onNext }) => {
             const response = await authAPI.deleteProgram(deptId, id, token);
             
             if (response.ok) {
+                // Re-fetch the newly modified listing from backend
                 await fetchPrograms();
                 setIsDeleteModalOpen(false);
                 setProgToDelete(null);
             } else {
                 const data = await response.json().catch(() => ({}));
-                alert(data.message || "Delete failed");
+                alert(data.message || "The deletion request was rejected by the server.");
             }
         } catch (err) {
-            console.error("Delete failed:", err);
+            console.error("Delete operation encountered an exception:", err);
+            alert("A network error occurred while attempting to delete the program.");
         } finally {
             setLoading(false);
         }

@@ -26,7 +26,7 @@ const DeptForm = ({ onNext }) => {
 
     // --- FETCH DATA ---
     /**
-     * Fetches all departments.
+     * Fetches all departments from the database.
      * Ensure backend endpoint: GET /api/curriculum-manager/departments
      */
     const fetchDepts = async () => {
@@ -54,9 +54,10 @@ const DeptForm = ({ onNext }) => {
     }, []);
 
     /**
-     * Extracts ID from department object regardless of naming (dept_id or id).
+     * Extracts ID securely from department object regardless of backend naming conventions.
      */
     const getDeptId = (dept) => {
+        if (!dept) return null;
         return dept.dept_id ?? dept.id ?? dept._id ?? dept.department_id ?? null;
     };
 
@@ -104,36 +105,39 @@ const DeptForm = ({ onNext }) => {
 
     // --- DELETE HANDLERS ---
     const confirmDelete = (e, dept) => {
-        e.stopPropagation(); // Prevents navigating to Programs when clicking delete
+        e.stopPropagation(); // Prevents triggers like navigating to Programs when clicking delete button
         setDeptToDelete(dept);
         setIsDeleteModalOpen(true);
     };
 
     /**
-     * Executes deletion.
-     * Backend MUST be configured with ON DELETE CASCADE to remove 
-     * nested Programs, Year Levels, Sections, and Courses.
+     * Executes deletion of the chosen department.
+     * Backend trigger will handle ON DELETE CASCADE to automatically clear 
+     * all nested Programs, Year Levels, Sections, and Courses linked to this department ID.
      */
     const handleDelete = async () => {
         const id = getDeptId(deptToDelete);
-        if (!id) return;
+        if (!id) {
+            alert("Error: Department ID could not be identified.");
+            return;
+        }
 
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const response = await authAPI.deleteDepartment(id, token);
             if (response.ok) {
-                // Refresh list after successful cascade deletion
+                // Refresh list to accurately represent data post cascade deletion
                 await fetchDepts();
                 setIsDeleteModalOpen(false);
                 setDeptToDelete(null);
             } else {
                 const data = await response.json().catch(() => ({}));
-                alert(data.message || "Delete failed");
+                alert(data.message || "Delete process failed on the server.");
             }
         } catch (err) {
             console.error("Delete failed:", err);
-            alert("Network error occurred during deletion.");
+            alert("Network error occurred during cascade deletion.");
         } finally {
             setLoading(false);
         }

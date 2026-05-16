@@ -7,7 +7,7 @@ import 'react-toastify/dist/ReactToastify.css';
 /**
  * CourseManager Component
  * Orchestrates the full academic hierarchy (Dept > Program > Year > Section)
- * to manage and assign courses. Replaced window.alert with Toast notifications.
+ * to manage and assign courses. Captures and renders generated course join codes.
  */
 const CourseManager = () => {
     // --- DATA STATE ---
@@ -191,15 +191,21 @@ const CourseManager = () => {
             );
 
             if (res.ok) {
+                const data = await res.json();
+                
                 await fetchRegisteredCourses(); 
                 setCourseName(''); 
                 setCourseCode(''); 
                 setDescription(''); 
                 
                 // --- Top Right Toast Notification ---
-                toast.success("Course successfully deployed to section!", {
+                const successMsg = data.course_join_code || data.data?.course_join_code
+                    ? `Course successfully deployed! Code: ${data.course_join_code || data.data?.course_join_code}`
+                    : "Course successfully deployed to section!";
+
+                toast.success(successMsg, {
                     position: "top-right",
-                    autoClose: 3000,
+                    autoClose: 5000,
                     theme: "colored",
                 });
             } else {
@@ -215,23 +221,42 @@ const CourseManager = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Confirm removal of this course?")) return;
+    // --- INSTANT DELETION HANDLER ---
+    const handleDelete = async (courseId, targetCourseCode) => {
         try {
             const token = localStorage.getItem('token');
-            const res = await authAPI.deleteCourse(id, token);
+            
+            // Fixed parameter cascading context matching your backend requirements
+            const res = await authAPI.deleteCourse(
+                parseInt(selectedDept),
+                parseInt(selectedProgram),
+                parseInt(selectedYear),
+                parseInt(selectedSection),
+                parseInt(courseId),
+                token
+            );
+
             if (res.ok) {
-                fetchRegisteredCourses();
-                toast.info("Course removed from curriculum.", { position: "top-right" });
+                // Refresh the list immediately after successful removal
+                await fetchRegisteredCourses();
+                toast.error(`Course ${targetCourseCode || ''} removed from curriculum.`, { 
+                    position: "top-right",
+                    autoClose: 3000,
+                    theme: "colored"
+                });
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.message || "Delete operation rejected by server.");
             }
         } catch (err) {
-            toast.error("Delete operation failed.");
+            console.error("Delete Error:", err);
+            toast.error("Delete operation failed due to connection error.");
         }
     };
 
     return (
         <div className="max-w-7xl mx-auto p-6 space-y-8 animate-in fade-in duration-500">
-            {/* 1. Added ToastContainer for notifications to appear */}
+            {/* Added ToastContainer for notifications to appear */}
             <ToastContainer />
 
             <div className="flex flex-col gap-2">
@@ -356,7 +381,7 @@ const CourseManager = () => {
                                             </span>
                                         </div>
                                         <button 
-                                            onClick={() => handleDelete(course.id || course.course_id)}
+                                            onClick={() => handleDelete(course.id || course.course_id, course.course_code)}
                                             className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -370,10 +395,18 @@ const CourseManager = () => {
                                     <p className="text-xs text-slate-500 italic mb-6 line-clamp-2">
                                         {course.description || "No description provided."}
                                     </p>
-                                    <div className="pt-4 border-t border-slate-50 flex gap-2">
-                                        <div className="text-[9px] font-black bg-slate-900 text-white px-2 py-1 rounded-lg uppercase">
-                                            SID: {course.section_id}
+                                    <div className="pt-4 border-t border-slate-50 flex justify-between items-center flex-wrap gap-2">
+                                        <div className="flex gap-2">
+                                            <div className="text-[9px] font-black bg-slate-900 text-white px-2 py-1 rounded-lg uppercase">
+                                                SID: {course.section_id}
+                                            </div>
                                         </div>
+                                        {/* Course Join Code Indicator Display */}
+                                        {course.course_join_code && (
+                                            <div className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-3 py-1 rounded-xl border border-emerald-200 select-all tracking-wider uppercase">
+                                                Code: {course.course_join_code}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}

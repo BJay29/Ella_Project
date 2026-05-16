@@ -13,7 +13,6 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [sectionToDelete, setSectionToDelete] = useState(null);
     const [editingId, setEditingId] = useState(null);
-    const [generatedCode, setGeneratedCode] = useState(null);
 
     const [formData, setFormData] = useState({
         section_name: '',
@@ -73,6 +72,7 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
 
     /**
      * Handles both Create and Update operations.
+     * Modified to directly close the modal upon creation without generating/showing codes.
      */
     const handleSaveSection = async (e) => {
         e.preventDefault();
@@ -100,15 +100,8 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
             }
 
             if (response.ok) {
-                const result = await response.json();
-                const newCode = result.section_code || result.data?.section_code;
-                
-                // If creating and a code is returned, show the success screen
-                if (!editingId && newCode) {
-                    setGeneratedCode(newCode);
-                } else {
-                    closeModal();
-                }
+                // Instantly close modal and refresh listings on successful action
+                closeModal();
                 fetchSections(); 
             } else {
                 const errorData = await response.json().catch(() => ({}));
@@ -175,7 +168,6 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
     const closeModal = () => {
         setIsModalOpen(false);
         setEditingId(null);
-        setGeneratedCode(null);
         setFormData({ section_name: '', school_year: '2025-2026', semester: '1st Semester' });
     };
 
@@ -201,7 +193,7 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                     <div className="relative flex-1 md:w-64">
                         <input
                             type="text"
-                            placeholder="Search section or code..."
+                            placeholder="Search section..."
                             className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 transition-all text-left"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -263,9 +255,6 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                                 </h3>
 
                                 <div className="mt-2 space-y-1">
-                                    <p className="text-[10px] font-black text-indigo-500 bg-indigo-50 inline-block px-3 py-1 rounded-full uppercase tracking-tighter">
-                                        Code: {section.section_code || '—'}
-                                    </p>
                                     <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest block">
                                         {section.semester} | {section.school_year}
                                     </p>
@@ -277,113 +266,86 @@ const SectionForm = ({ deptId, programId, yearLevelId, onNext }) => {
                 </div>
             )}
 
-            {/* Create/Edit Modal */}
+            {/* Create/Edit Modal Form */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left text-gray-800">
                     <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden animate-in zoom-in duration-200 shadow-2xl">
-                        {!generatedCode ? (
-                            <>
-                                <div className="bg-indigo-600 p-6 text-white text-center">
-                                    <h3 className="text-xl font-black uppercase tracking-tighter italic">
-                                        {editingId ? 'Edit Section' : 'Create Section'}
-                                    </h3>
-                                    <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-1">
-                                        Assigning to specific Year Level
-                                    </p>
-                                </div>
+                        <div className="bg-indigo-600 p-6 text-white text-center">
+                            <h3 className="text-xl font-black uppercase tracking-tighter italic">
+                                {editingId ? 'Edit Section' : 'Create Section'}
+                            </h3>
+                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-1">
+                                Assigning to specific Year Level
+                            </p>
+                        </div>
 
-                                <form onSubmit={handleSaveSection} className="p-8 space-y-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">
-                                            Section Name
-                                        </label>
-                                        <input
-                                            required
-                                            type="text"
-                                            className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-left"
-                                            placeholder="e.g., BSIT-4A"
-                                            value={formData.section_name}
-                                            onChange={(e) => setFormData({ ...formData, section_name: e.target.value })}
-                                        />
-                                    </div>
+                        <form onSubmit={handleSaveSection} className="p-8 space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">
+                                    Section Name
+                                </label>
+                                <input
+                                    required
+                                    type="text"
+                                    className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-left"
+                                    placeholder="e.g., BSIT-4A"
+                                    value={formData.section_name}
+                                    onChange={(e) => setFormData({ ...formData, section_name: e.target.value })}
+                                />
+                            </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">
-                                                Semester
-                                            </label>
-                                            <select
-                                                className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all"
-                                                value={formData.semester}
-                                                onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-                                            >
-                                                <option>1st Semester</option>
-                                                <option>2nd Semester</option>
-                                                <option>Summer</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">
-                                                School Year
-                                            </label>
-                                            <input
-                                                required
-                                                type="text"
-                                                className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-left"
-                                                placeholder="2025-2026"
-                                                value={formData.school_year}
-                                                onChange={(e) => setFormData({ ...formData, school_year: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">
+                                        Semester
+                                    </label>
+                                    <select
+                                        className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all"
+                                        value={formData.semester}
+                                        onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
+                                    >
+                                        <option>1st Semester</option>
+                                        <option>2nd Semester</option>
+                                        <option>Summer</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">
+                                        School Year
+                                    </label>
+                                    <input
+                                        required
+                                        type="text"
+                                        className="w-full mt-1.5 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-left"
+                                        placeholder="2025-2026"
+                                        value={formData.school_year}
+                                        onChange={(e) => setFormData({ ...formData, school_year: e.target.value })}
+                                    />
+                                </div>
+                            </div>
 
-                                    <div className="flex gap-3 pt-4">
-                                        <button
-                                            type="button"
-                                            onClick={closeModal}
-                                            className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 font-black rounded-2xl text-[10px] uppercase tracking-widest transition-all"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={loading}
-                                            className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95 disabled:opacity-50"
-                                        >
-                                            {loading ? 'SAVING...' : (editingId ? 'Update Section' : 'Save Section')}
-                                        </button>
-                                    </div>
-                                </form>
-                            </>
-                        ) : (
-                            <div className="p-10 text-center animate-in fade-in zoom-in duration-300">
-                                <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
-                                    ✅
-                                </div>
-                                <h3 className="text-2xl font-black text-gray-800 uppercase italic tracking-tighter">
-                                    Section Created!
-                                </h3>
-                                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2">
-                                    Share this code with your students:
-                                </p>
-                                <div className="mt-6 p-6 bg-indigo-50 rounded-[2rem] border-2 border-dashed border-indigo-200">
-                                    <span className="text-4xl font-black text-indigo-600 tracking-widest">
-                                        {generatedCode}
-                                    </span>
-                                </div>
+                            <div className="flex gap-3 pt-4">
                                 <button
+                                    type="button"
                                     onClick={closeModal}
-                                    className="w-full mt-8 py-4 bg-gray-900 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-black transition-all"
+                                    className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 font-black rounded-2xl text-[10px] uppercase tracking-widest transition-all"
                                 >
-                                    Got it, Close
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    {loading ? 'SAVING...' : (editingId ? 'Update Section' : 'Save Section')}
                                 </button>
                             </div>
-                        )}
+                        </form>
                     </div>
                 </div>
             )}
 
-            {/* Delete Modal */}
+            {/* Delete Confirmation Modal */}
             {isDeleteModalOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left text-gray-800">
                     <div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
