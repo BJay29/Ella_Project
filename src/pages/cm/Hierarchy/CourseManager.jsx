@@ -30,6 +30,11 @@ const CourseManager = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    // --- MODAL MODIFIED DELETION STATE ---
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [courseIdToDelete, setCourseIdToDelete] = useState(null);
+    const [courseCodeToDelete, setCourseCodeToDelete] = useState('');
+
     // --- INITIAL FETCH ---
     useEffect(() => {
         fetchDepartments();
@@ -194,13 +199,11 @@ const CourseManager = () => {
             if (res.ok) {
                 const data = await res.json();
                 
-                // Fetch updated dataset immediately to render new card with code
                 await fetchRegisteredCourses(); 
                 setCourseName(''); 
                 setCourseCode(''); 
                 setDescription(''); 
                 
-                // Extract generated code across common response properties
                 const activeCode = data.course_join_code || data.join_code || data.data?.course_join_code || data.data?.join_code;
 
                 const successMsg = activeCode
@@ -225,31 +228,41 @@ const CourseManager = () => {
         }
     };
 
-    // --- INSTANT DELETION HANDLER ---
-    const handleDelete = async (courseId, targetCourseCode) => {
-        if (!window.confirm(`Are you sure you want to remove ${targetCourseCode || 'this course'} from the curriculum?`)) {
-            return;
-        }
+    // --- DELETION OVERLAY PREPARATION ---
+    const triggerDeleteModal = (courseId, targetCourseCode) => {
+        setCourseIdToDelete(courseId);
+        setCourseCodeToDelete(targetCourseCode);
+        setIsDeleteModalOpen(true);
+    };
 
+    // --- SECURE DELETION EXECUTION HANDLER ---
+    const handleDeleteExecution = async () => {
+        if (!courseIdToDelete) return;
+
+        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             
+            // Appends selected routing elements along with mandatory bearer token mapping to prevent 401 Unauth
             const res = await authAPI.deleteCourse(
                 parseInt(selectedDept),
                 parseInt(selectedProgram),
                 parseInt(selectedYear),
                 parseInt(selectedSection),
-                parseInt(courseId),
+                parseInt(courseIdToDelete),
                 token
             );
 
             if (res.ok) {
                 await fetchRegisteredCourses();
-                toast.error(`Course ${targetCourseCode || ''} removed from curriculum.`, { 
+                toast.error(`Course ${courseCodeToDelete || ''} removed from curriculum.`, { 
                     position: "top-right",
                     autoClose: 3000,
                     theme: "colored"
                 });
+                setIsDeleteModalOpen(false);
+                setCourseIdToDelete(null);
+                setCourseCodeToDelete('');
             } else {
                 const errData = await res.json().catch(() => ({}));
                 toast.error(errData.message || "Delete operation rejected by server.");
@@ -257,6 +270,8 @@ const CourseManager = () => {
         } catch (err) {
             console.error("Delete Error:", err);
             toast.error("Delete operation failed due to connection error.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -381,7 +396,6 @@ const CourseManager = () => {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {assignedCourses.map((course) => {
-                                // Dynamic resolve key for displaying generated codes safely on cards
                                 const displayCode = course.course_join_code || course.join_code;
 
                                 return (
@@ -396,7 +410,7 @@ const CourseManager = () => {
                                                 </span>
                                             </div>
                                             <button 
-                                                onClick={() => handleDelete(course.id || course.course_id, course.course_code)}
+                                                onClick={() => triggerDeleteModal(course.id || course.course_id, course.course_code)}
                                                 className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
                                                 title="Delete Course"
                                             >
@@ -420,7 +434,6 @@ const CourseManager = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Renders generated code or alternative error-prevention text fallback */}
                                             {displayCode ? (
                                                 <div className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-3 py-1 rounded-xl border border-emerald-200 select-all tracking-wider uppercase">
                                                     Code: {displayCode}
@@ -438,6 +451,40 @@ const CourseManager = () => {
                     )}
                 </div>
             </div>
+
+            {/* --- CUSTOM DELETE CONFIRMATION MODAL OVERLAY --- */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden animate-in zoom-in duration-200 shadow-2xl">
+                        <div className="bg-rose-500 p-6 text-white text-center">
+                            <div className="text-3xl mb-2">🗑️</div>
+                            <h3 className="text-xl font-black uppercase tracking-tighter italic">Delete Course</h3>
+                        </div>
+                        <div className="p-8 text-center">
+                            <p className="text-gray-500 text-sm font-medium leading-relaxed mb-6">
+                                Are you sure you want to delete course <span className="font-black text-gray-800">"{courseCodeToDelete}"</span> from the curriculum?
+                                <br /><br />
+                                <span className="text-rose-500 font-bold uppercase text-[10px]">Warning:</span> This action is permanent and will drop all students enrolled via this course join code.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => { setIsDeleteModalOpen(false); setCourseIdToDelete(null); }}
+                                    className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 font-black rounded-2xl text-[10px] uppercase tracking-widest transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleDeleteExecution}
+                                    className="flex-1 py-4 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-rose-100 transition-all active:scale-95"
+                                >
+                                    Confirm
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
