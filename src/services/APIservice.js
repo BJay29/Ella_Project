@@ -92,7 +92,7 @@ joinSection: async (sectionCode, token) => {
     console.log("DEBUG: Sending Header ->", `Bearer ${cleanToken.substring(0, 20)}...`);
 
     try {
-        const response = await fetch(`${BASE_URL}/api/student/join-section`, {
+        const response = await fetch(`${BASE_URL}/api/student/join`, {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
